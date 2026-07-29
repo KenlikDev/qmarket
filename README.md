@@ -1,57 +1,79 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM), Server.
+# QMarket v0.1 — Modular Monolith Foundation
 
-* [/app/iosApp](./app/iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose
-  Multiplatform, you need this entry point for your iOS app. This is also where you should add SwiftUI code for your
-  project.
+Kotlin Multiplatform clients + Spring Boot 4.1 modular monolith backend.
 
-* [/app/shared](./app/shared/src) is for code that will be shared across your Compose Multiplatform applications. It
-  contains several subfolders:
-    - [commonMain](./app/shared/src/commonMain/kotlin) is for code that’s common for all targets.
-    - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name. For
-      example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-      the [iosMain](./app/shared/src/iosMain/kotlin) folder would be the right place for such calls. Similarly, if you
-      want to edit the Desktop (JVM) specific part, the [jvmMain](./app/shared/src/jvmMain/kotlin)
-      folder is the appropriate location.
+**Status:** production-ready foundation for local development and API work.
 
-* [/core](./core/src) is for the code that will be shared between all targets in the project. The most important
-  subfolder is [commonMain](./core/src/commonMain/kotlin). If preferred, you can add code to the platform-specific
-  folders here too.
+## What's in v0.1
 
-* [/server](./server/src/main/kotlin) is for the Ktor server application.
+### Backend (`server`)
+| Module | Responsibility |
+|--------|----------------|
+| `server` | Bootstrap, DataInitializer, config |
+| `server/common` | Security, JWT, exceptions, JPA base |
+| `server/identity` | Users, roles, register / login / refresh |
+| `server/catalog` | Categories & products CRUD + search |
 
-### Running the apps
+### Features
+- JWT access + refresh tokens (Spring Security)
+- Admin seed: `admin@qmarket.local` / `admin123`
+- Demo catalog: 3 categories, 8 products
+- OpenAPI / Swagger UI
+- Actuator health
+- Unit tests (services + JWT)
+- Controller slice tests
+- Integration tests (MockMvc + Testcontainers)
+- ktlint + JaCoCo
 
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and
-options:
+### Clients (starter from KMP template)
+Android, iOS, Desktop, Web — skeleton only; API integration starts in later versions.
 
-- Android app: `./gradlew :app:androidApp:assembleDebug`
-- Desktop app:
-    - Hot reload: `./gradlew :app:desktopApp:hotRun --auto`
-    - Standard run: `./gradlew :app:desktopApp:run`
-- Server: `./gradlew :server:run`
-- Web app:
-    - Wasm target (faster, modern browsers): `./gradlew :app:webApp:wasmJsBrowserDevelopmentRun`
-    - JS target (slower, supports older browsers): `./gradlew :app:webApp:jsBrowserDevelopmentRun`
-- iOS app: open the [/app/iosApp](./app/iosApp) directory in Xcode and run it from there.
+### Not in v0.1 (next)
+Cart, orders, payments, Flyway-as-source-of-truth schema, shared KMP DTOs wired to API, admin UI.
 
-### Running tests
+## Quick start
 
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
+```bash
+# 1. PostgreSQL
+docker compose up -d
 
-- Android tests: `./gradlew :app:shared:testAndroidHostTest`
-- Desktop tests: `./gradlew :app:shared:jvmTest`
-- Server tests: `./gradlew :server:test`
-- Web tests:
-    - Wasm target: `./gradlew :app:shared:wasmJsTest`
-    - JS target: `./gradlew :app:shared:jsTest`
-- iOS tests: `./gradlew :app:shared:iosSimulatorArm64Test`
+# 2. Server
+./gradlew :server:bootRun
+```
 
----
+| URL | |
+|-----|--|
+| Swagger | http://localhost:8080/swagger-ui.html |
+| Health | http://localhost:8080/actuator/health |
+| API base | http://localhost:8080/api/v1 |
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+### Admin
+- Email: `admin@qmarket.local`
+- Password: `admin123`
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack
-channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web). If you face any issues, please report them
-on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).
+### Useful commands
+
+```bash
+# Unit + controller tests (no Docker)
+./gradlew :server:common:test :server:identity:test :server:catalog:test
+
+# Integration tests (Docker required)
+./gradlew :server:test
+
+# Coverage
+./gradlew :server:identity:jacocoTestReport
+
+# Lint
+./gradlew :server:ktlintCheck
+./gradlew :server:ktlintFormat
+```
+
+## Stack
+- Kotlin 2.4.x / KMP
+- Spring Boot 4.1 / Spring Security 7
+- PostgreSQL 17
+- Gradle 9.6.1
+- JWT (jjwt), SpringDoc OpenAPI 3
+
+## Architecture note
+Modular monolith with bounded contexts (`identity`, `catalog`). Evolution path: monolith → clearer module boundaries → extract microservices when needed.

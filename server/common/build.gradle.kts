@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.kotlinJvm)
-    alias(libs.plugins.springBoot)
     alias(libs.plugins.springDependencyManagement)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.kotlinSpring)
@@ -31,35 +30,30 @@ dependencyManagement {
 }
 
 dependencies {
-    implementation(project(":server:common"))
-    implementation(project(":server:identity"))
-    implementation(project(":server:catalog"))
-    implementation(project(":core"))
+    api(project(":core"))
 
-    implementation(libs.spring.boot.starter.web)
-    implementation(libs.spring.boot.starter.actuator)
-    implementation(libs.spring.boot.starter.validation)
-    implementation(libs.flyway.core)
-    implementation(libs.flyway.database.postgresql)
-    implementation(libs.jackson.module.kotlin)
+    api(libs.spring.boot.starter)
+    api(libs.spring.boot.starter.web)
+    api(libs.spring.boot.starter.data.jpa)
+    api(libs.spring.boot.starter.security)
+    api(libs.spring.boot.starter.validation)
+    api(libs.spring.boot.starter.actuator)
 
-    implementation(libs.springdoc.openapi.starter.webmvc.ui)
+    api(libs.postgresql)
+    api(libs.flyway.core)
+    api(libs.flyway.database.postgresql)
 
-    developmentOnly(libs.spring.boot.devtools)
+    api(libs.bundles.jwt)
+
+    api(libs.kotlinx.serialization.json)
+    api(libs.kotlinx.coroutines.core)
+    api(libs.kotlin.reflect)
+    api(libs.jackson.module.kotlin)
 
     testImplementation(libs.spring.boot.starter.test)
-    testImplementation(libs.spring.boot.starter.webmvc.test)
-    testImplementation(libs.testcontainers)
-    testImplementation(libs.testcontainers.postgresql)
-    testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.mockk)
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
-    archiveBaseName.set("qmarket-server")
-    mainClass.set("com.kenlikdev.qmarket.QMarketApplicationKt")
 }
 
 tasks.named<Test>("test") {
@@ -79,7 +73,4 @@ ktlint {
     version.set("1.5.0")
     android.set(false)
     ignoreFailures.set(false)
-    filter {
-        exclude("**/generated/**")
-    }
 }

@@ -31,9 +31,17 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
+// Client apps
 include(":app:androidApp")
 include(":app:desktopApp")
 include(":app:shared")
 include(":app:webApp")
+
+// Shared domain
 include(":core")
+
+// Server - modular monolith (Spring Boot 4.1)
 include(":server")
+include(":server:common")
+include(":server:identity")
+include(":server:catalog")

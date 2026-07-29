@@ -1,0 +1,116 @@
+package com.kenlikdev.qmarket.catalog.dto
+
+import jakarta.validation.constraints.*
+import java.math.BigDecimal
+import java.time.Instant
+import java.util.UUID
+
+// ---- Category ----
+
+data class CreateCategoryRequest(
+    @field:NotBlank @field:Size(max = 150)
+    val name: String,
+    @field:NotBlank @field:Size(max = 150)
+    val slug: String,
+    val description: String? = null,
+    val parentId: UUID? = null,
+    val sortOrder: Int = 0,
+    val active: Boolean = true
+)
+
+data class UpdateCategoryRequest(
+    @field:Size(max = 150)
+    val name: String? = null,
+    @field:Size(max = 150)
+    val slug: String? = null,
+    val description: String? = null,
+    val parentId: UUID? = null,
+    val sortOrder: Int? = null,
+    val active: Boolean? = null
+)
+
+data class CategoryResponse(
+    val id: UUID,
+    val name: String,
+    val slug: String,
+    val description: String?,
+    val parentId: UUID?,
+    val sortOrder: Int,
+    val active: Boolean,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+// ---- Product ----
+
+data class CreateProductRequest(
+    @field:NotBlank @field:Size(max = 255)
+    val name: String,
+    @field:NotBlank @field:Size(max = 255)
+    val slug: String,
+    val description: String? = null,
+    @field:Size(max = 500)
+    val shortDescription: String? = null,
+    @field:Size(max = 100)
+    val sku: String? = null,
+    @field:NotNull @field:DecimalMin("0.0")
+    val price: BigDecimal,
+    @field:DecimalMin("0.0")
+    val compareAtPrice: BigDecimal? = null,
+    @field:DecimalMin("0.0")
+    val costPrice: BigDecimal? = null,
+    @field:Min(0)
+    val stockQuantity: Int = 0,
+    val active: Boolean = true,
+    val featured: Boolean = false,
+    val categoryId: UUID? = null
+)
+
+data class UpdateProductRequest(
+    @field:Size(max = 255)
+    val name: String? = null,
+    @field:Size(max = 255)
+    val slug: String? = null,
+    val description: String? = null,
+    @field:Size(max = 500)
+    val shortDescription: String? = null,
+    @field:Size(max = 100)
+    val sku: String? = null,
+    @field:DecimalMin("0.0")
+    val price: BigDecimal? = null,
+    @field:DecimalMin("0.0")
+    val compareAtPrice: BigDecimal? = null,
+    @field:DecimalMin("0.0")
+    val costPrice: BigDecimal? = null,
+    @field:Min(0)
+    val stockQuantity: Int? = null,
+    val active: Boolean? = null,
+    val featured: Boolean? = null,
+    val categoryId: UUID? = null
+)
+
+data class ProductResponse(
+    val id: UUID,
+    val name: String,
+    val slug: String,
+    val description: String?,
+    val shortDescription: String?,
+    val sku: String?,
+    val price: BigDecimal,
+    val compareAtPrice: BigDecimal?,
+    val stockQuantity: Int,
+    val active: Boolean,
+    val featured: Boolean,
+    val categoryId: UUID?,
+    val categoryName: String?,
+    val createdAt: Instant,
+    val updatedAt: Instant
+)
+
+data class PageResponse<T>(
+    val content: List<T>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int
+)

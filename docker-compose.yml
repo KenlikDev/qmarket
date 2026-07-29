@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: qmarket-postgres
+    environment:
+      POSTGRES_DB: qmarket
+      POSTGRES_USER: qmarket
+      POSTGRES_PASSWORD: qmarket
+    ports:
+      - "5432:5432"
+    volumes:
+      - qmarket_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qmarket -d qmarket"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  qmarket_pg_data:
