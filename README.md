@@ -1,79 +1,90 @@
-# QMarket v0.1 — Modular Monolith Foundation
+# QMarket
 
-Kotlin Multiplatform clients + Spring Boot 4.1 modular monolith backend.
+Онлайн-магазин на **Kotlin Multiplatform + Spring Boot 4.1** (модульный монолит).
 
-**Status:** production-ready foundation for local development and API work.
+## Текущее состояние (WIP, не релиз)
 
-## What's in v0.1
-
-### Backend (`server`)
-| Module | Responsibility |
-|--------|----------------|
-| `server` | Bootstrap, DataInitializer, config |
-| `server/common` | Security, JWT, exceptions, JPA base |
-| `server/identity` | Users, roles, register / login / refresh |
-| `server/catalog` | Categories & products CRUD + search |
-
-### Features
-- JWT access + refresh tokens (Spring Security)
-- Admin seed: `admin@qmarket.local` / `admin123`
-- Demo catalog: 3 categories, 8 products
-- OpenAPI / Swagger UI
-- Actuator health
-- Unit tests (services + JWT)
-- Controller slice tests
-- Integration tests (MockMvc + Testcontainers)
-- ktlint + JaCoCo
-
-### Clients (starter from KMP template)
-Android, iOS, Desktop, Web — skeleton only; API integration starts in later versions.
-
-### Not in v0.1 (next)
-Cart, orders, payments, Flyway-as-source-of-truth schema, shared KMP DTOs wired to API, admin UI.
+| Область | Статус |
+|--------|--------|
+| Auth (register / login / refresh, JWT) | ✅ |
+| Catalog (categories, products, search) | ✅ |
+| Cart (get / add / update / remove / clear) | ✅ |
+| Seed: admin + демо-каталог | ✅ |
+| Unit / controller / integration tests | ✅ |
+| ktlint, JaCoCo | ✅ |
+| Docker Compose (PostgreSQL) | ✅ |
+| Swagger UI + **Authorize (JWT)** | ✅ |
+| Orders, Payments | ❌ |
+| Shared KMP DTOs ↔ API | ❌ |
+| Клиенты (Android/iOS/Web/Desktop) | ⚠️ skeleton стартера — не удалять пока |
+| Flyway как SoT схемы | ⚠️ скрипт есть, пока `ddl-auto=update` |
 
 ## Quick start
 
 ```bash
-# 1. PostgreSQL
 docker compose up -d
-
-# 2. Server
 ./gradlew :server:bootRun
 ```
 
-| URL | |
-|-----|--|
+| | |
+|--|--|
 | Swagger | http://localhost:8080/swagger-ui.html |
 | Health | http://localhost:8080/actuator/health |
-| API base | http://localhost:8080/api/v1 |
 
 ### Admin
-- Email: `admin@qmarket.local`
-- Password: `admin123`
 
-### Useful commands
+- `admin@qmarket.local` / `admin123`
 
-```bash
-# Unit + controller tests (no Docker)
-./gradlew :server:common:test :server:identity:test :server:catalog:test
+### Swagger: как проверить защищённые API
 
-# Integration tests (Docker required)
-./gradlew :server:test
+1. `POST /api/v1/auth/login` → в ответе `accessToken`
+2. Кнопка **Authorize** (справа сверху)
+3. Вставить **только токен** (без слова `Bearer`)
+4. Authorize → дальше Try it out на `/api/v1/cart` и т.д.
 
-# Coverage
-./gradlew :server:identity:jacocoTestReport
+### Cart API (нужен JWT)
 
-# Lint
-./gradlew :server:ktlintCheck
-./gradlew :server:ktlintFormat
+```
+GET    /api/v1/cart
+POST   /api/v1/cart/items          { "productId": "...", "quantity": 1 }
+PUT    /api/v1/cart/items/{productId}  { "quantity": 2 }
+DELETE /api/v1/cart/items/{productId}
+DELETE /api/v1/cart
 ```
 
-## Stack
-- Kotlin 2.4.x / KMP
-- Spring Boot 4.1 / Spring Security 7
-- PostgreSQL 17
-- Gradle 9.6.1
-- JWT (jjwt), SpringDoc OpenAPI 3
+## Как проверяют API в профессиональной разработке
 
-## Architecture note
-Modular monolith with bounded contexts (`identity`, `catalog`). Evolution path: monolith → clearer module boundaries → extract microservices when needed.
+Ручной Postman — только для разового исследования. Основа:
+
+| Уровень | Что | У нас |
+|--------|-----|--------|
+| Unit | сервисы, JWT, без HTTP | `*ServiceTest`, `JwtServiceTest` |
+| Controller slice | HTTP + mocked service | `AuthControllerTest`, `ProductControllerTest` |
+| Integration | полный стек + БД (Testcontainers) | `AuthIntegrationTest`, `CatalogIntegrationTest`, `CartIntegrationTest` |
+| CI | те же тесты на каждый PR | позже |
+| Exploratory | Swagger Authorize / иногда Postman | Swagger UI |
+
+Запуск регрессии API (нужен Docker для integration):
+
+```bash
+./gradlew :server:common:test :server:identity:test :server:catalog:test :server:cart:test
+./gradlew :server:test
+./gradlew :server:ktlintCheck
+```
+
+Не нужно вручную прогонять все сценарии в Postman перед каждым шагом — integration-тесты это закрывают. Swagger — для быстрой проверки нового эндпоинта.
+
+## Структура
+
+```
+server/
+  common/     JWT, Security, exceptions
+  identity/   Auth
+  catalog/    Categories, products
+  cart/       Shopping cart
+app/          KMP clients (skeleton стартера — оставляем)
+```
+
+## Файлы стартера (Android/iOS/Web/Desktop)
+
+Пока **не удаляем**: это база клиентских модулей. Удалим/заменим только когда начнём реальную UI-интеграцию с API, если что-то окажется лишним.
