@@ -2,22 +2,22 @@
 
 Онлайн-магазин на **Kotlin Multiplatform + Spring Boot 4.1** (модульный монолит).
 
+План и версии: [docs/ROADMAP.md](docs/ROADMAP.md)
+
 ## Текущее состояние (WIP, не релиз)
 
 | Область | Статус |
 |--------|--------|
-| Auth (register / login / refresh, JWT) | ✅ |
-| Catalog (categories, products, search) | ✅ |
-| Cart (get / add / update / remove / clear) | ✅ |
-| Seed: admin + демо-каталог | ✅ |
-| Unit / controller / integration tests | ✅ |
-| ktlint, JaCoCo | ✅ |
-| Docker Compose (PostgreSQL) | ✅ |
-| Swagger UI + **Authorize (JWT)** | ✅ |
-| Orders, Payments | ❌ |
-| Shared KMP DTOs ↔ API | ❌ |
-| Клиенты (Android/iOS/Web/Desktop) | ⚠️ skeleton стартера — не удалять пока |
-| Flyway как SoT схемы | ⚠️ скрипт есть, пока `ddl-auto=update` |
+| Auth (JWT) | ✅ |
+| Catalog | ✅ |
+| Cart | ✅ |
+| Orders (checkout from cart) | ✅ (проверить) |
+| Seed admin + demo catalog | ✅ |
+| Unit / integration tests | ✅ (order: unit) |
+| ktlint, JaCoCo, Swagger Authorize | ✅ |
+| Payments | ❌ |
+| Shared KMP DTOs / Clients UI | ⚠️ skeleton |
+| Flyway SoT | ⚠️ ddl-auto=update |
 
 ## Quick start
 
@@ -26,65 +26,27 @@ docker compose up -d
 ./gradlew :server:bootRun
 ```
 
-| | |
-|--|--|
-| Swagger | http://localhost:8080/swagger-ui.html |
-| Health | http://localhost:8080/actuator/health |
+- Swagger: http://localhost:8080/swagger-ui.html (Authorize = JWT accessToken)
+- Admin: `admin@qmarket.local` / `admin123`
 
-### Admin
-
-- `admin@qmarket.local` / `admin123`
-
-### Swagger: как проверить защищённые API
-
-1. `POST /api/v1/auth/login` → в ответе `accessToken`
-2. Кнопка **Authorize** (справа сверху)
-3. Вставить **только токен** (без слова `Bearer`)
-4. Authorize → дальше Try it out на `/api/v1/cart` и т.д.
-
-### Cart API (нужен JWT)
+### Orders API
 
 ```
-GET    /api/v1/cart
-POST   /api/v1/cart/items          { "productId": "...", "quantity": 1 }
-PUT    /api/v1/cart/items/{productId}  { "quantity": 2 }
-DELETE /api/v1/cart/items/{productId}
-DELETE /api/v1/cart
+POST   /api/v1/orders                 # создать из корзины { shippingAddress, customerNote? }
+GET    /api/v1/orders?page=0&size=20  # мои заказы (без sort — см. fix Swagger)
+GET    /api/v1/orders/{id}
+POST   /api/v1/orders/{id}/cancel
+GET    /api/v1/orders/admin/all       # ADMIN/MANAGER
+GET    /api/v1/orders/admin/{id}
+PUT    /api/v1/orders/admin/{id}/status  { "status": "CONFIRMED" }
 ```
 
-## Как проверяют API в профессиональной разработке
+Статусы: `PENDING | CONFIRMED | PAID | SHIPPED | DELIVERED | CANCELLED`
 
-Ручной Postman — только для разового исследования. Основа:
-
-| Уровень | Что | У нас |
-|--------|-----|--------|
-| Unit | сервисы, JWT, без HTTP | `*ServiceTest`, `JwtServiceTest` |
-| Controller slice | HTTP + mocked service | `AuthControllerTest`, `ProductControllerTest` |
-| Integration | полный стек + БД (Testcontainers) | `AuthIntegrationTest`, `CatalogIntegrationTest`, `CartIntegrationTest` |
-| CI | те же тесты на каждый PR | позже |
-| Exploratory | Swagger Authorize / иногда Postman | Swagger UI |
-
-Запуск регрессии API (нужен Docker для integration):
+### Тесты
 
 ```bash
-./gradlew :server:common:test :server:identity:test :server:catalog:test :server:cart:test
+./gradlew :server:common:test :server:identity:test :server:catalog:test :server:cart:test :server:order:test
 ./gradlew :server:test
 ./gradlew :server:ktlintCheck
 ```
-
-Не нужно вручную прогонять все сценарии в Postman перед каждым шагом — integration-тесты это закрывают. Swagger — для быстрой проверки нового эндпоинта.
-
-## Структура
-
-```
-server/
-  common/     JWT, Security, exceptions
-  identity/   Auth
-  catalog/    Categories, products
-  cart/       Shopping cart
-app/          KMP clients (skeleton стартера — оставляем)
-```
-
-## Файлы стартера (Android/iOS/Web/Desktop)
-
-Пока **не удаляем**: это база клиентских модулей. Удалим/заменим только когда начнём реальную UI-интеграцию с API, если что-то окажется лишним.

@@ -35,6 +35,7 @@ dependencies {
     implementation(project(":server:identity"))
     implementation(project(":server:catalog"))
     implementation(project(":server:cart"))
+    implementation(project(":server:order"))
     implementation(project(":core"))
 
     implementation(libs.spring.boot.starter.web)

@@ -2,20 +2,20 @@
 
 ## Unreleased
 
+### Fixed
+- Orders list: no longer binds Spring `Pageable`/`sort` (Swagger default `sort=string` crashed JPA)
+
 ### Added
-- OpenAPI/Swagger: JWT Bearer **Authorize** button
-- Cart integration tests (`CartIntegrationTest`)
-- Модуль `server/cart`: корзина пользователя
-  - `GET /api/v1/cart`
-  - `POST /api/v1/cart/items`
-  - `PUT /api/v1/cart/items/{productId}`
-  - `DELETE /api/v1/cart/items/{productId}`
-  - `DELETE /api/v1/cart`
-- Unit tests for `CartService`
-- Auth API, Catalog API
-- JWT security, seed data, ktlint, JaCoCo, Docker Compose
+- Модуль `server/order`: оформление заказа из корзины
+  - списание stock, очистка корзины, snapshot позиций
+  - отмена PENDING/CONFIRMED с возвратом stock
+  - admin: список / статус
+- Unit tests `OrderServiceTest`
+- Cart API + integration tests
+- OpenAPI JWT Authorize
+- Auth, Catalog, seed, ktlint, JaCoCo
 
 ### Known limitations
-- Schema: Hibernate `ddl-auto=update` (Flyway disabled)
-- Orders / Payments not implemented
-- KMP clients are starter skeletons only
+- Payments not implemented (status PAID — ручной/админ)
+- Flyway disabled (`ddl-auto=update`)
+- Order integration tests not yet added
