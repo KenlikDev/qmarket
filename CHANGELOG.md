@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- `OrderIntegrationTest` — checkout, list, cancel, admin status (Testcontainers)
+- Flyway script `V2__cart_and_orders.sql` (not applied yet; Flyway still disabled)
+
 ### Fixed
 - Orders list: no longer binds Spring `Pageable`/`sort` (Swagger default `sort=string` crashed JPA)
 
@@ -18,4 +22,3 @@
 ### Known limitations
 - Payments not implemented (status PAID — ручной/админ)
 - Flyway disabled (`ddl-auto=update`)
-- Order integration tests not yet added

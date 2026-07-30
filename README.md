@@ -13,7 +13,7 @@
 | Cart | ✅ |
 | Orders (checkout from cart) | ✅ (проверить) |
 | Seed admin + demo catalog | ✅ |
-| Unit / integration tests | ✅ (order: unit) |
+| Unit / integration tests | ✅ (incl. order IT) |
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
 | Payments | ❌ |
 | Shared KMP DTOs / Clients UI | ⚠️ skeleton |
