@@ -203,4 +203,28 @@ class OrderControllerTest {
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.status").value("CONFIRMED"))
     }
+
+    @Test
+    fun `POST pay returns paid order`() {
+        val orderId = UUID.randomUUID()
+        val response =
+            OrderResponse(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PAID,
+                totalAmount = BigDecimal("10.00"),
+                shippingAddress = "Addr",
+                customerNote = null,
+                items = emptyList(),
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        every { orderService.payMock(userId, orderId) } returns response
+        val auth = UsernamePasswordAuthenticationToken(userId, null, emptyList())
+
+        mockMvc
+            .perform(post("/api/v1/orders/$orderId/pay").principal(auth))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("PAID"))
+    }
 }

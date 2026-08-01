@@ -4,24 +4,27 @@
 
 План и версии: [docs/ROADMAP.md](docs/ROADMAP.md)
 
-## Текущее состояние (WIP, не релиз)
+## Текущее состояние (WIP, не релиз v0.1)
 
 | Область | Статус |
 |--------|--------|
 | Auth (JWT) | ✅ |
 | Catalog | ✅ |
 | Cart | ✅ |
-| Orders (checkout from cart) | ✅ (проверить) |
+| Orders (checkout from cart) | ✅ |
 | Seed admin + demo catalog | ✅ |
-| Unit / integration tests | ✅ (incl. order IT) |
+| Unit / controller / integration tests | ✅ |
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
-| Payments | ❌ |
+| Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1+V2, app: `validate`, tests: Flyway |
+| Payments (mock) | ✅ POST /api/v1/orders/{id}/pay |
 | Shared KMP DTOs / Clients UI | ⚠️ skeleton |
-| Flyway SoT (`spring-boot-starter-flyway`) | ⚠️ ddl-auto=update |
 
 ## Quick start
 
 ```bash
+# При смене схемы (один раз):
+# docker compose down -v && docker compose up -d
+
 docker compose up -d
 ./gradlew :server:bootRun
 ```
@@ -32,21 +35,22 @@ docker compose up -d
 ### Orders API
 
 ```
-POST   /api/v1/orders                 # создать из корзины { shippingAddress, customerNote? }
-GET    /api/v1/orders?page=0&size=20  # мои заказы (без sort — см. fix Swagger)
+POST   /api/v1/orders                 # из корзины { shippingAddress, customerNote? }
+GET    /api/v1/orders?page=0&size=20  # без sort (Swagger sort=string ломал JPA)
 GET    /api/v1/orders/{id}
 POST   /api/v1/orders/{id}/cancel
-GET    /api/v1/orders/admin/all       # ADMIN/MANAGER
+POST   /api/v1/orders/{id}/pay     # mock payment → PAID
+GET    /api/v1/orders/admin/all
 GET    /api/v1/orders/admin/{id}
 PUT    /api/v1/orders/admin/{id}/status  { "status": "CONFIRMED" }
 ```
 
 Статусы: `PENDING | CONFIRMED | PAID | SHIPPED | DELIVERED | CANCELLED`
 
-### Тесты
+### Тесты и качество (всегда по всему проекту)
 
 ```bash
-./gradlew :server:common:test :server:identity:test :server:catalog:test :server:cart:test :server:order:test
-./gradlew :server:test
-./gradlew :server:ktlintCheck
+./gradlew test ktlintCheck --parallel
 ```
+
+Точечно только для отладки: `./gradlew :server:order:test`

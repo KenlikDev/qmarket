@@ -54,6 +54,12 @@ class OrderController(
         @PathVariable id: UUID,
     ): OrderResponse = orderService.cancelMyOrder(currentUserId(authentication), id)
 
+    @PostMapping("/{id}/pay")
+    fun pay(
+        authentication: Authentication,
+        @PathVariable id: UUID,
+    ): OrderResponse = orderService.payMock(currentUserId(authentication), id)
+
     @GetMapping("/admin/all")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun listAll(

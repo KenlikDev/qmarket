@@ -186,6 +186,33 @@ class OrderService(
         return toResponse(orderRepository.save(order))
     }
 
+    /**
+     * Mock payment provider: marks order PAID if owned by user and status is PENDING or CONFIRMED.
+     * Real PSP integration will replace this in v1.0+.
+     */
+    @Transactional
+    fun payMock(
+        userId: UUID,
+        orderId: UUID,
+    ): OrderResponse {
+        val order =
+            orderRepository
+                .findByIdAndUserId(orderId, userId)
+                .orElseThrow { NotFoundException("Order not found") }
+
+        when (order.status) {
+            OrderStatus.PENDING, OrderStatus.CONFIRMED -> {
+                order.status = OrderStatus.PAID
+            }
+            OrderStatus.PAID -> throw BadRequestException("Order is already paid")
+            OrderStatus.CANCELLED -> throw BadRequestException("Cannot pay a cancelled order")
+            OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
+                throw BadRequestException("Order is already fulfilled")
+        }
+
+        return toResponse(orderRepository.save(order))
+    }
+
     private fun toResponse(order: Order): OrderResponse =
         OrderResponse(
             id = order.id ?: error("Order id is null"),

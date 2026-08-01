@@ -21,11 +21,10 @@
 - [x] Catalog CRUD + search + seed
 - [x] Cart API
 - [x] Orders: create from cart, list, cancel, admin status
-- [x] Unit + controller slice + integration tests (order: unit; IT — в планах)
+- [x] Unit + controller slice + integration tests (incl. order IT)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize
-- [x] Order integration tests
-- [x] Flyway as schema source of truth (`ddl-auto=validate`, V1+V2)
-- [ ] Payments
+- [x] Flyway SoT via `spring-boot-starter-flyway` (V1+V2, validate)
+- [x] Payments (mock only; real PSP later)
 - [ ] Shared KMP DTOs / client UI beyond skeleton
 
 ## v1.0 MVP (из плана)

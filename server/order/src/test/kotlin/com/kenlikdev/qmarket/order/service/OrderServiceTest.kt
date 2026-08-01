@@ -6,6 +6,7 @@ import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.domain.Product
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
+import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
@@ -118,5 +119,50 @@ class OrderServiceTest {
             )
 
         assertEquals(OrderStatus.CONFIRMED, result.status)
+    }
+
+    @Test
+    fun `payMock sets status to PAID`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+            )
+        every { orderRepository.findByIdAndUserId(orderId, userId) } returns Optional.of(order)
+        every { orderRepository.save(any()) } answers { firstArg() }
+
+        val result = orderService.payMock(userId, orderId)
+
+        assertEquals(OrderStatus.PAID, result.status)
+    }
+
+    @Test
+    fun `payMock fails when already paid`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PAID,
+                totalAmount = BigDecimal.TEN,
+            )
+        every { orderRepository.findByIdAndUserId(orderId, userId) } returns Optional.of(order)
+
+        assertThrows<BadRequestException> {
+            orderService.payMock(userId, orderId)
+        }
+    }
+
+    @Test
+    fun `payMock fails for other user order`() {
+        val orderId = UUID.randomUUID()
+        every { orderRepository.findByIdAndUserId(orderId, userId) } returns Optional.empty()
+
+        assertThrows<NotFoundException> {
+            orderService.payMock(userId, orderId)
+        }
     }
 }
