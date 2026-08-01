@@ -33,6 +33,12 @@ docker compose up -d
 - Swagger: http://localhost:8080/swagger-ui.html (Authorize = JWT accessToken)
 - Admin: `admin@qmarket.local` / `admin123`
 
+### Catalog filters
+
+```
+GET /api/v1/products?q=&categoryId=&featuredOnly=&minPrice=&maxPrice=&sortBy=price|name|createdAt&sortDir=asc|desc&page=&size=
+```
+
 ### Profile API
 
 ```

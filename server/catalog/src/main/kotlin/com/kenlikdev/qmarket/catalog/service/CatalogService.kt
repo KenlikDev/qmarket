@@ -11,12 +11,14 @@ import com.kenlikdev.qmarket.catalog.dto.UpdateCategoryRequest
 import com.kenlikdev.qmarket.catalog.dto.UpdateProductRequest
 import com.kenlikdev.qmarket.catalog.repository.CategoryRepository
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
+import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.math.BigDecimal
 import java.util.UUID
 
 @Service
@@ -116,11 +118,45 @@ class CatalogService(
         categoryId: UUID? = null,
         activeOnly: Boolean = true,
         featuredOnly: Boolean = false,
+        minPrice: BigDecimal? = null,
+        maxPrice: BigDecimal? = null,
+        sortBy: String = "createdAt",
+        sortDir: String = "desc",
         page: Int = 0,
         size: Int = 20,
     ): PageResponse<ProductResponse> {
-        val pageable = PageRequest.of(page, size.coerceIn(1, 100), Sort.by(Sort.Direction.DESC, "createdAt"))
-        val result = productRepository.search(query, categoryId, activeOnly, featuredOnly, pageable)
+        if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
+            throw BadRequestException("minPrice must be less than or equal to maxPrice")
+        }
+        val direction =
+            if (sortDir.equals("asc", ignoreCase = true)) {
+                Sort.Direction.ASC
+            } else {
+                Sort.Direction.DESC
+            }
+        val sortProperty =
+            when (sortBy.lowercase()) {
+                "price" -> "price"
+                "name" -> "name"
+                "createdat", "created_at", "createdAt" -> "createdAt"
+                else -> "createdAt"
+            }
+        val pageable =
+            PageRequest.of(
+                page.coerceAtLeast(0),
+                size.coerceIn(1, 100),
+                Sort.by(direction, sortProperty),
+            )
+        val result =
+            productRepository.search(
+                query,
+                categoryId,
+                activeOnly,
+                featuredOnly,
+                minPrice,
+                maxPrice,
+                pageable,
+            )
         return PageResponse(
             content = result.content.map { it.toResponse() },
             page = result.number,

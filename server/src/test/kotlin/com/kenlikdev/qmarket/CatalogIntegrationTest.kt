@@ -111,4 +111,17 @@ class CatalogIntegrationTest {
             .andExpect(jsonPath("$.name").value("Test Product"))
             .andExpect(jsonPath("$.price").value(9.99))
     }
+
+    @Test
+    fun `list products accepts price and sort filters`() {
+        mockMvc
+            .perform(
+                get("/api/v1/products")
+                    .param("minPrice", "0")
+                    .param("maxPrice", "99999")
+                    .param("sortBy", "price")
+                    .param("sortDir", "asc"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.content").isArray)
+    }
 }

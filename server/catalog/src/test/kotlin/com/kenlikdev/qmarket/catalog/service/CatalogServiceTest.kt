@@ -6,6 +6,7 @@ import com.kenlikdev.qmarket.catalog.dto.CreateCategoryRequest
 import com.kenlikdev.qmarket.catalog.dto.CreateProductRequest
 import com.kenlikdev.qmarket.catalog.repository.CategoryRepository
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
+import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import io.mockk.every
@@ -114,7 +115,7 @@ class CatalogServiceTest {
                 stockQuantity = 5,
             )
         every {
-            productRepository.search(any(), any(), any(), any(), any())
+            productRepository.search(any(), any(), any(), any(), any(), any(), any())
         } returns PageImpl(listOf(product))
 
         val result = catalogService.searchProducts(query = "test")
@@ -131,6 +132,16 @@ class CatalogServiceTest {
 
         assertThrows<NotFoundException> {
             catalogService.deleteProduct(id)
+        }
+    }
+
+    @Test
+    fun `searchProducts rejects minPrice greater than maxPrice`() {
+        assertThrows<BadRequestException> {
+            catalogService.searchProducts(
+                minPrice = BigDecimal("100"),
+                maxPrice = BigDecimal("10"),
+            )
         }
     }
 }

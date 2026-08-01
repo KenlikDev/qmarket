@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
+import java.math.BigDecimal
 import java.util.UUID
 
 @RestController
@@ -71,9 +72,25 @@ class ProductController(
         @RequestParam(required = false) categoryId: UUID?,
         @RequestParam(defaultValue = "true") activeOnly: Boolean,
         @RequestParam(defaultValue = "false") featuredOnly: Boolean,
+        @RequestParam(required = false) minPrice: BigDecimal?,
+        @RequestParam(required = false) maxPrice: BigDecimal?,
+        @RequestParam(defaultValue = "createdAt") sortBy: String,
+        @RequestParam(defaultValue = "desc") sortDir: String,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
-    ): PageResponse<ProductResponse> = catalogService.searchProducts(q, categoryId, activeOnly, featuredOnly, page, size)
+    ): PageResponse<ProductResponse> =
+        catalogService.searchProducts(
+            query = q,
+            categoryId = categoryId,
+            activeOnly = activeOnly,
+            featuredOnly = featuredOnly,
+            minPrice = minPrice,
+            maxPrice = maxPrice,
+            sortBy = sortBy,
+            sortDir = sortDir,
+            page = page,
+            size = size,
+        )
 
     @GetMapping("/{id}")
     fun get(
