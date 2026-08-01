@@ -20,51 +20,53 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import java.util.UUID
 
 class AuthControllerTest {
-
     private lateinit var mockMvc: MockMvc
     private lateinit var authService: AuthService
 
-    private val sampleResponse = AuthResponse(
-        accessToken = "access-token",
-        refreshToken = "refresh-token",
-        expiresIn = 900,
-        user = UserResponse(
-            id = UUID.randomUUID(),
-            email = "user@test.com",
-            firstName = "John",
-            lastName = "Doe",
-            roles = listOf("ROLE_USER")
+    private val sampleResponse =
+        AuthResponse(
+            accessToken = "access-token",
+            refreshToken = "refresh-token",
+            expiresIn = 900,
+            user =
+                UserResponse(
+                    id = UUID.randomUUID(),
+                    email = "user@test.com",
+                    firstName = "John",
+                    lastName = "Doe",
+                    roles = listOf("ROLE_USER"),
+                ),
         )
-    )
 
     @BeforeEach
     fun setUp() {
         authService = mockk()
-        mockMvc = MockMvcBuilders
-            .standaloneSetup(AuthController(authService))
-            .setControllerAdvice(GlobalExceptionHandler())
-            .build()
+        mockMvc =
+            MockMvcBuilders
+                .standaloneSetup(AuthController(authService))
+                .setControllerAdvice(GlobalExceptionHandler())
+                .build()
     }
 
     @Test
     fun `POST register returns 201 and tokens`() {
         every { authService.register(any()) } returns sampleResponse
 
-        mockMvc.perform(
-            post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "email": "user@test.com",
-                      "password": "password123",
-                      "firstName": "John",
-                      "lastName": "Doe"
-                    }
-                    """.trimIndent()
-                )
-        )
-            .andExpect(status().isCreated)
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "email": "user@test.com",
+                          "password": "password123",
+                          "firstName": "John",
+                          "lastName": "Doe"
+                        }
+                        """.trimIndent(),
+                    ),
+            ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.accessToken").value("access-token"))
             .andExpect(jsonPath("$.user.email").value("user@test.com"))
 
@@ -75,35 +77,35 @@ class AuthControllerTest {
     fun `POST register with duplicate email returns 409`() {
         every { authService.register(any()) } throws ConflictException("User already exists")
 
-        mockMvc.perform(
-            post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"email": "dup@test.com", "password": "password123"}""")
-        )
-            .andExpect(status().isConflict)
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"email": "dup@test.com", "password": "password123"}"""),
+            ).andExpect(status().isConflict)
             .andExpect(jsonPath("$.code").value("CONFLICT"))
     }
 
     @Test
     fun `POST register with invalid body returns 400`() {
-        mockMvc.perform(
-            post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"email": "not-an-email", "password": "123"}""")
-        )
-            .andExpect(status().isBadRequest)
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"email": "not-an-email", "password": "123"}"""),
+            ).andExpect(status().isBadRequest)
     }
 
     @Test
     fun `POST login returns 200 and tokens`() {
         every { authService.login(any()) } returns sampleResponse
 
-        mockMvc.perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"email": "user@test.com", "password": "password123"}""")
-        )
-            .andExpect(status().isOk)
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"email": "user@test.com", "password": "password123"}"""),
+            ).andExpect(status().isOk)
             .andExpect(jsonPath("$.accessToken").value("access-token"))
     }
 
@@ -111,12 +113,12 @@ class AuthControllerTest {
     fun `POST login with wrong password returns 401`() {
         every { authService.login(any()) } throws UnauthorizedException("Invalid credentials")
 
-        mockMvc.perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"email": "user@test.com", "password": "wrong"}""")
-        )
-            .andExpect(status().isUnauthorized)
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"email": "user@test.com", "password": "wrong"}"""),
+            ).andExpect(status().isUnauthorized)
             .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
     }
 }

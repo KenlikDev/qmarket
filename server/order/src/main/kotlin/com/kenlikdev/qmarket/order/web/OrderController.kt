@@ -25,15 +25,12 @@ import java.util.UUID
 class OrderController(
     private val orderService: OrderService,
 ) {
-
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
         authentication: Authentication,
         @Valid @RequestBody request: CreateOrderRequest,
-    ): OrderResponse {
-        return orderService.createFromCart(currentUserId(authentication), request)
-    }
+    ): OrderResponse = orderService.createFromCart(currentUserId(authentication), request)
 
     /**
      * Only page/size — do not bind Spring Pageable (Swagger sends sort=string → JPA crash).
@@ -43,53 +40,39 @@ class OrderController(
         authentication: Authentication,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
-    ): Page<OrderResponse> {
-        return orderService.listMyOrders(currentUserId(authentication), page, size)
-    }
+    ): Page<OrderResponse> = orderService.listMyOrders(currentUserId(authentication), page, size)
 
     @GetMapping("/{id}")
     fun myOrder(
         authentication: Authentication,
         @PathVariable id: UUID,
-    ): OrderResponse {
-        return orderService.getMyOrder(currentUserId(authentication), id)
-    }
+    ): OrderResponse = orderService.getMyOrder(currentUserId(authentication), id)
 
     @PostMapping("/{id}/cancel")
     fun cancel(
         authentication: Authentication,
         @PathVariable id: UUID,
-    ): OrderResponse {
-        return orderService.cancelMyOrder(currentUserId(authentication), id)
-    }
+    ): OrderResponse = orderService.cancelMyOrder(currentUserId(authentication), id)
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun listAll(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
-    ): Page<OrderResponse> {
-        return orderService.listAllOrders(page, size)
-    }
+    ): Page<OrderResponse> = orderService.listAllOrders(page, size)
 
     @GetMapping("/admin/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun getAdmin(
         @PathVariable id: UUID,
-    ): OrderResponse {
-        return orderService.getOrderAdmin(id)
-    }
+    ): OrderResponse = orderService.getOrderAdmin(id)
 
     @PutMapping("/admin/{id}/status")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun updateStatus(
         @PathVariable id: UUID,
         @Valid @RequestBody request: UpdateOrderStatusRequest,
-    ): OrderResponse {
-        return orderService.updateStatus(id, request)
-    }
+    ): OrderResponse = orderService.updateStatus(id, request)
 
-    private fun currentUserId(authentication: Authentication): UUID {
-        return authentication.principal as UUID
-    }
+    private fun currentUserId(authentication: Authentication): UUID = authentication.principal as UUID
 }

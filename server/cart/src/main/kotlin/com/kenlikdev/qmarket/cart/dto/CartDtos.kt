@@ -9,7 +9,6 @@ import java.util.UUID
 data class AddCartItemRequest(
     @field:NotNull
     val productId: UUID,
-
     @field:Min(1)
     val quantity: Int = 1,
 )

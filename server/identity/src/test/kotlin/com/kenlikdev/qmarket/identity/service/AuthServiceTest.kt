@@ -13,15 +13,15 @@ import com.kenlikdev.qmarket.identity.repository.UserRepository
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.security.crypto.password.PasswordEncoder
-import java.util.*
+import java.util.Optional
+import java.util.UUID
 
 class AuthServiceTest {
-
     private lateinit var userRepository: UserRepository
     private lateinit var roleRepository: RoleRepository
     private lateinit var passwordEncoder: PasswordEncoder
@@ -37,23 +37,30 @@ class AuthServiceTest {
         roleRepository = mockk()
         passwordEncoder = mockk()
         jwtService = mockk()
-        jwtProperties = JwtProperties(
-            secret = "test-secret-key-that-is-long-enough-for-hs256",
-            accessTokenExpirationMs = 900_000,
-            refreshTokenExpirationMs = 604_800_000
-        )
-        authService = AuthService(
-            userRepository, roleRepository, passwordEncoder, jwtService, jwtProperties
-        )
+        jwtProperties =
+            JwtProperties(
+                secret = "test-secret-key-that-is-long-enough-for-hs256",
+                accessTokenExpirationMs = 900_000,
+                refreshTokenExpirationMs = 604_800_000,
+            )
+        authService =
+            AuthService(
+                userRepository,
+                roleRepository,
+                passwordEncoder,
+                jwtService,
+                jwtProperties,
+            )
     }
 
     @Test
     fun `register creates user and returns tokens`() {
-        val request = RegisterRequest(
-            email = "user@test.com",
-            password = "password123",
-            firstName = "John"
-        )
+        val request =
+            RegisterRequest(
+                email = "user@test.com",
+                password = "password123",
+                firstName = "John",
+            )
         val userId = UUID.randomUUID()
 
         every { userRepository.existsByEmail("user@test.com") } returns false
@@ -86,13 +93,14 @@ class AuthServiceTest {
     @Test
     fun `login with valid credentials returns tokens`() {
         val userId = UUID.randomUUID()
-        val user = User(
-            id = userId,
-            email = "user@test.com",
-            passwordHash = "hashed",
-            enabled = true,
-            roles = mutableSetOf(userRole)
-        )
+        val user =
+            User(
+                id = userId,
+                email = "user@test.com",
+                passwordHash = "hashed",
+                enabled = true,
+                roles = mutableSetOf(userRole),
+            )
 
         every { userRepository.findByEmail("user@test.com") } returns Optional.of(user)
         every { passwordEncoder.matches("password123", "hashed") } returns true
@@ -107,13 +115,14 @@ class AuthServiceTest {
 
     @Test
     fun `login with wrong password throws UnauthorizedException`() {
-        val user = User(
-            id = UUID.randomUUID(),
-            email = "user@test.com",
-            passwordHash = "hashed",
-            enabled = true,
-            roles = mutableSetOf(userRole)
-        )
+        val user =
+            User(
+                id = UUID.randomUUID(),
+                email = "user@test.com",
+                passwordHash = "hashed",
+                enabled = true,
+                roles = mutableSetOf(userRole),
+            )
         every { userRepository.findByEmail("user@test.com") } returns Optional.of(user)
         every { passwordEncoder.matches("wrong", "hashed") } returns false
 
@@ -124,13 +133,14 @@ class AuthServiceTest {
 
     @Test
     fun `login with disabled account throws UnauthorizedException`() {
-        val user = User(
-            id = UUID.randomUUID(),
-            email = "user@test.com",
-            passwordHash = "hashed",
-            enabled = false,
-            roles = mutableSetOf(userRole)
-        )
+        val user =
+            User(
+                id = UUID.randomUUID(),
+                email = "user@test.com",
+                passwordHash = "hashed",
+                enabled = false,
+                roles = mutableSetOf(userRole),
+            )
         every { userRepository.findByEmail("user@test.com") } returns Optional.of(user)
 
         assertThrows<UnauthorizedException> {

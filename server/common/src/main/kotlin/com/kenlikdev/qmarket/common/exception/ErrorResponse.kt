@@ -9,11 +9,11 @@ data class ErrorResponse(
     val code: String,
     val message: String,
     val path: String? = null,
-    val details: List<FieldErrorDetail>? = null
+    val details: List<FieldErrorDetail>? = null,
 )
 
 data class FieldErrorDetail(
     val field: String,
     val message: String,
-    val rejectedValue: Any? = null
+    val rejectedValue: Any? = null,
 )

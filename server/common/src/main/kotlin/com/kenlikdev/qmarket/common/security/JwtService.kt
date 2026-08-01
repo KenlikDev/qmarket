@@ -10,16 +10,21 @@ import javax.crypto.SecretKey
 
 @Service
 class JwtService(
-    private val props: JwtProperties
+    private val props: JwtProperties,
 ) {
     private val key: SecretKey by lazy {
         Keys.hmacShaKeyFor(props.secret.toByteArray(Charsets.UTF_8))
     }
 
-    fun generateAccessToken(userId: UUID, email: String, roles: Collection<String>): String {
+    fun generateAccessToken(
+        userId: UUID,
+        email: String,
+        roles: Collection<String>,
+    ): String {
         val now = Date()
         val expiry = Date(now.time + props.accessTokenExpirationMs)
-        return Jwts.builder()
+        return Jwts
+            .builder()
             .subject(userId.toString())
             .claim("email", email)
             .claim("roles", roles)
@@ -33,7 +38,8 @@ class JwtService(
     fun generateRefreshToken(userId: UUID): String {
         val now = Date()
         val expiry = Date(now.time + props.refreshTokenExpirationMs)
-        return Jwts.builder()
+        return Jwts
+            .builder()
             .subject(userId.toString())
             .claim("type", "refresh")
             .issuedAt(now)
@@ -42,15 +48,16 @@ class JwtService(
             .compact()
     }
 
-    fun parseClaims(token: String): Claims {
-        return Jwts.parser()
+    fun parseClaims(token: String): Claims =
+        Jwts
+            .parser()
             .verifyWith(key)
             .build()
             .parseSignedClaims(token)
             .payload
-    }
 
     fun isAccessToken(claims: Claims): Boolean = claims["type"] == "access"
+
     fun isRefreshToken(claims: Claims): Boolean = claims["type"] == "refresh"
 
     fun getUserId(claims: Claims): UUID = UUID.fromString(claims.subject)

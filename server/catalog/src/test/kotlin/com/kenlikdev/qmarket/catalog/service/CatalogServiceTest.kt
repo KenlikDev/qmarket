@@ -11,17 +11,16 @@ import com.kenlikdev.qmarket.common.exception.NotFoundException
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.data.domain.PageImpl
-import org.springframework.data.domain.Pageable
 import java.math.BigDecimal
-import java.util.*
+import java.util.Optional
+import java.util.UUID
 
 class CatalogServiceTest {
-
     private lateinit var productRepository: ProductRepository
     private lateinit var categoryRepository: CategoryRepository
     private lateinit var catalogService: CatalogService
@@ -72,12 +71,13 @@ class CatalogServiceTest {
 
     @Test
     fun `createProduct succeeds`() {
-        val request = CreateProductRequest(
-            name = "Headphones",
-            slug = "headphones",
-            price = BigDecimal("99.99"),
-            stockQuantity = 10
-        )
+        val request =
+            CreateProductRequest(
+                name = "Headphones",
+                slug = "headphones",
+                price = BigDecimal("99.99"),
+                stockQuantity = 10,
+            )
         val savedId = UUID.randomUUID()
 
         every { productRepository.existsBySlug("headphones") } returns false
@@ -98,20 +98,21 @@ class CatalogServiceTest {
 
         assertThrows<ConflictException> {
             catalogService.createProduct(
-                CreateProductRequest(name = "Headphones", slug = "headphones", price = BigDecimal("10"))
+                CreateProductRequest(name = "Headphones", slug = "headphones", price = BigDecimal("10")),
             )
         }
     }
 
     @Test
     fun `searchProducts returns page`() {
-        val product = Product(
-            id = UUID.randomUUID(),
-            name = "Test",
-            slug = "test",
-            price = BigDecimal("10"),
-            stockQuantity = 5
-        )
+        val product =
+            Product(
+                id = UUID.randomUUID(),
+                name = "Test",
+                slug = "test",
+                price = BigDecimal("10"),
+                stockQuantity = 5,
+            )
         every {
             productRepository.search(any(), any(), any(), any(), any())
         } returns PageImpl(listOf(product))

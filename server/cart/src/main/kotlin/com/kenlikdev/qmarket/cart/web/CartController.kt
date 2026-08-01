@@ -23,44 +23,31 @@ import java.util.UUID
 class CartController(
     private val cartService: CartService,
 ) {
-
     @GetMapping
-    fun getCart(authentication: Authentication): CartResponse {
-        return cartService.getCart(currentUserId(authentication))
-    }
+    fun getCart(authentication: Authentication): CartResponse = cartService.getCart(currentUserId(authentication))
 
     @PostMapping("/items")
     @ResponseStatus(HttpStatus.OK)
     fun addItem(
         authentication: Authentication,
         @Valid @RequestBody request: AddCartItemRequest,
-    ): CartResponse {
-        return cartService.addItem(currentUserId(authentication), request)
-    }
+    ): CartResponse = cartService.addItem(currentUserId(authentication), request)
 
     @PutMapping("/items/{productId}")
     fun updateItem(
         authentication: Authentication,
         @PathVariable productId: UUID,
         @Valid @RequestBody request: UpdateCartItemRequest,
-    ): CartResponse {
-        return cartService.updateItem(currentUserId(authentication), productId, request)
-    }
+    ): CartResponse = cartService.updateItem(currentUserId(authentication), productId, request)
 
     @DeleteMapping("/items/{productId}")
     fun removeItem(
         authentication: Authentication,
         @PathVariable productId: UUID,
-    ): CartResponse {
-        return cartService.removeItem(currentUserId(authentication), productId)
-    }
+    ): CartResponse = cartService.removeItem(currentUserId(authentication), productId)
 
     @DeleteMapping
-    fun clear(authentication: Authentication): CartResponse {
-        return cartService.clear(currentUserId(authentication))
-    }
+    fun clear(authentication: Authentication): CartResponse = cartService.clear(currentUserId(authentication))
 
-    private fun currentUserId(authentication: Authentication): UUID {
-        return authentication.principal as UUID
-    }
+    private fun currentUserId(authentication: Authentication): UUID = authentication.principal as UUID
 }

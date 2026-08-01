@@ -8,7 +8,13 @@ import java.util.Optional
 import java.util.UUID
 
 interface OrderRepository : JpaRepository<Order, UUID> {
-    fun findByUserIdOrderByCreatedAtDesc(userId: UUID, pageable: Pageable): Page<Order>
+    fun findByUserIdOrderByCreatedAtDesc(
+        userId: UUID,
+        pageable: Pageable,
+    ): Page<Order>
 
-    fun findByIdAndUserId(id: UUID, userId: UUID): Optional<Order>
+    fun findByIdAndUserId(
+        id: UUID,
+        userId: UUID,
+    ): Optional<Order>
 }

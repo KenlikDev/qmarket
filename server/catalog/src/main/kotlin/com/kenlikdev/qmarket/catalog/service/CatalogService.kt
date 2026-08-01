@@ -2,7 +2,13 @@ package com.kenlikdev.qmarket.catalog.service
 
 import com.kenlikdev.qmarket.catalog.domain.Category
 import com.kenlikdev.qmarket.catalog.domain.Product
-import com.kenlikdev.qmarket.catalog.dto.*
+import com.kenlikdev.qmarket.catalog.dto.CategoryResponse
+import com.kenlikdev.qmarket.catalog.dto.CreateCategoryRequest
+import com.kenlikdev.qmarket.catalog.dto.CreateProductRequest
+import com.kenlikdev.qmarket.catalog.dto.PageResponse
+import com.kenlikdev.qmarket.catalog.dto.ProductResponse
+import com.kenlikdev.qmarket.catalog.dto.UpdateCategoryRequest
+import com.kenlikdev.qmarket.catalog.dto.UpdateProductRequest
 import com.kenlikdev.qmarket.catalog.repository.CategoryRepository
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.ConflictException
@@ -16,24 +22,25 @@ import java.util.UUID
 @Service
 class CatalogService(
     private val productRepository: ProductRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
 ) {
-
     // ---------- Categories ----------
 
     @Transactional(readOnly = true)
     fun listCategories(activeOnly: Boolean = true): List<CategoryResponse> {
-        val categories = if (activeOnly) {
-            categoryRepository.findAllByActiveTrueOrderBySortOrderAsc()
-        } else {
-            categoryRepository.findAll(Sort.by("sortOrder"))
-        }
+        val categories =
+            if (activeOnly) {
+                categoryRepository.findAllByActiveTrueOrderBySortOrderAsc()
+            } else {
+                categoryRepository.findAll(Sort.by("sortOrder"))
+            }
         return categories.map { it.toResponse() }
     }
 
     @Transactional(readOnly = true)
     fun getCategory(id: UUID): CategoryResponse =
-        categoryRepository.findById(id)
+        categoryRepository
+            .findById(id)
             .orElseThrow { NotFoundException("Category $id not found") }
             .toResponse()
 
@@ -42,24 +49,31 @@ class CatalogService(
         if (categoryRepository.existsBySlug(request.slug)) {
             throw ConflictException("Category with slug '${request.slug}' already exists")
         }
-        val parent = request.parentId?.let {
-            categoryRepository.findById(it).orElseThrow { NotFoundException("Parent category $it not found") }
-        }
-        val category = Category(
-            name = request.name.trim(),
-            slug = request.slug.trim().lowercase(),
-            description = request.description,
-            parent = parent,
-            sortOrder = request.sortOrder,
-            active = request.active
-        )
+        val parent =
+            request.parentId?.let {
+                categoryRepository.findById(it).orElseThrow { NotFoundException("Parent category $it not found") }
+            }
+        val category =
+            Category(
+                name = request.name.trim(),
+                slug = request.slug.trim().lowercase(),
+                description = request.description,
+                parent = parent,
+                sortOrder = request.sortOrder,
+                active = request.active,
+            )
         return categoryRepository.save(category).toResponse()
     }
 
     @Transactional
-    fun updateCategory(id: UUID, request: UpdateCategoryRequest): CategoryResponse {
-        val category = categoryRepository.findById(id)
-            .orElseThrow { NotFoundException("Category $id not found") }
+    fun updateCategory(
+        id: UUID,
+        request: UpdateCategoryRequest,
+    ): CategoryResponse {
+        val category =
+            categoryRepository
+                .findById(id)
+                .orElseThrow { NotFoundException("Category $id not found") }
 
         request.name?.let { category.name = it.trim() }
         request.slug?.let {
@@ -73,9 +87,14 @@ class CatalogService(
         request.sortOrder?.let { category.sortOrder = it }
         request.active?.let { category.active = it }
         request.parentId?.let { parentId ->
-            category.parent = if (parentId == category.id) null
-            else categoryRepository.findById(parentId)
-                .orElseThrow { NotFoundException("Parent category $parentId not found") }
+            category.parent =
+                if (parentId == category.id) {
+                    null
+                } else {
+                    categoryRepository
+                        .findById(parentId)
+                        .orElseThrow { NotFoundException("Parent category $parentId not found") }
+                }
         }
 
         return categoryRepository.save(category).toResponse()
@@ -98,7 +117,7 @@ class CatalogService(
         activeOnly: Boolean = true,
         featuredOnly: Boolean = false,
         page: Int = 0,
-        size: Int = 20
+        size: Int = 20,
     ): PageResponse<ProductResponse> {
         val pageable = PageRequest.of(page, size.coerceIn(1, 100), Sort.by(Sort.Direction.DESC, "createdAt"))
         val result = productRepository.search(query, categoryId, activeOnly, featuredOnly, pageable)
@@ -107,19 +126,21 @@ class CatalogService(
             page = result.number,
             size = result.size,
             totalElements = result.totalElements,
-            totalPages = result.totalPages
+            totalPages = result.totalPages,
         )
     }
 
     @Transactional(readOnly = true)
     fun getProduct(id: UUID): ProductResponse =
-        productRepository.findById(id)
+        productRepository
+            .findById(id)
             .orElseThrow { NotFoundException("Product $id not found") }
             .toResponse()
 
     @Transactional(readOnly = true)
     fun getProductBySlug(slug: String): ProductResponse =
-        productRepository.findBySlug(slug)
+        productRepository
+            .findBySlug(slug)
             .orElseThrow { NotFoundException("Product with slug '$slug' not found") }
             .toResponse()
 
@@ -133,30 +154,37 @@ class CatalogService(
                 throw ConflictException("Product with SKU '$it' already exists")
             }
         }
-        val category = request.categoryId?.let {
-            categoryRepository.findById(it).orElseThrow { NotFoundException("Category $it not found") }
-        }
-        val product = Product(
-            name = request.name.trim(),
-            slug = request.slug.trim().lowercase(),
-            description = request.description,
-            shortDescription = request.shortDescription,
-            sku = request.sku?.trim(),
-            price = request.price,
-            compareAtPrice = request.compareAtPrice,
-            costPrice = request.costPrice,
-            stockQuantity = request.stockQuantity,
-            active = request.active,
-            featured = request.featured,
-            category = category
-        )
+        val category =
+            request.categoryId?.let {
+                categoryRepository.findById(it).orElseThrow { NotFoundException("Category $it not found") }
+            }
+        val product =
+            Product(
+                name = request.name.trim(),
+                slug = request.slug.trim().lowercase(),
+                description = request.description,
+                shortDescription = request.shortDescription,
+                sku = request.sku?.trim(),
+                price = request.price,
+                compareAtPrice = request.compareAtPrice,
+                costPrice = request.costPrice,
+                stockQuantity = request.stockQuantity,
+                active = request.active,
+                featured = request.featured,
+                category = category,
+            )
         return productRepository.save(product).toResponse()
     }
 
     @Transactional
-    fun updateProduct(id: UUID, request: UpdateProductRequest): ProductResponse {
-        val product = productRepository.findById(id)
-            .orElseThrow { NotFoundException("Product $id not found") }
+    fun updateProduct(
+        id: UUID,
+        request: UpdateProductRequest,
+    ): ProductResponse {
+        val product =
+            productRepository
+                .findById(id)
+                .orElseThrow { NotFoundException("Product $id not found") }
 
         request.name?.let { product.name = it.trim() }
         request.slug?.let {
@@ -181,8 +209,10 @@ class CatalogService(
         request.active?.let { product.active = it }
         request.featured?.let { product.featured = it }
         request.categoryId?.let { catId ->
-            product.category = categoryRepository.findById(catId)
-                .orElseThrow { NotFoundException("Category $catId not found") }
+            product.category =
+                categoryRepository
+                    .findById(catId)
+                    .orElseThrow { NotFoundException("Category $catId not found") }
         }
 
         return productRepository.save(product).toResponse()
@@ -196,33 +226,35 @@ class CatalogService(
         productRepository.deleteById(id)
     }
 
-    private fun Category.toResponse() = CategoryResponse(
-        id = id!!,
-        name = name,
-        slug = slug,
-        description = description,
-        parentId = parent?.id,
-        sortOrder = sortOrder,
-        active = active,
-        createdAt = createdAt,
-        updatedAt = updatedAt
-    )
+    private fun Category.toResponse() =
+        CategoryResponse(
+            id = id!!,
+            name = name,
+            slug = slug,
+            description = description,
+            parentId = parent?.id,
+            sortOrder = sortOrder,
+            active = active,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+        )
 
-    private fun Product.toResponse() = ProductResponse(
-        id = id!!,
-        name = name,
-        slug = slug,
-        description = description,
-        shortDescription = shortDescription,
-        sku = sku,
-        price = price,
-        compareAtPrice = compareAtPrice,
-        stockQuantity = stockQuantity,
-        active = active,
-        featured = featured,
-        categoryId = category?.id,
-        categoryName = category?.name,
-        createdAt = createdAt,
-        updatedAt = updatedAt
-    )
+    private fun Product.toResponse() =
+        ProductResponse(
+            id = id!!,
+            name = name,
+            slug = slug,
+            description = description,
+            shortDescription = shortDescription,
+            sku = sku,
+            price = price,
+            compareAtPrice = compareAtPrice,
+            stockQuantity = stockQuantity,
+            active = active,
+            featured = featured,
+            categoryId = category?.id,
+            categoryName = category?.name,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+        )
 }

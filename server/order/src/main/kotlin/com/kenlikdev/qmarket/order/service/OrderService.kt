@@ -26,26 +26,33 @@ class OrderService(
     private val cartRepository: CartRepository,
     private val productRepository: ProductRepository,
 ) {
-
     @Transactional
-    fun createFromCart(userId: UUID, request: CreateOrderRequest): OrderResponse {
-        val cart = cartRepository.findByUserId(userId)
-            .orElseThrow { BadRequestException("Cart is empty") }
+    fun createFromCart(
+        userId: UUID,
+        request: CreateOrderRequest,
+    ): OrderResponse {
+        val cart =
+            cartRepository
+                .findByUserId(userId)
+                .orElseThrow { BadRequestException("Cart is empty") }
         if (cart.items.isEmpty()) {
             throw BadRequestException("Cart is empty")
         }
 
-        val order = Order(
-            userId = userId,
-            status = OrderStatus.PENDING,
-            shippingAddress = request.shippingAddress.trim(),
-            customerNote = request.customerNote?.trim()?.takeIf { it.isNotEmpty() },
-        )
+        val order =
+            Order(
+                userId = userId,
+                status = OrderStatus.PENDING,
+                shippingAddress = request.shippingAddress.trim(),
+                customerNote = request.customerNote?.trim()?.takeIf { it.isNotEmpty() },
+            )
 
         var total = BigDecimal.ZERO
         for (cartItem in cart.items) {
-            val product = productRepository.findById(cartItem.productId)
-                .orElseThrow { NotFoundException("Product not found: ${cartItem.productId}") }
+            val product =
+                productRepository
+                    .findById(cartItem.productId)
+                    .orElseThrow { NotFoundException("Product not found: ${cartItem.productId}") }
             if (!product.active) {
                 throw BadRequestException("Product is not available: ${product.slug}")
             }
@@ -84,42 +91,63 @@ class OrderService(
     }
 
     @Transactional(readOnly = true)
-    fun getMyOrder(userId: UUID, orderId: UUID): OrderResponse {
-        val order = orderRepository.findByIdAndUserId(orderId, userId)
-            .orElseThrow { NotFoundException("Order not found") }
+    fun getMyOrder(
+        userId: UUID,
+        orderId: UUID,
+    ): OrderResponse {
+        val order =
+            orderRepository
+                .findByIdAndUserId(orderId, userId)
+                .orElseThrow { NotFoundException("Order not found") }
         return toResponse(order)
     }
 
     @Transactional(readOnly = true)
-    fun listMyOrders(userId: UUID, page: Int, size: Int): Page<OrderResponse> {
-        val pageable = PageRequest.of(
-            page.coerceAtLeast(0),
-            size.coerceIn(1, 100),
-        )
+    fun listMyOrders(
+        userId: UUID,
+        page: Int,
+        size: Int,
+    ): Page<OrderResponse> {
+        val pageable =
+            PageRequest.of(
+                page.coerceAtLeast(0),
+                size.coerceIn(1, 100),
+            )
         return orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable).map { toResponse(it) }
     }
 
     @Transactional(readOnly = true)
     fun getOrderAdmin(orderId: UUID): OrderResponse {
-        val order = orderRepository.findById(orderId)
-            .orElseThrow { NotFoundException("Order not found") }
+        val order =
+            orderRepository
+                .findById(orderId)
+                .orElseThrow { NotFoundException("Order not found") }
         return toResponse(order)
     }
 
     @Transactional(readOnly = true)
-    fun listAllOrders(page: Int, size: Int): Page<OrderResponse> {
-        val pageable = PageRequest.of(
-            page.coerceAtLeast(0),
-            size.coerceIn(1, 100),
-            Sort.by(Sort.Direction.DESC, "createdAt"),
-        )
+    fun listAllOrders(
+        page: Int,
+        size: Int,
+    ): Page<OrderResponse> {
+        val pageable =
+            PageRequest.of(
+                page.coerceAtLeast(0),
+                size.coerceIn(1, 100),
+                Sort.by(Sort.Direction.DESC, "createdAt"),
+            )
         return orderRepository.findAll(pageable).map { toResponse(it) }
     }
 
     @Transactional
-    fun updateStatus(orderId: UUID, request: UpdateOrderStatusRequest): OrderResponse {
-        val order = orderRepository.findById(orderId)
-            .orElseThrow { NotFoundException("Order not found") }
+    fun updateStatus(
+        orderId: UUID,
+        request: UpdateOrderStatusRequest,
+    ): OrderResponse {
+        val order =
+            orderRepository
+                .findById(orderId)
+                .orElseThrow { NotFoundException("Order not found") }
 
         if (order.status == OrderStatus.CANCELLED && request.status != OrderStatus.CANCELLED) {
             throw BadRequestException("Cannot change status of a cancelled order")
@@ -133,9 +161,14 @@ class OrderService(
     }
 
     @Transactional
-    fun cancelMyOrder(userId: UUID, orderId: UUID): OrderResponse {
-        val order = orderRepository.findByIdAndUserId(orderId, userId)
-            .orElseThrow { NotFoundException("Order not found") }
+    fun cancelMyOrder(
+        userId: UUID,
+        orderId: UUID,
+    ): OrderResponse {
+        val order =
+            orderRepository
+                .findByIdAndUserId(orderId, userId)
+                .orElseThrow { NotFoundException("Order not found") }
 
         if (order.status != OrderStatus.PENDING && order.status != OrderStatus.CONFIRMED) {
             throw BadRequestException("Only PENDING or CONFIRMED orders can be cancelled")
@@ -153,26 +186,26 @@ class OrderService(
         return toResponse(orderRepository.save(order))
     }
 
-    private fun toResponse(order: Order): OrderResponse {
-        return OrderResponse(
+    private fun toResponse(order: Order): OrderResponse =
+        OrderResponse(
             id = order.id ?: error("Order id is null"),
             userId = order.userId,
             status = order.status,
             totalAmount = order.totalAmount,
             shippingAddress = order.shippingAddress,
             customerNote = order.customerNote,
-            items = order.items.map {
-                OrderItemResponse(
-                    productId = it.productId,
-                    productName = it.productName,
-                    productSlug = it.productSlug,
-                    unitPrice = it.unitPrice,
-                    quantity = it.quantity,
-                    lineTotal = it.lineTotal,
-                )
-            },
+            items =
+                order.items.map {
+                    OrderItemResponse(
+                        productId = it.productId,
+                        productName = it.productName,
+                        productSlug = it.productSlug,
+                        unitPrice = it.unitPrice,
+                        quantity = it.quantity,
+                        lineTotal = it.lineTotal,
+                    )
+                },
             createdAt = order.createdAt,
             updatedAt = order.updatedAt,
         )
-    }
 }

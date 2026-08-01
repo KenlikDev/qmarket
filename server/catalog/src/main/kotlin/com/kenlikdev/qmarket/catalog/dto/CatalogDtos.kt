@@ -1,6 +1,10 @@
 package com.kenlikdev.qmarket.catalog.dto
 
-import jakarta.validation.constraints.*
+import jakarta.validation.constraints.DecimalMin
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -15,7 +19,7 @@ data class CreateCategoryRequest(
     val description: String? = null,
     val parentId: UUID? = null,
     val sortOrder: Int = 0,
-    val active: Boolean = true
+    val active: Boolean = true,
 )
 
 data class UpdateCategoryRequest(
@@ -26,7 +30,7 @@ data class UpdateCategoryRequest(
     val description: String? = null,
     val parentId: UUID? = null,
     val sortOrder: Int? = null,
-    val active: Boolean? = null
+    val active: Boolean? = null,
 )
 
 data class CategoryResponse(
@@ -38,7 +42,7 @@ data class CategoryResponse(
     val sortOrder: Int,
     val active: Boolean,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
 )
 
 // ---- Product ----
@@ -63,7 +67,7 @@ data class CreateProductRequest(
     val stockQuantity: Int = 0,
     val active: Boolean = true,
     val featured: Boolean = false,
-    val categoryId: UUID? = null
+    val categoryId: UUID? = null,
 )
 
 data class UpdateProductRequest(
@@ -86,7 +90,7 @@ data class UpdateProductRequest(
     val stockQuantity: Int? = null,
     val active: Boolean? = null,
     val featured: Boolean? = null,
-    val categoryId: UUID? = null
+    val categoryId: UUID? = null,
 )
 
 data class ProductResponse(
@@ -104,7 +108,7 @@ data class ProductResponse(
     val categoryId: UUID?,
     val categoryName: String?,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
 )
 
 data class PageResponse<T>(
@@ -112,5 +116,5 @@ data class PageResponse<T>(
     val page: Int,
     val size: Int,
     val totalElements: Long,
-    val totalPages: Int
+    val totalPages: Int,
 )

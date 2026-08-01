@@ -19,10 +19,8 @@ class Cart(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     var id: UUID? = null,
-
     @Column(name = "user_id", nullable = false, unique = true)
     var userId: UUID = UUID.randomUUID(),
-
     @OneToMany(
         mappedBy = "cart",
         cascade = [CascadeType.ALL],
@@ -30,10 +28,8 @@ class Cart(
         fetch = FetchType.EAGER,
     )
     var items: MutableList<CartItem> = mutableListOf(),
-
     @Column(name = "created_at", nullable = false, updatable = false)
     var createdAt: Instant = Instant.now(),
-
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now(),
 ) {
@@ -49,20 +45,15 @@ class CartItem(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     var id: UUID? = null,
-
     @jakarta.persistence.ManyToOne(fetch = FetchType.LAZY, optional = false)
     @jakarta.persistence.JoinColumn(name = "cart_id", nullable = false)
     var cart: Cart? = null,
-
     @Column(name = "product_id", nullable = false)
     var productId: UUID = UUID.randomUUID(),
-
     @Column(nullable = false)
     var quantity: Int = 1,
-
     @Column(name = "created_at", nullable = false, updatable = false)
     var createdAt: Instant = Instant.now(),
-
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now(),
 ) {

@@ -5,7 +5,11 @@ import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.common.security.JwtProperties
 import com.kenlikdev.qmarket.common.security.JwtService
 import com.kenlikdev.qmarket.identity.domain.User
-import com.kenlikdev.qmarket.identity.dto.*
+import com.kenlikdev.qmarket.identity.dto.AuthResponse
+import com.kenlikdev.qmarket.identity.dto.LoginRequest
+import com.kenlikdev.qmarket.identity.dto.RefreshTokenRequest
+import com.kenlikdev.qmarket.identity.dto.RegisterRequest
+import com.kenlikdev.qmarket.identity.dto.UserResponse
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -18,9 +22,8 @@ class AuthService(
     private val roleRepository: RoleRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtService: JwtService,
-    private val jwtProperties: JwtProperties
+    private val jwtProperties: JwtProperties,
 ) {
-
     @Transactional
     fun register(request: RegisterRequest): AuthResponse {
         val email = request.email.lowercase().trim()
@@ -28,29 +31,35 @@ class AuthService(
             throw ConflictException("User with email $email already exists")
         }
 
-        val userRole = roleRepository.findByName("ROLE_USER")
-            .orElseThrow { IllegalStateException("ROLE_USER not found in database. Run Flyway migrations.") }
+        val userRole =
+            roleRepository
+                .findByName("ROLE_USER")
+                .orElseThrow { IllegalStateException("ROLE_USER not found in database. Run Flyway migrations.") }
 
         // Spring Security's PasswordEncoder.encode is annotated in a way that Kotlin sees String?
-        val encodedPassword = passwordEncoder.encode(request.password)
-            ?: throw IllegalStateException("Password encoding returned null")
+        val encodedPassword =
+            passwordEncoder.encode(request.password)
+                ?: throw IllegalStateException("Password encoding returned null")
 
-        val user = User(
-            email = email,
-            passwordHash = encodedPassword
-        ).apply {
-            firstName = request.firstName?.trim()?.takeIf { it.isNotBlank() }
-            lastName = request.lastName?.trim()?.takeIf { it.isNotBlank() }
-            roles = mutableSetOf(userRole)
-        }
+        val user =
+            User(
+                email = email,
+                passwordHash = encodedPassword,
+            ).apply {
+                firstName = request.firstName?.trim()?.takeIf { it.isNotBlank() }
+                lastName = request.lastName?.trim()?.takeIf { it.isNotBlank() }
+                roles = mutableSetOf(userRole)
+            }
 
         val saved = userRepository.save(user)
         return buildAuthResponse(saved)
     }
 
     fun login(request: LoginRequest): AuthResponse {
-        val user = userRepository.findByEmail(request.email.lowercase().trim())
-            .orElseThrow { UnauthorizedException("Invalid email or password") }
+        val user =
+            userRepository
+                .findByEmail(request.email.lowercase().trim())
+                .orElseThrow { UnauthorizedException("Invalid email or password") }
 
         if (!user.enabled) {
             throw UnauthorizedException("Account is disabled")
@@ -70,8 +79,10 @@ class AuthService(
                 throw UnauthorizedException("Invalid refresh token")
             }
             val userId = jwtService.getUserId(claims)
-            val user = userRepository.findById(userId)
-                .orElseThrow { UnauthorizedException("User not found") }
+            val user =
+                userRepository
+                    .findById(userId)
+                    .orElseThrow { UnauthorizedException("User not found") }
             if (!user.enabled) {
                 throw UnauthorizedException("Account is disabled")
             }
@@ -92,13 +103,14 @@ class AuthService(
             accessToken = accessToken,
             refreshToken = refreshToken,
             expiresIn = jwtProperties.accessTokenExpirationMs / 1000,
-            user = UserResponse(
-                id = userId,
-                email = user.email,
-                firstName = user.firstName,
-                lastName = user.lastName,
-                roles = roles
-            )
+            user =
+                UserResponse(
+                    id = userId,
+                    email = user.email,
+                    firstName = user.firstName,
+                    lastName = user.lastName,
+                    roles = roles,
+                ),
         )
     }
 }

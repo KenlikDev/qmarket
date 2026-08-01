@@ -21,7 +21,6 @@ class CartService(
     private val cartRepository: CartRepository,
     private val productRepository: ProductRepository,
 ) {
-
     @Transactional(readOnly = true)
     fun getCart(userId: UUID): CartResponse {
         val cart = findOrEmpty(userId)
@@ -29,7 +28,10 @@ class CartService(
     }
 
     @Transactional
-    fun addItem(userId: UUID, request: AddCartItemRequest): CartResponse {
+    fun addItem(
+        userId: UUID,
+        request: AddCartItemRequest,
+    ): CartResponse {
         val product = loadActiveProduct(request.productId)
         val cart = findOrCreate(userId)
         val existing = cart.items.find { it.productId == request.productId }
@@ -44,11 +46,12 @@ class CartService(
         if (existing != null) {
             existing.quantity = newQty
         } else {
-            val item = CartItem(
-                cart = cart,
-                productId = product.id!!,
-                quantity = request.quantity,
-            )
+            val item =
+                CartItem(
+                    cart = cart,
+                    productId = product.id!!,
+                    quantity = request.quantity,
+                )
             cart.items.add(item)
         }
 
@@ -56,12 +59,19 @@ class CartService(
     }
 
     @Transactional
-    fun updateItem(userId: UUID, productId: UUID, request: UpdateCartItemRequest): CartResponse {
+    fun updateItem(
+        userId: UUID,
+        productId: UUID,
+        request: UpdateCartItemRequest,
+    ): CartResponse {
         val product = loadActiveProduct(productId)
-        val cart = cartRepository.findByUserId(userId)
-            .orElseThrow { NotFoundException("Cart is empty") }
-        val item = cart.items.find { it.productId == productId }
-            ?: throw NotFoundException("Product not in cart")
+        val cart =
+            cartRepository
+                .findByUserId(userId)
+                .orElseThrow { NotFoundException("Cart is empty") }
+        val item =
+            cart.items.find { it.productId == productId }
+                ?: throw NotFoundException("Product not in cart")
 
         if (request.quantity > product.stockQuantity) {
             throw BadRequestException(
@@ -74,9 +84,14 @@ class CartService(
     }
 
     @Transactional
-    fun removeItem(userId: UUID, productId: UUID): CartResponse {
-        val cart = cartRepository.findByUserId(userId)
-            .orElseThrow { NotFoundException("Cart is empty") }
+    fun removeItem(
+        userId: UUID,
+        productId: UUID,
+    ): CartResponse {
+        val cart =
+            cartRepository
+                .findByUserId(userId)
+                .orElseThrow { NotFoundException("Cart is empty") }
         val removed = cart.items.removeIf { it.productId == productId }
         if (!removed) {
             throw NotFoundException("Product not in cart")
@@ -86,25 +101,26 @@ class CartService(
 
     @Transactional
     fun clear(userId: UUID): CartResponse {
-        val cart = cartRepository.findByUserId(userId)
-            .orElseThrow { NotFoundException("Cart is empty") }
+        val cart =
+            cartRepository
+                .findByUserId(userId)
+                .orElseThrow { NotFoundException("Cart is empty") }
         cart.items.clear()
         return toResponse(cartRepository.save(cart))
     }
 
-    private fun findOrCreate(userId: UUID): Cart {
-        return cartRepository.findByUserId(userId).orElseGet {
+    private fun findOrCreate(userId: UUID): Cart =
+        cartRepository.findByUserId(userId).orElseGet {
             cartRepository.save(Cart(userId = userId))
         }
-    }
 
-    private fun findOrEmpty(userId: UUID): Cart {
-        return cartRepository.findByUserId(userId).orElse(Cart(userId = userId))
-    }
+    private fun findOrEmpty(userId: UUID): Cart = cartRepository.findByUserId(userId).orElse(Cart(userId = userId))
 
     private fun loadActiveProduct(productId: UUID): Product {
-        val product = productRepository.findById(productId)
-            .orElseThrow { NotFoundException("Product not found: $productId") }
+        val product =
+            productRepository
+                .findById(productId)
+                .orElseThrow { NotFoundException("Product not found: $productId") }
         if (!product.active) {
             throw BadRequestException("Product is not available")
         }
@@ -113,26 +129,29 @@ class CartService(
 
     private fun toResponse(cart: Cart): CartResponse {
         val productIds = cart.items.map { it.productId }.toSet()
-        val products = if (productIds.isEmpty()) {
-            emptyMap()
-        } else {
-            productRepository.findAllById(productIds).associateBy { it.id!! }
-        }
+        val products =
+            if (productIds.isEmpty()) {
+                emptyMap()
+            } else {
+                productRepository.findAllById(productIds).associateBy { it.id!! }
+            }
 
-        val items = cart.items.map { item ->
-            val product = products[item.productId]
-                ?: throw NotFoundException("Product not found: ${item.productId}")
-            val lineTotal = product.price.multiply(BigDecimal(item.quantity))
-            CartItemResponse(
-                productId = item.productId,
-                productName = product.name,
-                productSlug = product.slug,
-                unitPrice = product.price,
-                quantity = item.quantity,
-                lineTotal = lineTotal,
-                stockQuantity = product.stockQuantity,
-            )
-        }
+        val items =
+            cart.items.map { item ->
+                val product =
+                    products[item.productId]
+                        ?: throw NotFoundException("Product not found: ${item.productId}")
+                val lineTotal = product.price.multiply(BigDecimal(item.quantity))
+                CartItemResponse(
+                    productId = item.productId,
+                    productName = product.name,
+                    productSlug = product.slug,
+                    unitPrice = product.price,
+                    quantity = item.quantity,
+                    lineTotal = lineTotal,
+                    stockQuantity = product.stockQuantity,
+                )
+            }
 
         val totalPrice = items.fold(BigDecimal.ZERO) { acc, i -> acc.add(i.lineTotal) }
         val totalItems = items.sumOf { it.quantity }

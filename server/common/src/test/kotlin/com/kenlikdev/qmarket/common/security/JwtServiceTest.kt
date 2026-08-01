@@ -1,18 +1,22 @@
 package com.kenlikdev.qmarket.common.security
 
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.util.*
+import java.util.List
+import java.util.UUID
 
 class JwtServiceTest {
-
     private lateinit var jwtService: JwtService
-    private val props = JwtProperties(
-        secret = "test-secret-key-that-is-long-enough-for-hs256-algorithm-12345",
-        accessTokenExpirationMs = 3_600_000,
-        refreshTokenExpirationMs = 86_400_000
-    )
+    private val props =
+        JwtProperties(
+            secret = "test-secret-key-that-is-long-enough-for-hs256-algorithm-12345",
+            accessTokenExpirationMs = 3_600_000,
+            refreshTokenExpirationMs = 86_400_000,
+        )
 
     @BeforeEach
     fun setUp() {

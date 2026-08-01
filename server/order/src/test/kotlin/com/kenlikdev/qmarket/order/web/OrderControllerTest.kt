@@ -33,7 +33,6 @@ import java.util.UUID
  * @PreAuthorize is covered by integration tests.
  */
 class OrderControllerTest {
-
     private lateinit var mockMvc: MockMvc
     private lateinit var orderService: OrderService
 

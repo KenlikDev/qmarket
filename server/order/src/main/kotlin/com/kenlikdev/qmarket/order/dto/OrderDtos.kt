@@ -11,7 +11,6 @@ data class CreateOrderRequest(
     @field:NotBlank
     @field:Size(max = 500)
     val shippingAddress: String,
-
     @field:Size(max = 1000)
     val customerNote: String? = null,
 )

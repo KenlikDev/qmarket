@@ -21,7 +21,6 @@ import java.util.Optional
 import java.util.UUID
 
 class CartServiceTest {
-
     private lateinit var cartRepository: CartRepository
     private lateinit var productRepository: ProductRepository
     private lateinit var cartService: CartService
@@ -29,14 +28,15 @@ class CartServiceTest {
     private val userId = UUID.randomUUID()
     private val productId = UUID.randomUUID()
 
-    private val product = Product(
-        id = productId,
-        name = "Headphones",
-        slug = "headphones",
-        price = BigDecimal("99.99"),
-        stockQuantity = 10,
-        active = true,
-    )
+    private val product =
+        Product(
+            id = productId,
+            name = "Headphones",
+            slug = "headphones",
+            price = BigDecimal("99.99"),
+            stockQuantity = 10,
+            active = true,
+        )
 
     @BeforeEach
     fun setUp() {
@@ -84,11 +84,12 @@ class CartServiceTest {
 
     @Test
     fun `updateItem changes quantity`() {
-        val cart = Cart(id = UUID.randomUUID(), userId = userId).apply {
-            items.add(
-                CartItem(id = UUID.randomUUID(), cart = this, productId = productId, quantity = 1),
-            )
-        }
+        val cart =
+            Cart(id = UUID.randomUUID(), userId = userId).apply {
+                items.add(
+                    CartItem(id = UUID.randomUUID(), cart = this, productId = productId, quantity = 1),
+                )
+            }
         every { productRepository.findById(productId) } returns Optional.of(product)
         every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
         every { cartRepository.save(any()) } answers { firstArg() }
@@ -102,11 +103,12 @@ class CartServiceTest {
 
     @Test
     fun `removeItem removes product from cart`() {
-        val cart = Cart(id = UUID.randomUUID(), userId = userId).apply {
-            items.add(
-                CartItem(id = UUID.randomUUID(), cart = this, productId = productId, quantity = 2),
-            )
-        }
+        val cart =
+            Cart(id = UUID.randomUUID(), userId = userId).apply {
+                items.add(
+                    CartItem(id = UUID.randomUUID(), cart = this, productId = productId, quantity = 2),
+                )
+            }
         every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
         every { cartRepository.save(any()) } answers { firstArg() }
         every { productRepository.findAllById(any<Iterable<UUID>>()) } returns emptyList()

@@ -12,16 +12,21 @@ import java.util.UUID
 
 interface CategoryRepository : JpaRepository<Category, UUID> {
     fun findBySlug(slug: String): Optional<Category>
+
     fun existsBySlug(slug: String): Boolean
+
     fun findAllByActiveTrueOrderBySortOrderAsc(): List<Category>
 }
 
 interface ProductRepository : JpaRepository<Product, UUID> {
     fun findBySlug(slug: String): Optional<Product>
+
     fun existsBySlug(slug: String): Boolean
+
     fun existsBySku(sku: String): Boolean
 
-    @Query("""
+    @Query(
+        """
         SELECT p FROM Product p
         WHERE (:activeOnly = false OR p.active = true)
           AND (:categoryId IS NULL OR p.category.id = :categoryId)
@@ -31,12 +36,13 @@ interface ProductRepository : JpaRepository<Product, UUID> {
             LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR
             LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%'))
           )
-    """)
+    """,
+    )
     fun search(
         @Param("query") query: String?,
         @Param("categoryId") categoryId: UUID?,
         @Param("activeOnly") activeOnly: Boolean,
         @Param("featuredOnly") featuredOnly: Boolean,
-        pageable: Pageable
+        pageable: Pageable,
     ): Page<Product>
 }
