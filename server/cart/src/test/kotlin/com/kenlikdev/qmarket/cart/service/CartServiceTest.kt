@@ -17,7 +17,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal
-import java.util.Optional
 import java.util.UUID
 
 class CartServiceTest {
@@ -47,7 +46,7 @@ class CartServiceTest {
 
     @Test
     fun `getCart returns empty cart when none exists`() {
-        every { cartRepository.findByUserId(userId) } returns Optional.empty()
+        every { cartRepository.findByUserId(userId) } returns null
 
         val result = cartService.getCart(userId)
 
@@ -59,7 +58,7 @@ class CartServiceTest {
     @Test
     fun `addItem creates cart and adds product`() {
         every { productCatalog.requireActive(productId) } returns product
-        every { cartRepository.findByUserId(userId) } returns Optional.empty()
+        every { cartRepository.findByUserId(userId) } returns null
         every { cartRepository.save(any()) } answers { firstArg() }
         every { productCatalog.findByIds(any()) } returns mapOf(productId to product)
 
@@ -74,7 +73,7 @@ class CartServiceTest {
     @Test
     fun `addItem rejects quantity above stock`() {
         every { productCatalog.requireActive(productId) } returns product
-        every { cartRepository.findByUserId(userId) } returns Optional.empty()
+        every { cartRepository.findByUserId(userId) } returns null
         every { cartRepository.save(any()) } answers { firstArg() }
 
         assertThrows<BadRequestException> {
@@ -91,7 +90,7 @@ class CartServiceTest {
                 )
             }
         every { productCatalog.requireActive(productId) } returns product
-        every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
+        every { cartRepository.findByUserId(userId) } returns cart
         every { cartRepository.save(any()) } answers { firstArg() }
         every { productCatalog.findByIds(any()) } returns mapOf(productId to product)
 
@@ -109,7 +108,7 @@ class CartServiceTest {
                     CartItem(id = UUID.randomUUID(), cart = this, productId = productId, quantity = 2),
                 )
             }
-        every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
+        every { cartRepository.findByUserId(userId) } returns cart
         every { cartRepository.save(any()) } answers { firstArg() }
         every { productCatalog.findByIds(any()) } returns emptyMap()
 
@@ -122,7 +121,7 @@ class CartServiceTest {
     @Test
     fun `removeItem throws when product not in cart`() {
         val cart = Cart(id = UUID.randomUUID(), userId = userId)
-        every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
+        every { cartRepository.findByUserId(userId) } returns cart
 
         assertThrows<NotFoundException> {
             cartService.removeItem(userId, productId)

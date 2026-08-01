@@ -34,9 +34,8 @@ class OrderService(
         request: CreateOrderRequest,
     ): OrderResponse {
         val cart =
-            cartRepository
-                .findByUserId(userId)
-                .orElseThrow { BadRequestException("Cart is empty") }
+            cartRepository.findByUserId(userId)
+                ?: throw BadRequestException("Cart is empty")
         if (cart.items.isEmpty()) {
             throw BadRequestException("Cart is empty")
         }

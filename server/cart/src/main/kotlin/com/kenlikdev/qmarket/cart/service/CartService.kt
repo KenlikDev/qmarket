@@ -1,30 +1,28 @@
 package com.kenlikdev.qmarket.cart.service
 
 import com.kenlikdev.qmarket.cart.domain.Cart
-import com.kenlikdev.qmarket.cart.domain.CartItem
 import com.kenlikdev.qmarket.cart.dto.AddCartItemRequest
 import com.kenlikdev.qmarket.cart.dto.CartItemResponse
 import com.kenlikdev.qmarket.cart.dto.CartResponse
 import com.kenlikdev.qmarket.cart.dto.UpdateCartItemRequest
 import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.api.ProductCatalog
-import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.util.UUID
 
+/**
+ * Application service: loads catalog snapshots, delegates invariants to [Cart] aggregate.
+ */
 @Service
 class CartService(
     private val cartRepository: CartRepository,
     private val productCatalog: ProductCatalog,
 ) {
     @Transactional(readOnly = true)
-    fun getCart(userId: UUID): CartResponse {
-        val cart = findOrEmpty(userId)
-        return toResponse(cart)
-    }
+    fun getCart(userId: UUID): CartResponse = toResponse(findOrEmpty(userId))
 
     @Transactional
     fun addItem(
@@ -33,27 +31,12 @@ class CartService(
     ): CartResponse {
         val product = productCatalog.requireActive(request.productId)
         val cart = findOrCreate(userId)
-        val existing = cart.items.find { it.productId == request.productId }
-
-        val newQty = (existing?.quantity ?: 0) + request.quantity
-        if (newQty > product.stockQuantity) {
-            throw BadRequestException(
-                "Insufficient stock for product ${product.slug}: available ${product.stockQuantity}, requested $newQty",
-            )
-        }
-
-        if (existing != null) {
-            existing.quantity = newQty
-        } else {
-            val item =
-                CartItem(
-                    cart = cart,
-                    productId = product.id,
-                    quantity = request.quantity,
-                )
-            cart.items.add(item)
-        }
-
+        cart.addItem(
+            productId = product.id,
+            quantity = request.quantity,
+            availableStock = product.stockQuantity,
+            productSlug = product.slug,
+        )
         return toResponse(cartRepository.save(cart))
     }
 
@@ -64,21 +47,13 @@ class CartService(
         request: UpdateCartItemRequest,
     ): CartResponse {
         val product = productCatalog.requireActive(productId)
-        val cart =
-            cartRepository
-                .findByUserId(userId)
-                .orElseThrow { NotFoundException("Cart is empty") }
-        val item =
-            cart.items.find { it.productId == productId }
-                ?: throw NotFoundException("Product not in cart")
-
-        if (request.quantity > product.stockQuantity) {
-            throw BadRequestException(
-                "Insufficient stock for product ${product.slug}: available ${product.stockQuantity}",
-            )
-        }
-
-        item.quantity = request.quantity
+        val cart = requireCart(userId)
+        cart.changeQuantity(
+            productId = productId,
+            quantity = request.quantity,
+            availableStock = product.stockQuantity,
+            productSlug = product.slug,
+        )
         return toResponse(cartRepository.save(cart))
     }
 
@@ -87,33 +62,23 @@ class CartService(
         userId: UUID,
         productId: UUID,
     ): CartResponse {
-        val cart =
-            cartRepository
-                .findByUserId(userId)
-                .orElseThrow { NotFoundException("Cart is empty") }
-        val removed = cart.items.removeIf { it.productId == productId }
-        if (!removed) {
-            throw NotFoundException("Product not in cart")
-        }
+        val cart = requireCart(userId)
+        cart.removeItem(productId)
         return toResponse(cartRepository.save(cart))
     }
 
     @Transactional
     fun clear(userId: UUID): CartResponse {
-        val cart =
-            cartRepository
-                .findByUserId(userId)
-                .orElseThrow { NotFoundException("Cart is empty") }
-        cart.items.clear()
+        val cart = requireCart(userId)
+        cart.clearItems()
         return toResponse(cartRepository.save(cart))
     }
 
-    private fun findOrCreate(userId: UUID): Cart =
-        cartRepository.findByUserId(userId).orElseGet {
-            cartRepository.save(Cart(userId = userId))
-        }
+    private fun findOrCreate(userId: UUID): Cart = cartRepository.findByUserId(userId) ?: cartRepository.save(Cart(userId = userId))
 
-    private fun findOrEmpty(userId: UUID): Cart = cartRepository.findByUserId(userId).orElseGet { Cart(userId = userId) }
+    private fun findOrEmpty(userId: UUID): Cart = cartRepository.findByUserId(userId) ?: Cart(userId = userId)
+
+    private fun requireCart(userId: UUID): Cart = cartRepository.findByUserId(userId) ?: throw NotFoundException("Cart is empty")
 
     private fun toResponse(cart: Cart): CartResponse {
         val productIds = cart.items.map { it.productId }.distinct()

@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Cart aggregate methods (addItem/changeQuantity/removeItem); CartRepository returns `Cart?`
 - `server:catalog-api` + `ProductCatalog` port; cart/order no longer depend on catalog JPA
 - ArchUnit rules for module boundaries
 - Checkout: optional `addressId` on create order (address book → shippingAddress)
