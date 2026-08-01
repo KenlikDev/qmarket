@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Profile API: `GET/PATCH /api/v1/users/me`
 - Mock payment: `POST /api/v1/orders/{id}/pay` → status PAID
 
 ### Fixed
@@ -23,5 +24,5 @@
 - Auth, Catalog, seed, ktlint, JaCoCo
 
 ### Known limitations
-- Payments not implemented (status PAID — admin only for now)
+- Real PSP payments (mock only)
 - Shared KMP client beyond skeleton

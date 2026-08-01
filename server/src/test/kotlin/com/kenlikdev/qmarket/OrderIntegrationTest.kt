@@ -201,4 +201,39 @@ class OrderIntegrationTest {
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.status").value("CONFIRMED"))
     }
+
+    @Test
+    fun `pay marks order as PAID`() {
+        mockMvc
+            .perform(
+                post("/api/v1/cart/items")
+                    .header("Authorization", "Bearer $token")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"productId":"$productId","quantity":1}"""),
+            ).andExpect(status().isOk)
+
+        val createResult =
+            mockMvc
+                .perform(
+                    post("/api/v1/orders")
+                        .header("Authorization", "Bearer $token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"shippingAddress":"Pay Test Street"}"""),
+                ).andExpect(status().isCreated)
+                .andReturn()
+
+        val orderId =
+            Regex("\"id\"\\s*:\\s*\"([0-9a-fA-F-]{36})\"")
+                .find(createResult.response.contentAsString)
+                ?.groupValues
+                ?.get(1)
+                ?: error("No order id")
+
+        mockMvc
+            .perform(
+                post("/api/v1/orders/$orderId/pay")
+                    .header("Authorization", "Bearer $token"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("PAID"))
+    }
 }

@@ -41,3 +41,22 @@ data class RefreshTokenRequest(
     @field:NotBlank
     val refreshToken: String,
 )
+
+data class ProfileResponse(
+    val id: UUID,
+    val email: String,
+    val firstName: String?,
+    val lastName: String?,
+    val phone: String?,
+    val emailVerified: Boolean,
+    val roles: List<String>,
+)
+
+data class UpdateProfileRequest(
+    @field:Size(max = 100)
+    val firstName: String? = null,
+    @field:Size(max = 100)
+    val lastName: String? = null,
+    @field:Size(max = 30)
+    val phone: String? = null,
+)

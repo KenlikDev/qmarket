@@ -17,6 +17,7 @@
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
 | Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1+V2, app: `validate`, tests: Flyway |
 | Payments (mock) | ✅ POST /api/v1/orders/{id}/pay |
+| Profile (GET/PATCH /users/me) | ✅ |
 | Shared KMP DTOs / Clients UI | ⚠️ skeleton |
 
 ## Quick start
@@ -31,6 +32,13 @@ docker compose up -d
 
 - Swagger: http://localhost:8080/swagger-ui.html (Authorize = JWT accessToken)
 - Admin: `admin@qmarket.local` / `admin123`
+
+### Profile API
+
+```
+GET    /api/v1/users/me
+PATCH  /api/v1/users/me   { "firstName"?, "lastName"?, "phone"? }
+```
 
 ### Orders API
 
