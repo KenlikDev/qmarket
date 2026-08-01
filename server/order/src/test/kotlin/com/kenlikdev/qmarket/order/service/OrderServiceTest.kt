@@ -3,8 +3,8 @@ package com.kenlikdev.qmarket.order.service
 import com.kenlikdev.qmarket.cart.domain.Cart
 import com.kenlikdev.qmarket.cart.domain.CartItem
 import com.kenlikdev.qmarket.cart.repository.CartRepository
-import com.kenlikdev.qmarket.catalog.domain.Product
-import com.kenlikdev.qmarket.catalog.repository.ProductRepository
+import com.kenlikdev.qmarket.catalog.api.ProductCatalog
+import com.kenlikdev.qmarket.catalog.api.ProductInfo
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.domain.Address
@@ -29,7 +29,7 @@ import java.util.UUID
 class OrderServiceTest {
     private lateinit var orderRepository: OrderRepository
     private lateinit var cartRepository: CartRepository
-    private lateinit var productRepository: ProductRepository
+    private lateinit var productCatalog: ProductCatalog
     private lateinit var addressRepository: AddressRepository
     private lateinit var orderService: OrderService
 
@@ -37,7 +37,7 @@ class OrderServiceTest {
     private val productId = UUID.randomUUID()
 
     private val product =
-        Product(
+        ProductInfo(
             id = productId,
             name = "Headphones",
             slug = "headphones",
@@ -50,9 +50,9 @@ class OrderServiceTest {
     fun setUp() {
         orderRepository = mockk()
         cartRepository = mockk()
-        productRepository = mockk()
+        productCatalog = mockk()
         addressRepository = mockk()
-        orderService = OrderService(orderRepository, cartRepository, productRepository, addressRepository)
+        orderService = OrderService(orderRepository, cartRepository, productCatalog, addressRepository)
     }
 
     @Test
@@ -62,8 +62,8 @@ class OrderServiceTest {
                 items.add(CartItem(cart = this, productId = productId, quantity = 2))
             }
         every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
-        every { productRepository.findById(productId) } returns Optional.of(product)
-        every { productRepository.save(any()) } answers { firstArg() }
+        every { productCatalog.requireActive(productId) } returns product
+        every { productCatalog.decreaseStock(productId, any()) } returns Unit
         every { orderRepository.save(any()) } answers {
             firstArg<Order>().also { it.id = UUID.randomUUID() }
         }
@@ -79,7 +79,7 @@ class OrderServiceTest {
         assertEquals(BigDecimal("100.00"), result.totalAmount)
         assertEquals(1, result.items.size)
         assertEquals(0, cart.items.size)
-        verify { productRepository.save(match { it.stockQuantity == 8 }) }
+        verify { productCatalog.decreaseStock(productId, 2) }
     }
 
     @Test
@@ -98,7 +98,8 @@ class OrderServiceTest {
                 items.add(CartItem(cart = this, productId = productId, quantity = 100))
             }
         every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
-        every { productRepository.findById(productId) } returns Optional.of(product)
+        every { productCatalog.requireActive(productId) } returns product
+        every { productCatalog.decreaseStock(productId, any()) } returns Unit
 
         assertThrows<BadRequestException> {
             orderService.createFromCart(userId, CreateOrderRequest(shippingAddress = "Address"))
@@ -189,9 +190,9 @@ class OrderServiceTest {
                 country = "RU",
             )
         every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
-        every { productRepository.findById(productId) } returns Optional.of(product)
+        every { productCatalog.requireActive(productId) } returns product
+        every { productCatalog.decreaseStock(productId, any()) } returns Unit
         every { addressRepository.findByIdAndUserId(addressId, userId) } returns Optional.of(address)
-        every { productRepository.save(any()) } answers { firstArg() }
         every { orderRepository.save(any()) } answers {
             firstArg<Order>().also { if (it.id == null) it.id = UUID.randomUUID() }
         }

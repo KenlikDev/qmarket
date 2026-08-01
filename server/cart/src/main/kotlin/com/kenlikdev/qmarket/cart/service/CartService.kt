@@ -7,8 +7,7 @@ import com.kenlikdev.qmarket.cart.dto.CartItemResponse
 import com.kenlikdev.qmarket.cart.dto.CartResponse
 import com.kenlikdev.qmarket.cart.dto.UpdateCartItemRequest
 import com.kenlikdev.qmarket.cart.repository.CartRepository
-import com.kenlikdev.qmarket.catalog.domain.Product
-import com.kenlikdev.qmarket.catalog.repository.ProductRepository
+import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import org.springframework.stereotype.Service
@@ -19,7 +18,7 @@ import java.util.UUID
 @Service
 class CartService(
     private val cartRepository: CartRepository,
-    private val productRepository: ProductRepository,
+    private val productCatalog: ProductCatalog,
 ) {
     @Transactional(readOnly = true)
     fun getCart(userId: UUID): CartResponse {
@@ -32,7 +31,7 @@ class CartService(
         userId: UUID,
         request: AddCartItemRequest,
     ): CartResponse {
-        val product = loadActiveProduct(request.productId)
+        val product = productCatalog.requireActive(request.productId)
         val cart = findOrCreate(userId)
         val existing = cart.items.find { it.productId == request.productId }
 
@@ -49,7 +48,7 @@ class CartService(
             val item =
                 CartItem(
                     cart = cart,
-                    productId = product.id!!,
+                    productId = product.id,
                     quantity = request.quantity,
                 )
             cart.items.add(item)
@@ -64,7 +63,7 @@ class CartService(
         productId: UUID,
         request: UpdateCartItemRequest,
     ): CartResponse {
-        val product = loadActiveProduct(productId)
+        val product = productCatalog.requireActive(productId)
         val cart =
             cartRepository
                 .findByUserId(userId)
@@ -114,26 +113,15 @@ class CartService(
             cartRepository.save(Cart(userId = userId))
         }
 
-    private fun findOrEmpty(userId: UUID): Cart = cartRepository.findByUserId(userId).orElse(Cart(userId = userId))
-
-    private fun loadActiveProduct(productId: UUID): Product {
-        val product =
-            productRepository
-                .findById(productId)
-                .orElseThrow { NotFoundException("Product not found: $productId") }
-        if (!product.active) {
-            throw BadRequestException("Product is not available")
-        }
-        return product
-    }
+    private fun findOrEmpty(userId: UUID): Cart = cartRepository.findByUserId(userId).orElseGet { Cart(userId = userId) }
 
     private fun toResponse(cart: Cart): CartResponse {
-        val productIds = cart.items.map { it.productId }.toSet()
+        val productIds = cart.items.map { it.productId }.distinct()
         val products =
             if (productIds.isEmpty()) {
                 emptyMap()
             } else {
-                productRepository.findAllById(productIds).associateBy { it.id!! }
+                productCatalog.findByIds(productIds)
             }
 
         val items =
@@ -143,7 +131,7 @@ class CartService(
                         ?: throw NotFoundException("Product not found: ${item.productId}")
                 val lineTotal = product.price.multiply(BigDecimal(item.quantity))
                 CartItemResponse(
-                    productId = item.productId,
+                    productId = product.id,
                     productName = product.name,
                     productSlug = product.slug,
                     unitPrice = product.price,
@@ -152,10 +140,8 @@ class CartService(
                     stockQuantity = product.stockQuantity,
                 )
             }
-
-        val totalPrice = items.fold(BigDecimal.ZERO) { acc, i -> acc.add(i.lineTotal) }
         val totalItems = items.sumOf { it.quantity }
-
+        val totalPrice = items.fold(BigDecimal.ZERO) { acc, i -> acc.add(i.lineTotal) }
         return CartResponse(
             id = cart.id ?: UUID(0, 0),
             userId = cart.userId,

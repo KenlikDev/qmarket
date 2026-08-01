@@ -19,6 +19,8 @@
 | Payments (mock) | ✅ POST /api/v1/orders/{id}/pay |
 | Profile (GET/PATCH /users/me) | ✅ |
 | Shipping addresses | ✅ |
+| catalog-api (ProductCatalog port) | ✅ |
+| ArchUnit module boundaries | ✅ |
 | Shared KMP DTOs / Clients UI | ⚠️ skeleton |
 
 ## Quick start

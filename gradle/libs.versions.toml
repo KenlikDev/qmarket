@@ -37,6 +37,7 @@ springdoc = "3.0.3"
 # Test
 testcontainers = "2.0.5"
 mockk = "1.14.11"
+archunit = "1.4.1"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -104,6 +105,7 @@ testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 
 [bundles]
 spring-boot-web = [

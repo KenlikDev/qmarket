@@ -31,6 +31,7 @@ dependencyManagement {
 
 dependencies {
     api(project(":server:common"))
+    api(project(":server:catalog-api"))
     api(project(":core"))
 
     testImplementation(libs.spring.boot.starter.test)

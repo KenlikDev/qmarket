@@ -1,7 +1,7 @@
 package com.kenlikdev.qmarket.order.service
 
 import com.kenlikdev.qmarket.cart.repository.CartRepository
-import com.kenlikdev.qmarket.catalog.repository.ProductRepository
+import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
@@ -25,7 +25,7 @@ import java.util.UUID
 class OrderService(
     private val orderRepository: OrderRepository,
     private val cartRepository: CartRepository,
-    private val productRepository: ProductRepository,
+    private val productCatalog: ProductCatalog,
     private val addressRepository: AddressRepository,
 ) {
     @Transactional
@@ -53,29 +53,20 @@ class OrderService(
 
         var total = BigDecimal.ZERO
         for (cartItem in cart.items) {
-            val product =
-                productRepository
-                    .findById(cartItem.productId)
-                    .orElseThrow { NotFoundException("Product not found: ${cartItem.productId}") }
-            if (!product.active) {
-                throw BadRequestException("Product is not available: ${product.slug}")
-            }
+            val product = productCatalog.requireActive(cartItem.productId)
             if (cartItem.quantity > product.stockQuantity) {
                 throw BadRequestException(
-                    "Insufficient stock for ${product.slug}: available ${product.stockQuantity}",
+                    "Insufficient stock for product ${product.slug}: available ${product.stockQuantity}, requested ${cartItem.quantity}",
                 )
             }
+            productCatalog.decreaseStock(cartItem.productId, cartItem.quantity)
 
             val lineTotal = product.price.multiply(BigDecimal(cartItem.quantity))
             total = total.add(lineTotal)
-
-            product.stockQuantity -= cartItem.quantity
-            productRepository.save(product)
-
             order.items.add(
                 OrderItem(
                     order = order,
-                    productId = product.id!!,
+                    productId = product.id,
                     productName = product.name,
                     productSlug = product.slug,
                     unitPrice = product.price,
@@ -180,10 +171,7 @@ class OrderService(
 
         // restore stock
         for (item in order.items) {
-            productRepository.findById(item.productId).ifPresent { product ->
-                product.stockQuantity += item.quantity
-                productRepository.save(product)
-            }
+            productCatalog.increaseStock(item.productId, item.quantity)
         }
 
         order.status = OrderStatus.CANCELLED

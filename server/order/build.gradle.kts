@@ -31,7 +31,7 @@ dependencyManagement {
 
 dependencies {
     api(project(":server:common"))
-    api(project(":server:catalog"))
+    api(project(":server:catalog-api"))
     api(project(":server:cart"))
     api(project(":server:identity"))
     api(project(":core"))

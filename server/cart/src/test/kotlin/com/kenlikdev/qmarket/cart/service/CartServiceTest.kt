@@ -5,8 +5,8 @@ import com.kenlikdev.qmarket.cart.domain.CartItem
 import com.kenlikdev.qmarket.cart.dto.AddCartItemRequest
 import com.kenlikdev.qmarket.cart.dto.UpdateCartItemRequest
 import com.kenlikdev.qmarket.cart.repository.CartRepository
-import com.kenlikdev.qmarket.catalog.domain.Product
-import com.kenlikdev.qmarket.catalog.repository.ProductRepository
+import com.kenlikdev.qmarket.catalog.api.ProductCatalog
+import com.kenlikdev.qmarket.catalog.api.ProductInfo
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import io.mockk.every
@@ -22,14 +22,14 @@ import java.util.UUID
 
 class CartServiceTest {
     private lateinit var cartRepository: CartRepository
-    private lateinit var productRepository: ProductRepository
+    private lateinit var productCatalog: ProductCatalog
     private lateinit var cartService: CartService
 
     private val userId = UUID.randomUUID()
     private val productId = UUID.randomUUID()
 
     private val product =
-        Product(
+        ProductInfo(
             id = productId,
             name = "Headphones",
             slug = "headphones",
@@ -41,8 +41,8 @@ class CartServiceTest {
     @BeforeEach
     fun setUp() {
         cartRepository = mockk()
-        productRepository = mockk()
-        cartService = CartService(cartRepository, productRepository)
+        productCatalog = mockk()
+        cartService = CartService(cartRepository, productCatalog)
     }
 
     @Test
@@ -58,10 +58,10 @@ class CartServiceTest {
 
     @Test
     fun `addItem creates cart and adds product`() {
-        every { productRepository.findById(productId) } returns Optional.of(product)
+        every { productCatalog.requireActive(productId) } returns product
         every { cartRepository.findByUserId(userId) } returns Optional.empty()
         every { cartRepository.save(any()) } answers { firstArg() }
-        every { productRepository.findAllById(any<Iterable<UUID>>()) } returns listOf(product)
+        every { productCatalog.findByIds(any()) } returns mapOf(productId to product)
 
         val result = cartService.addItem(userId, AddCartItemRequest(productId, 2))
 
@@ -73,7 +73,7 @@ class CartServiceTest {
 
     @Test
     fun `addItem rejects quantity above stock`() {
-        every { productRepository.findById(productId) } returns Optional.of(product)
+        every { productCatalog.requireActive(productId) } returns product
         every { cartRepository.findByUserId(userId) } returns Optional.empty()
         every { cartRepository.save(any()) } answers { firstArg() }
 
@@ -90,10 +90,10 @@ class CartServiceTest {
                     CartItem(id = UUID.randomUUID(), cart = this, productId = productId, quantity = 1),
                 )
             }
-        every { productRepository.findById(productId) } returns Optional.of(product)
+        every { productCatalog.requireActive(productId) } returns product
         every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
         every { cartRepository.save(any()) } answers { firstArg() }
-        every { productRepository.findAllById(any<Iterable<UUID>>()) } returns listOf(product)
+        every { productCatalog.findByIds(any()) } returns mapOf(productId to product)
 
         val result = cartService.updateItem(userId, productId, UpdateCartItemRequest(3))
 
@@ -111,7 +111,7 @@ class CartServiceTest {
             }
         every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
         every { cartRepository.save(any()) } answers { firstArg() }
-        every { productRepository.findAllById(any<Iterable<UUID>>()) } returns emptyList()
+        every { productCatalog.findByIds(any()) } returns emptyMap()
 
         val result = cartService.removeItem(userId, productId)
 
