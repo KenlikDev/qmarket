@@ -7,6 +7,8 @@ import com.kenlikdev.qmarket.catalog.domain.Product
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import com.kenlikdev.qmarket.identity.domain.Address
+import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
@@ -16,6 +18,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -27,6 +30,7 @@ class OrderServiceTest {
     private lateinit var orderRepository: OrderRepository
     private lateinit var cartRepository: CartRepository
     private lateinit var productRepository: ProductRepository
+    private lateinit var addressRepository: AddressRepository
     private lateinit var orderService: OrderService
 
     private val userId = UUID.randomUUID()
@@ -47,7 +51,8 @@ class OrderServiceTest {
         orderRepository = mockk()
         cartRepository = mockk()
         productRepository = mockk()
-        orderService = OrderService(orderRepository, cartRepository, productRepository)
+        addressRepository = mockk()
+        orderService = OrderService(orderRepository, cartRepository, productRepository, addressRepository)
     }
 
     @Test
@@ -163,6 +168,55 @@ class OrderServiceTest {
 
         assertThrows<NotFoundException> {
             orderService.payMock(userId, orderId)
+        }
+    }
+
+    @Test
+    fun `createFromCart resolves addressId to shipping text`() {
+        val addressId = UUID.randomUUID()
+        val cart =
+            Cart(id = UUID.randomUUID(), userId = userId).apply {
+                items.add(CartItem(cart = this, productId = productId, quantity = 1))
+            }
+        val address =
+            Address(
+                id = addressId,
+                userId = userId,
+                recipientName = "Ivan",
+                city = "Moscow",
+                streetLine1 = "Tverskaya 1",
+                postalCode = "101000",
+                country = "RU",
+            )
+        every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
+        every { productRepository.findById(productId) } returns Optional.of(product)
+        every { addressRepository.findByIdAndUserId(addressId, userId) } returns Optional.of(address)
+        every { productRepository.save(any()) } answers { firstArg() }
+        every { orderRepository.save(any()) } answers {
+            firstArg<Order>().also { if (it.id == null) it.id = UUID.randomUUID() }
+        }
+        every { cartRepository.save(any()) } answers { firstArg() }
+
+        val result =
+            orderService.createFromCart(
+                userId,
+                CreateOrderRequest(addressId = addressId),
+            )
+
+        assertTrue(result.shippingAddress?.contains("Moscow") == true)
+        assertTrue(result.shippingAddress?.contains("Tverskaya") == true)
+    }
+
+    @Test
+    fun `createFromCart fails when neither address nor shipping given`() {
+        val cart =
+            Cart(id = UUID.randomUUID(), userId = userId).apply {
+                items.add(CartItem(cart = this, productId = productId, quantity = 1))
+            }
+        every { cartRepository.findByUserId(userId) } returns Optional.of(cart)
+
+        assertThrows<BadRequestException> {
+            orderService.createFromCart(userId, CreateOrderRequest())
         }
     }
 }

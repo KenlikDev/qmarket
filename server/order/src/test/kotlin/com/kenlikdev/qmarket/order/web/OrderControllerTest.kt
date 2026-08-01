@@ -102,6 +102,9 @@ class OrderControllerTest {
 
     @Test
     fun `POST create with blank address returns 400`() {
+        every { orderService.createFromCart(userId, any()) } throws
+            BadRequestException("Either shippingAddress or addressId is required")
+
         mockMvc
             .perform(
                 post("/api/v1/orders")
@@ -109,6 +112,7 @@ class OrderControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"shippingAddress":""}"""),
             ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
     }
 
     @Test

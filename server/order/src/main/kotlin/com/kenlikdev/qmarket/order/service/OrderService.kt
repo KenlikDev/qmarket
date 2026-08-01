@@ -4,6 +4,7 @@ import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
@@ -25,6 +26,7 @@ class OrderService(
     private val orderRepository: OrderRepository,
     private val cartRepository: CartRepository,
     private val productRepository: ProductRepository,
+    private val addressRepository: AddressRepository,
 ) {
     @Transactional
     fun createFromCart(
@@ -39,11 +41,13 @@ class OrderService(
             throw BadRequestException("Cart is empty")
         }
 
+        val shipping = resolveShippingAddress(userId, request)
+
         val order =
             Order(
                 userId = userId,
                 status = OrderStatus.PENDING,
-                shippingAddress = request.shippingAddress.trim(),
+                shippingAddress = shipping,
                 customerNote = request.customerNote?.trim()?.takeIf { it.isNotEmpty() },
             )
 
@@ -211,6 +215,24 @@ class OrderService(
         }
 
         return toResponse(orderRepository.save(order))
+    }
+
+    private fun resolveShippingAddress(
+        userId: UUID,
+        request: CreateOrderRequest,
+    ): String {
+        if (request.addressId != null) {
+            val address =
+                addressRepository
+                    .findByIdAndUserId(request.addressId, userId)
+                    .orElseThrow { NotFoundException("Address not found") }
+            return address.formatSingleLine()
+        }
+        val freeForm = request.shippingAddress?.trim().orEmpty()
+        if (freeForm.isEmpty()) {
+            throw BadRequestException("Either shippingAddress or addressId is required")
+        }
+        return freeForm
     }
 
     private fun toResponse(order: Order): OrderResponse =

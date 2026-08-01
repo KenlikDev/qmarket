@@ -63,7 +63,7 @@ POST   /api/v1/users/me/password  { "currentPassword", "newPassword" }  # 204
 ### Orders API
 
 ```
-POST   /api/v1/orders                 # из корзины { shippingAddress, customerNote? }
+POST   /api/v1/orders                 # { shippingAddress? | addressId?, customerNote? }
 GET    /api/v1/orders?page=0&size=20  # без sort (Swagger sort=string ломал JPA)
 GET    /api/v1/orders/{id}
 POST   /api/v1/orders/{id}/cancel

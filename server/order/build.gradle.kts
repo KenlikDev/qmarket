@@ -33,6 +33,7 @@ dependencies {
     api(project(":server:common"))
     api(project(":server:catalog"))
     api(project(":server:cart"))
+    api(project(":server:identity"))
     api(project(":core"))
 
     testImplementation(libs.spring.boot.starter.test)

@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Checkout: optional `addressId` on create order (address book → shippingAddress)
+- Shipping addresses CRUD (`/api/v1/users/me/addresses`) + Flyway V3
 - Change password: `POST /api/v1/users/me/password`
 - Catalog filters: minPrice, maxPrice, sortBy, sortDir
 - Profile API: `GET/PATCH /api/v1/users/me`
