@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Change password: `POST /api/v1/users/me/password`
 - Catalog filters: minPrice, maxPrice, sortBy, sortDir
 - Profile API: `GET/PATCH /api/v1/users/me`
 - Mock payment: `POST /api/v1/orders/{id}/pay` → status PAID

@@ -60,3 +60,11 @@ data class UpdateProfileRequest(
     @field:Size(max = 30)
     val phone: String? = null,
 )
+
+data class ChangePasswordRequest(
+    @field:NotBlank
+    val currentPassword: String,
+    @field:NotBlank
+    @field:Size(min = 8, max = 100)
+    val newPassword: String,
+)

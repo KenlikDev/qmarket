@@ -44,6 +44,7 @@ GET /api/v1/products?q=&categoryId=&featuredOnly=&minPrice=&maxPrice=&sortBy=pri
 ```
 GET    /api/v1/users/me
 PATCH  /api/v1/users/me   { "firstName"?, "lastName"?, "phone"? }
+POST   /api/v1/users/me/password  { "currentPassword", "newPassword" }  # 204
 ```
 
 ### Orders API

@@ -4,7 +4,9 @@ import com.kenlikdev.qmarket.common.exception.GlobalExceptionHandler
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.dto.ProfileResponse
 import com.kenlikdev.qmarket.identity.service.ProfileService
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
@@ -14,6 +16,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -93,5 +96,25 @@ class ProfileControllerTest {
         mockMvc
             .perform(get("/api/v1/users/me").principal(auth))
             .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `POST password returns 204`() {
+        every { profileService.changePassword(userId, any()) } just Runs
+        val auth = UsernamePasswordAuthenticationToken(userId, null, emptyList())
+        val body =
+            """
+            {"currentPassword":"oldpassword","newPassword":"newpassword1"}
+            """.trimIndent()
+
+        mockMvc
+            .perform(
+                post("/api/v1/users/me/password")
+                    .principal(auth)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body),
+            ).andExpect(status().isNoContent)
+
+        verify { profileService.changePassword(userId, any()) }
     }
 }
