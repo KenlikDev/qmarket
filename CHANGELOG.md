@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Order aggregate (cancel/markPaid/applyAdminStatus); repos return Kotlin nullable
 - Cart aggregate methods (addItem/changeQuantity/removeItem); CartRepository returns `Cart?`
 - `server:catalog-api` + `ProductCatalog` port; cart/order no longer depend on catalog JPA
 - ArchUnit rules for module boundaries

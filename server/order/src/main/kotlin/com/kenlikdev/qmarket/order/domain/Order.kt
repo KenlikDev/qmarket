@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.order.domain
 
+import com.kenlikdev.qmarket.common.exception.BadRequestException
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -27,6 +28,10 @@ enum class OrderStatus {
     CANCELLED,
 }
 
+/**
+ * Order aggregate: status transitions and cancellation rules live here.
+ * Stock restore remains in the application service (needs ProductCatalog).
+ */
 @Entity
 @Table(name = "orders")
 class Order(
@@ -59,6 +64,33 @@ class Order(
     @PreUpdate
     fun onUpdate() {
         updatedAt = Instant.now()
+    }
+
+    fun cancel() {
+        if (status != OrderStatus.PENDING && status != OrderStatus.CONFIRMED) {
+            throw BadRequestException("Only PENDING or CONFIRMED orders can be cancelled")
+        }
+        status = OrderStatus.CANCELLED
+    }
+
+    fun markPaid() {
+        when (status) {
+            OrderStatus.PENDING, OrderStatus.CONFIRMED -> status = OrderStatus.PAID
+            OrderStatus.PAID -> throw BadRequestException("Order is already paid")
+            OrderStatus.CANCELLED -> throw BadRequestException("Cannot pay a cancelled order")
+            OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
+                throw BadRequestException("Order is already fulfilled")
+        }
+    }
+
+    fun applyAdminStatus(newStatus: OrderStatus) {
+        if (status == OrderStatus.CANCELLED && newStatus != OrderStatus.CANCELLED) {
+            throw BadRequestException("Cannot change status of a cancelled order")
+        }
+        if (status == OrderStatus.DELIVERED) {
+            throw BadRequestException("Cannot change status of a delivered order")
+        }
+        status = newStatus
     }
 }
 

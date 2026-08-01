@@ -91,8 +91,7 @@ class OrderService(
     ): OrderResponse {
         val order =
             orderRepository
-                .findByIdAndUserId(orderId, userId)
-                .orElseThrow { NotFoundException("Order not found") }
+                .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
         return toResponse(order)
     }
 
@@ -143,14 +142,7 @@ class OrderService(
                 .findById(orderId)
                 .orElseThrow { NotFoundException("Order not found") }
 
-        if (order.status == OrderStatus.CANCELLED && request.status != OrderStatus.CANCELLED) {
-            throw BadRequestException("Cannot change status of a cancelled order")
-        }
-        if (order.status == OrderStatus.DELIVERED) {
-            throw BadRequestException("Cannot change status of a delivered order")
-        }
-
-        order.status = request.status
+        order.applyAdminStatus(request.status)
         return toResponse(orderRepository.save(order))
     }
 
@@ -161,19 +153,13 @@ class OrderService(
     ): OrderResponse {
         val order =
             orderRepository
-                .findByIdAndUserId(orderId, userId)
-                .orElseThrow { NotFoundException("Order not found") }
+                .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
 
-        if (order.status != OrderStatus.PENDING && order.status != OrderStatus.CONFIRMED) {
-            throw BadRequestException("Only PENDING or CONFIRMED orders can be cancelled")
-        }
-
-        // restore stock
+        // restore stock before status change
         for (item in order.items) {
             productCatalog.increaseStock(item.productId, item.quantity)
         }
-
-        order.status = OrderStatus.CANCELLED
+        order.cancel()
         return toResponse(orderRepository.save(order))
     }
 
@@ -188,18 +174,9 @@ class OrderService(
     ): OrderResponse {
         val order =
             orderRepository
-                .findByIdAndUserId(orderId, userId)
-                .orElseThrow { NotFoundException("Order not found") }
+                .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
 
-        when (order.status) {
-            OrderStatus.PENDING, OrderStatus.CONFIRMED -> {
-                order.status = OrderStatus.PAID
-            }
-            OrderStatus.PAID -> throw BadRequestException("Order is already paid")
-            OrderStatus.CANCELLED -> throw BadRequestException("Cannot pay a cancelled order")
-            OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
-                throw BadRequestException("Order is already fulfilled")
-        }
+        order.markPaid()
 
         return toResponse(orderRepository.save(order))
     }
@@ -211,8 +188,7 @@ class OrderService(
         if (request.addressId != null) {
             val address =
                 addressRepository
-                    .findByIdAndUserId(request.addressId, userId)
-                    .orElseThrow { NotFoundException("Address not found") }
+                    .findByIdAndUserId(request.addressId, userId) ?: throw NotFoundException("Address not found")
             return address.formatSingleLine()
         }
         val freeForm = request.shippingAddress?.trim().orEmpty()

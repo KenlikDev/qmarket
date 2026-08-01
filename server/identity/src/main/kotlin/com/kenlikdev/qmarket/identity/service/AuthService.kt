@@ -33,8 +33,7 @@ class AuthService(
 
         val userRole =
             roleRepository
-                .findByName("ROLE_USER")
-                .orElseThrow { IllegalStateException("ROLE_USER not found in database. Run Flyway migrations.") }
+                .findByName("ROLE_USER") ?: throw IllegalStateException("ROLE_USER not found in database. Run Flyway migrations.")
 
         // Spring Security's PasswordEncoder.encode is annotated in a way that Kotlin sees String?
         val encodedPassword =
@@ -59,7 +58,7 @@ class AuthService(
         val user =
             userRepository
                 .findByEmail(request.email.lowercase().trim())
-                .orElseThrow { UnauthorizedException("Invalid email or password") }
+                ?: throw UnauthorizedException("Invalid email or password")
 
         if (!user.enabled) {
             throw UnauthorizedException("Account is disabled")

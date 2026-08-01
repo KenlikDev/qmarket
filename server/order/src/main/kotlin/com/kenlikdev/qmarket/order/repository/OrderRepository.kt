@@ -4,7 +4,6 @@ import com.kenlikdev.qmarket.order.domain.Order
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
-import java.util.Optional
 import java.util.UUID
 
 interface OrderRepository : JpaRepository<Order, UUID> {
@@ -16,5 +15,5 @@ interface OrderRepository : JpaRepository<Order, UUID> {
     fun findByIdAndUserId(
         id: UUID,
         userId: UUID,
-    ): Optional<Order>
+    ): Order?
 }

@@ -24,11 +24,12 @@ class AddressService(
     fun get(
         userId: UUID,
         addressId: UUID,
-    ): AddressResponse =
-        addressRepository
-            .findByIdAndUserId(addressId, userId)
-            .orElseThrow { NotFoundException("Address not found") }
-            .toResponse()
+    ): AddressResponse {
+        val address =
+            addressRepository.findByIdAndUserId(addressId, userId)
+                ?: throw NotFoundException("Address not found")
+        return address.toResponse()
+    }
 
     @Transactional
     fun create(
@@ -64,9 +65,8 @@ class AddressService(
         request: UpdateAddressRequest,
     ): AddressResponse {
         val address =
-            addressRepository
-                .findByIdAndUserId(addressId, userId)
-                .orElseThrow { NotFoundException("Address not found") }
+            addressRepository.findByIdAndUserId(addressId, userId)
+                ?: throw NotFoundException("Address not found")
 
         request.label?.let { address.label = it.trim().ifEmpty { null } }
         request.recipientName?.let { address.recipientName = it.trim() }
@@ -94,9 +94,8 @@ class AddressService(
         addressId: UUID,
     ) {
         val address =
-            addressRepository
-                .findByIdAndUserId(addressId, userId)
-                .orElseThrow { NotFoundException("Address not found") }
+            addressRepository.findByIdAndUserId(addressId, userId)
+                ?: throw NotFoundException("Address not found")
         val wasDefault = address.default
         addressRepository.delete(address)
         if (wasDefault) {

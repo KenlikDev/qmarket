@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.util.Optional
 import java.util.UUID
 
 class AddressServiceTest {
@@ -54,7 +53,7 @@ class AddressServiceTest {
     @Test
     fun `get foreign address throws NotFound`() {
         val id = UUID.randomUUID()
-        every { addressRepository.findByIdAndUserId(id, userId) } returns Optional.empty()
+        every { addressRepository.findByIdAndUserId(id, userId) } returns null
 
         assertThrows<NotFoundException> {
             addressService.get(userId, id)
@@ -73,7 +72,7 @@ class AddressServiceTest {
                 streetLine1 = "Tverskaya 1",
                 default = false,
             )
-        every { addressRepository.findByIdAndUserId(id, userId) } returns Optional.of(address)
+        every { addressRepository.findByIdAndUserId(id, userId) } returns address
         every { addressRepository.clearDefaultForUser(userId) } returns Unit
         every { addressRepository.save(any()) } answers { firstArg() }
 
@@ -111,7 +110,7 @@ class AddressServiceTest {
                 streetLine1 = "B",
                 default = false,
             )
-        every { addressRepository.findByIdAndUserId(id, userId) } returns Optional.of(address)
+        every { addressRepository.findByIdAndUserId(id, userId) } returns address
         every { addressRepository.delete(address) } returns Unit
         every {
             addressRepository.findAllByUserIdOrderByDefaultDescCreatedAtDesc(userId)

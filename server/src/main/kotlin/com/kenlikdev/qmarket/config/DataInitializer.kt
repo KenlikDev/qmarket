@@ -41,7 +41,7 @@ class DataInitializer(
                 "ROLE_MANAGER" to "Store manager",
             )
         roles.forEach { (name, description) ->
-            if (roleRepository.findByName(name).isEmpty) {
+            if (roleRepository.findByName(name) == null) {
                 roleRepository.save(Role(name = name, description = description))
                 log.info("Seeded role: {}", name)
             }
@@ -58,11 +58,11 @@ class DataInitializer(
         val adminRole =
             roleRepository
                 .findByName("ROLE_ADMIN")
-                .orElseThrow { IllegalStateException("ROLE_ADMIN not found") }
+                ?: throw IllegalStateException("ROLE_ADMIN not found")
         val userRole =
             roleRepository
                 .findByName("ROLE_USER")
-                .orElseThrow { IllegalStateException("ROLE_USER not found") }
+                ?: throw IllegalStateException("ROLE_USER not found")
 
         val admin =
             User(

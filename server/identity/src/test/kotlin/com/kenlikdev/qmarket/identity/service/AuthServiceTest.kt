@@ -18,7 +18,6 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.security.crypto.password.PasswordEncoder
-import java.util.Optional
 import java.util.UUID
 
 class AuthServiceTest {
@@ -64,7 +63,7 @@ class AuthServiceTest {
         val userId = UUID.randomUUID()
 
         every { userRepository.existsByEmail("user@test.com") } returns false
-        every { roleRepository.findByName("ROLE_USER") } returns Optional.of(userRole)
+        every { roleRepository.findByName("ROLE_USER") } returns userRole
         every { passwordEncoder.encode("password123") } returns "hashed"
         every { userRepository.save(any()) } answers {
             firstArg<User>().also { it.id = userId }
@@ -102,7 +101,7 @@ class AuthServiceTest {
                 roles = mutableSetOf(userRole),
             )
 
-        every { userRepository.findByEmail("user@test.com") } returns Optional.of(user)
+        every { userRepository.findByEmail("user@test.com") } returns user
         every { passwordEncoder.matches("password123", "hashed") } returns true
         every { jwtService.generateAccessToken(userId, "user@test.com", listOf("ROLE_USER")) } returns "access"
         every { jwtService.generateRefreshToken(userId) } returns "refresh"
@@ -123,7 +122,7 @@ class AuthServiceTest {
                 enabled = true,
                 roles = mutableSetOf(userRole),
             )
-        every { userRepository.findByEmail("user@test.com") } returns Optional.of(user)
+        every { userRepository.findByEmail("user@test.com") } returns user
         every { passwordEncoder.matches("wrong", "hashed") } returns false
 
         assertThrows<UnauthorizedException> {
@@ -141,7 +140,7 @@ class AuthServiceTest {
                 enabled = false,
                 roles = mutableSetOf(userRole),
             )
-        every { userRepository.findByEmail("user@test.com") } returns Optional.of(user)
+        every { userRepository.findByEmail("user@test.com") } returns user
 
         assertThrows<UnauthorizedException> {
             authService.login(LoginRequest(email = "user@test.com", password = "password123"))
@@ -150,7 +149,7 @@ class AuthServiceTest {
 
     @Test
     fun `login with unknown email throws UnauthorizedException`() {
-        every { userRepository.findByEmail("unknown@test.com") } returns Optional.empty()
+        every { userRepository.findByEmail("unknown@test.com") } returns null
 
         assertThrows<UnauthorizedException> {
             authService.login(LoginRequest(email = "unknown@test.com", password = "password123"))

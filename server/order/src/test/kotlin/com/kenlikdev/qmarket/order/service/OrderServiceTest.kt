@@ -137,7 +137,7 @@ class OrderServiceTest {
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findByIdAndUserId(orderId, userId) } returns Optional.of(order)
+        every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
         val result = orderService.payMock(userId, orderId)
@@ -155,7 +155,7 @@ class OrderServiceTest {
                 status = OrderStatus.PAID,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findByIdAndUserId(orderId, userId) } returns Optional.of(order)
+        every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
 
         assertThrows<BadRequestException> {
             orderService.payMock(userId, orderId)
@@ -165,7 +165,7 @@ class OrderServiceTest {
     @Test
     fun `payMock fails for other user order`() {
         val orderId = UUID.randomUUID()
-        every { orderRepository.findByIdAndUserId(orderId, userId) } returns Optional.empty()
+        every { orderRepository.findByIdAndUserId(orderId, userId) } returns null
 
         assertThrows<NotFoundException> {
             orderService.payMock(userId, orderId)
@@ -192,7 +192,7 @@ class OrderServiceTest {
         every { cartRepository.findByUserId(userId) } returns cart
         every { productCatalog.requireActive(productId) } returns product
         every { productCatalog.decreaseStock(productId, any()) } returns Unit
-        every { addressRepository.findByIdAndUserId(addressId, userId) } returns Optional.of(address)
+        every { addressRepository.findByIdAndUserId(addressId, userId) } returns address
         every { orderRepository.save(any()) } answers {
             firstArg<Order>().also { if (it.id == null) it.id = UUID.randomUUID() }
         }
