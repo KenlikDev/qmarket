@@ -23,6 +23,7 @@ class User(
     @Column(name = "last_name")
     var lastName: String? = null,
 
+    @Column(length = 30)
     var phone: String? = null,
 
     @Column(name = "is_enabled", nullable = false)
@@ -58,9 +59,10 @@ class Role(
     @GeneratedValue(strategy = GenerationType.UUID)
     var id: UUID? = null,
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 50)
     var name: String = "",
 
+    @Column(length = 255)
     var description: String? = null,
 
     @Column(name = "created_at", nullable = false, updatable = false)

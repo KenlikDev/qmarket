@@ -4,10 +4,12 @@ spring:
     driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      # Schema from Flyway only (starter must be on classpath)
+      ddl-auto: none
     open-in-view: false
   flyway:
-    enabled: false
+    enabled: true
+    locations: classpath:db/migration
   jackson:
     default-property-inclusion: non_null
 
@@ -22,3 +24,5 @@ logging:
   level:
     root: WARN
     com.kenlikdev.qmarket: INFO
+    org.flywaydb: INFO
+    org.springframework.boot.flyway: INFO

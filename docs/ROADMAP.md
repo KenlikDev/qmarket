@@ -24,7 +24,7 @@
 - [x] Unit + controller slice + integration tests (order: unit; IT — в планах)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize
 - [x] Order integration tests
-- [ ] Flyway as schema source of truth (сейчас `ddl-auto=update`; V2 cart/orders SQL ready)
+- [x] Flyway as schema source of truth (`ddl-auto=validate`, V1+V2)
 - [ ] Payments
 - [ ] Shared KMP DTOs / client UI beyond skeleton
 

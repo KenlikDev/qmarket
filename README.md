@@ -17,7 +17,7 @@
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
 | Payments | ❌ |
 | Shared KMP DTOs / Clients UI | ⚠️ skeleton |
-| Flyway SoT | ⚠️ ddl-auto=update |
+| Flyway SoT (`spring-boot-starter-flyway`) | ⚠️ ddl-auto=update |
 
 ## Quick start
 

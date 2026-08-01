@@ -40,7 +40,7 @@ dependencies {
     api(libs.spring.boot.starter.actuator)
 
     api(libs.postgresql)
-    api(libs.flyway.core)
+    api(libs.spring.boot.starter.flyway)
     api(libs.flyway.database.postgresql)
 
     api(libs.bundles.jwt)

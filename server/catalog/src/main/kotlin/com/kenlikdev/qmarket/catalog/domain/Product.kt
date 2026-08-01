@@ -12,12 +12,13 @@ class Category(
     @GeneratedValue(strategy = GenerationType.UUID)
     var id: UUID? = null,
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 150)
     var name: String = "",
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 150)
     var slug: String = "",
 
+    @Column(length = 255)
     var description: String? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -55,12 +56,13 @@ class Product(
     @Column(nullable = false, unique = true)
     var slug: String = "",
 
+    @Column(length = 255)
     var description: String? = null,
 
-    @Column(name = "short_description")
+    @Column(name = "short_description", length = 500)
     var shortDescription: String? = null,
 
-    @Column(unique = true)
+    @Column(unique = true, length = 100)
     var sku: String? = null,
 
     @Column(nullable = false, precision = 12, scale = 2)

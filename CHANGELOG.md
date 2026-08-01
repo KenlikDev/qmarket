@@ -7,6 +7,12 @@
 - Flyway script `V2__cart_and_orders.sql` (not applied yet; Flyway still disabled)
 
 ### Fixed
+- Align JPA `@Column` length/TEXT with Flyway schema (Hibernate validate)
+
+### Changed
+- Flyway enabled, `ddl-auto=validate` (app + tests)
+
+### Fixed
 - Orders list: no longer binds Spring `Pageable`/`sort` (Swagger default `sort=string` crashed JPA)
 
 ### Added

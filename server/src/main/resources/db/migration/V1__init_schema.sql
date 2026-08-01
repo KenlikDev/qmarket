@@ -1,7 +1,5 @@
 -- QMarket v0.1 initial schema
 
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
 -- ===================== IDENTITY =====================
 
 CREATE TABLE roles (
@@ -38,7 +36,7 @@ CREATE TABLE categories (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        VARCHAR(150) NOT NULL,
     slug        VARCHAR(150) NOT NULL UNIQUE,
-    description TEXT,
+    description VARCHAR(255),
     parent_id   UUID REFERENCES categories(id) ON DELETE SET NULL,
     sort_order  INT NOT NULL DEFAULT 0,
     is_active   BOOLEAN NOT NULL DEFAULT TRUE,
@@ -53,7 +51,7 @@ CREATE TABLE products (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name            VARCHAR(255) NOT NULL,
     slug            VARCHAR(255) NOT NULL UNIQUE,
-    description     TEXT,
+    description     VARCHAR(255),
     short_description VARCHAR(500),
     sku             VARCHAR(100) UNIQUE,
     price           NUMERIC(12, 2) NOT NULL CHECK (price >= 0),
