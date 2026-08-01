@@ -26,6 +26,7 @@
 - [x] Flyway SoT via `spring-boot-starter-flyway` (V1+V2, validate)
 - [x] Payments (mock only; real PSP later)
 - [x] Profile API (GET/PATCH /users/me)
+- [x] Shipping addresses CRUD
 - [ ] Shared KMP DTOs / client UI beyond skeleton
 
 ## v1.0 MVP (из плана)

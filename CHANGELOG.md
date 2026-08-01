@@ -9,6 +9,7 @@
 - Mock payment: `POST /api/v1/orders/{id}/pay` → status PAID
 
 ### Fixed
+- Integration tests: Jackson TestJson instead of Regex for tokens/ids; drop unused @Testcontainers
 - Spring Boot 4: use `spring-boot-starter-flyway` (raw `flyway-core` does not auto-configure)
 - Schema from Flyway V1+V2; app `ddl-auto=validate`; tests Flyway + `ddl-auto=none`
 - ktlint: no wildcard imports; format across server modules

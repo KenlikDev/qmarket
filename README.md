@@ -18,6 +18,7 @@
 | Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1+V2, app: `validate`, tests: Flyway |
 | Payments (mock) | ✅ POST /api/v1/orders/{id}/pay |
 | Profile (GET/PATCH /users/me) | ✅ |
+| Shipping addresses | ✅ |
 | Shared KMP DTOs / Clients UI | ⚠️ skeleton |
 
 ## Quick start
@@ -38,6 +39,18 @@ docker compose up -d
 ```
 GET /api/v1/products?q=&categoryId=&featuredOnly=&minPrice=&maxPrice=&sortBy=price|name|createdAt&sortDir=asc|desc&page=&size=
 ```
+
+### Addresses API
+
+```
+GET    /api/v1/users/me/addresses
+POST   /api/v1/users/me/addresses
+GET    /api/v1/users/me/addresses/{id}
+PUT    /api/v1/users/me/addresses/{id}
+DELETE /api/v1/users/me/addresses/{id}
+```
+
+Первый адрес или `default: true` становится адресом по умолчанию (один на пользователя).
 
 ### Profile API
 

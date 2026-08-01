@@ -19,12 +19,11 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class CartIntegrationTest {
+class AddressIntegrationTest {
     @Autowired
     private lateinit var mockMvc: MockMvc
 
     private lateinit var token: String
-    private lateinit var productId: String
 
     @BeforeEach
     fun setUp() {
@@ -37,75 +36,73 @@ class CartIntegrationTest {
                 ).andExpect(status().isOk)
                 .andReturn()
         token = TestJson.accessToken(loginResult.response.contentAsString)
-
-        val productsResult =
-            mockMvc
-                .perform(get("/api/v1/products"))
-                .andExpect(status().isOk)
-                .andReturn()
-        productId = TestJson.firstContentId(productsResult.response.contentAsString)
-
-        mockMvc.perform(
-            delete("/api/v1/cart")
-                .header("Authorization", "Bearer $token"),
-        )
     }
 
     @Test
-    fun `cart requires authentication`() {
+    fun `addresses require authentication`() {
         mockMvc
-            .perform(get("/api/v1/cart"))
+            .perform(get("/api/v1/users/me/addresses"))
             .andExpect(status().isForbidden)
     }
 
     @Test
-    fun `add update remove and clear cart`() {
-        mockMvc
-            .perform(
-                post("/api/v1/cart/items")
-                    .header("Authorization", "Bearer $token")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"productId":"$productId","quantity":2}"""),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.totalItems").value(2))
-            .andExpect(jsonPath("$.items[0].productId").value(productId))
+    fun `create list update and delete address`() {
+        val createBody =
+            """
+            {
+              "label": "Home",
+              "recipientName": "Admin User",
+              "phone": "+79991234567",
+              "city": "Moscow",
+              "streetLine1": "Red Square 1",
+              "postalCode": "109012",
+              "default": true
+            }
+            """.trimIndent()
+
+        val createResult =
+            mockMvc
+                .perform(
+                    post("/api/v1/users/me/addresses")
+                        .header("Authorization", "Bearer $token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody),
+                ).andExpect(status().isCreated)
+                .andExpect(jsonPath("$.city").value("Moscow"))
+                .andExpect(jsonPath("$.default").value(true))
+                .andReturn()
+
+        val addressId = TestJson.id(createResult.response.contentAsString)
 
         mockMvc
             .perform(
-                put("/api/v1/cart/items/$productId")
-                    .header("Authorization", "Bearer $token")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"quantity":3}"""),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.totalItems").value(3))
-
-        mockMvc
-            .perform(
-                get("/api/v1/cart")
+                get("/api/v1/users/me/addresses")
                     .header("Authorization", "Bearer $token"),
             ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.totalItems").value(3))
+            .andExpect(jsonPath("$[0].id").value(addressId))
 
         mockMvc
             .perform(
-                delete("/api/v1/cart/items/$productId")
-                    .header("Authorization", "Bearer $token"),
-            ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.totalItems").value(0))
-
-        mockMvc
-            .perform(
-                post("/api/v1/cart/items")
+                put("/api/v1/users/me/addresses/$addressId")
                     .header("Authorization", "Bearer $token")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"productId":"$productId","quantity":1}"""),
+                    .content("""{"city":"Saint Petersburg","label":"Work"}"""),
             ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.city").value("Saint Petersburg"))
+            .andExpect(jsonPath("$.label").value("Work"))
 
         mockMvc
             .perform(
-                delete("/api/v1/cart")
+                delete("/api/v1/users/me/addresses/$addressId")
+                    .header("Authorization", "Bearer $token"),
+            ).andExpect(status().isNoContent)
+
+        mockMvc
+            .perform(
+                get("/api/v1/users/me/addresses")
                     .header("Authorization", "Bearer $token"),
             ).andExpect(status().isOk)
-            .andExpect(jsonPath("$.totalItems").value(0))
+            .andExpect(jsonPath("$").isArray)
+            .andExpect(jsonPath("$.length()").value(0))
     }
 }

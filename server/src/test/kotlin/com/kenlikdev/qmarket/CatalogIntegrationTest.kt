@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket
 
+import com.kenlikdev.qmarket.support.TestJson
 import org.hamcrest.Matchers.greaterThan
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -13,12 +14,10 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import org.testcontainers.junit.jupiter.Testcontainers
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Testcontainers
 class CatalogIntegrationTest {
     @Autowired
     private lateinit var mockMvc: MockMvc
@@ -27,24 +26,15 @@ class CatalogIntegrationTest {
 
     @BeforeEach
     fun loginAsAdmin() {
-        val login =
-            """
-            {"email": "admin@qmarket.local", "password": "admin123"}
-            """.trimIndent()
-
         val result =
             mockMvc
                 .perform(
                     post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(login),
+                        .content("""{"email":"admin@qmarket.local","password":"admin123"}"""),
                 ).andExpect(status().isOk)
                 .andReturn()
-
-        val response = result.response.contentAsString
-        val match = Regex("\"accessToken\"\\s*:\\s*\"([^\"]+)\"").find(response)
-        adminToken = match?.groupValues?.get(1)
-            ?: throw IllegalStateException("No accessToken in login response: $response")
+        adminToken = TestJson.accessToken(result.response.contentAsString)
     }
 
     @Test
@@ -67,10 +57,7 @@ class CatalogIntegrationTest {
 
     @Test
     fun `create category requires admin token`() {
-        val body =
-            """
-            {"name": "Test Category", "slug": "test-category"}
-            """.trimIndent()
+        val body = """{"name":"Test Category","slug":"test-category"}"""
 
         mockMvc
             .perform(

@@ -10,12 +10,13 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import org.testcontainers.junit.jupiter.Testcontainers
 
+/**
+ * Auth API against Testcontainers PostgreSQL (jdbc:tc URL in application-test.yml).
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Testcontainers
 class AuthIntegrationTest {
     @Autowired
     private lateinit var mockMvc: MockMvc

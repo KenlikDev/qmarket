@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket
 
+import com.kenlikdev.qmarket.support.TestJson
 import org.hamcrest.Matchers.greaterThan
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -15,16 +16,14 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import org.testcontainers.junit.jupiter.Testcontainers
 
 /**
- * Full-stack checkout path: auth → cart → order → list/cancel.
- * Requires Docker (Testcontainers PostgreSQL).
+ * Full-stack checkout path: auth → cart → order → list/cancel/pay.
+ * DB: Testcontainers via jdbc:tc:postgresql in application-test.yml (no @Container needed).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Testcontainers
 class OrderIntegrationTest {
     @Autowired
     private lateinit var mockMvc: MockMvc
@@ -34,20 +33,15 @@ class OrderIntegrationTest {
 
     @BeforeEach
     fun setUp() {
-        val loginBody = """{"email":"admin@qmarket.local","password":"admin123"}"""
-
         val loginResult =
             mockMvc
                 .perform(
                     post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(loginBody),
+                        .content("""{"email":"admin@qmarket.local","password":"admin123"}"""),
                 ).andExpect(status().isOk)
                 .andReturn()
-
-        val loginJson = loginResult.response.contentAsString
-        token = Regex("\"accessToken\"\\s*:\\s*\"([^\"]+)\"").find(loginJson)?.groupValues?.get(1)
-            ?: error("No accessToken: $loginJson")
+        token = TestJson.accessToken(loginResult.response.contentAsString)
 
         val productsJson =
             mockMvc
@@ -56,8 +50,7 @@ class OrderIntegrationTest {
                 .andReturn()
                 .response
                 .contentAsString
-        productId = Regex("\"id\"\\s*:\\s*\"([0-9a-fA-F-]{36})\"").find(productsJson)?.groupValues?.get(1)
-            ?: error("No product id in: $productsJson")
+        productId = TestJson.firstContentId(productsJson)
 
         mockMvc.perform(
             delete("/api/v1/cart")
@@ -117,12 +110,8 @@ class OrderIntegrationTest {
                 .andExpect(jsonPath("$.totalAmount").isNumber)
                 .andReturn()
 
-        val orderJson = createResult.response.contentAsString
-        val orderId =
-            Regex("\"id\"\\s*:\\s*\"([0-9a-fA-F-]{36})\"").find(orderJson)?.groupValues?.get(1)
-                ?: error("No order id: $orderJson")
+        val orderId = TestJson.id(createResult.response.contentAsString)
 
-        // cart should be empty after checkout
         mockMvc
             .perform(
                 get("/api/v1/cart")
@@ -176,12 +165,7 @@ class OrderIntegrationTest {
                 ).andExpect(status().isCreated)
                 .andReturn()
 
-        val orderId =
-            Regex("\"id\"\\s*:\\s*\"([0-9a-fA-F-]{36})\"")
-                .find(createResult.response.contentAsString)
-                ?.groupValues
-                ?.get(1)
-                ?: error("No order id")
+        val orderId = TestJson.id(createResult.response.contentAsString)
 
         mockMvc
             .perform(
@@ -222,12 +206,7 @@ class OrderIntegrationTest {
                 ).andExpect(status().isCreated)
                 .andReturn()
 
-        val orderId =
-            Regex("\"id\"\\s*:\\s*\"([0-9a-fA-F-]{36})\"")
-                .find(createResult.response.contentAsString)
-                ?.groupValues
-                ?.get(1)
-                ?: error("No order id")
+        val orderId = TestJson.id(createResult.response.contentAsString)
 
         mockMvc
             .perform(
