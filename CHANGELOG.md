@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Shared KMP API DTOs in `:core` (auth, catalog, cart, order, address, error) + Json config
 - Order aggregate (cancel/markPaid/applyAdminStatus); repos return Kotlin nullable
 - Cart aggregate methods (addItem/changeQuantity/removeItem); CartRepository returns `Cart?`
 - `server:catalog-api` + `ProductCatalog` port; cart/order no longer depend on catalog JPA

@@ -21,7 +21,8 @@
 | Shipping addresses | ✅ |
 | catalog-api (ProductCatalog port) | ✅ |
 | ArchUnit module boundaries | ✅ |
-| Shared KMP DTOs / Clients UI | ⚠️ skeleton |
+| Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
+| Clients UI | ⚠️ skeleton |
 
 ## Quick start
 
