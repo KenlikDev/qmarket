@@ -1,0 +1,8 @@
+# Production overrides — activate with spring.profiles.active=prod
+qmarket:
+  seed:
+    enabled: false
+  security:
+    cors:
+      # Set real front-end origins via CORS_ORIGINS env
+      allowed-origin-patterns: ${CORS_ORIGINS:https://qmarket.example}

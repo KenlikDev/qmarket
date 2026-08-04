@@ -44,17 +44,17 @@ class JpaProductCatalog(
         quantity: Int,
     ) {
         require(quantity > 0) { "quantity must be positive" }
-        val product =
-            productRepository
-                .findById(id)
-                .orElseThrow { NotFoundException("Product not found: $id") }
-        if (product.stockQuantity < quantity) {
+        val updated = productRepository.decreaseStockIfAvailable(id, quantity)
+        if (updated == 0) {
+            val product =
+                productRepository.findById(id).orElseThrow {
+                    NotFoundException("Product not found: $id")
+                }
             throw BadRequestException(
-                "Insufficient stock for product ${product.slug}: available ${product.stockQuantity}, requested $quantity",
+                "Insufficient stock for product ${product.slug}: " +
+                    "available ${product.stockQuantity}, requested $quantity",
             )
         }
-        product.stockQuantity -= quantity
-        productRepository.save(product)
     }
 
     @Transactional
@@ -63,12 +63,10 @@ class JpaProductCatalog(
         quantity: Int,
     ) {
         require(quantity > 0) { "quantity must be positive" }
-        val product =
-            productRepository
-                .findById(id)
-                .orElseThrow { NotFoundException("Product not found: $id") }
-        product.stockQuantity += quantity
-        productRepository.save(product)
+        val updated = productRepository.increaseStockBy(id, quantity)
+        if (updated == 0) {
+            throw NotFoundException("Product not found: $id")
+        }
     }
 
     private fun Product.toInfo(): ProductInfo =

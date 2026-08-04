@@ -2,6 +2,7 @@ package com.kenlikdev.qmarket.common.config
 
 import com.kenlikdev.qmarket.common.security.JwtAuthenticationFilter
 import com.kenlikdev.qmarket.common.security.JwtProperties
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -26,16 +27,20 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableConfigurationProperties(JwtProperties::class)
 open class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    @Value("\${qmarket.security.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*,http://10.0.2.2:*}")
+    private val corsOriginPatterns: String,
 ) {
     @Bean
-    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
+    fun securityFilterChain(
+        http: HttpSecurity,
+        corsConfigurationSource: CorsConfigurationSource,
+    ): SecurityFilterChain {
         http
             .csrf { it.disable() }
-            .cors { it.configurationSource(corsConfigurationSource()) }
+            .cors { it.configurationSource(corsConfigurationSource) }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth
-                    // Public endpoints
                     .requestMatchers(
                         "/api/v1/auth/**",
                         "/actuator/health",
@@ -45,10 +50,8 @@ open class SecurityConfig(
                         "/api-docs/**",
                         "/v3/api-docs/**",
                     ).permitAll()
-                    // Catalog read is public
                     .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**")
                     .permitAll()
-                    // Everything else requires authentication
                     .anyRequest()
                     .authenticated()
             }.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
@@ -64,9 +67,14 @@ open class SecurityConfig(
 
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
+        val patterns =
+            corsOriginPatterns
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
         val config =
             CorsConfiguration().apply {
-                allowedOriginPatterns = listOf("*")
+                allowedOriginPatterns = patterns
                 allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 allowedHeaders = listOf("*")
                 allowCredentials = true

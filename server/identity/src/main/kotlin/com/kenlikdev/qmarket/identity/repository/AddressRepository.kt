@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface AddressRepository : JpaRepository<Address, UUID> {
-    fun findAllByUserIdOrderByDefaultDescCreatedAtDesc(userId: UUID): List<Address>
+    fun findAllByUserIdOrderByIsDefaultDescCreatedAtDesc(userId: UUID): List<Address>
 
     fun findByIdAndUserId(
         id: UUID,
@@ -18,7 +18,7 @@ interface AddressRepository : JpaRepository<Address, UUID> {
     fun countByUserId(userId: UUID): Long
 
     @Modifying(clearAutomatically = true)
-    @Query("UPDATE Address a SET a.default = false WHERE a.userId = :userId AND a.default = true")
+    @Query("UPDATE Address a SET a.isDefault = false WHERE a.userId = :userId AND a.isDefault = true")
     fun clearDefaultForUser(
         @Param("userId") userId: UUID,
     )

@@ -11,12 +11,14 @@ import com.kenlikdev.qmarket.identity.repository.UserRepository
 import org.slf4j.LoggerFactory
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 
 @Component
+@ConditionalOnProperty(name = ["qmarket.seed.enabled"], havingValue = "true", matchIfMissing = true)
 class DataInitializer(
     private val roleRepository: RoleRepository,
     private val userRepository: UserRepository,

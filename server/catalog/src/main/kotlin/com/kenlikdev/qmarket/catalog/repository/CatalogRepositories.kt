@@ -5,6 +5,7 @@ import com.kenlikdev.qmarket.catalog.domain.Product
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.math.BigDecimal
@@ -50,4 +51,35 @@ interface ProductRepository : JpaRepository<Product, UUID> {
         @Param("maxPrice") maxPrice: BigDecimal?,
         pageable: Pageable,
     ): Page<Product>
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        value = """
+            UPDATE products
+            SET stock_quantity = stock_quantity - :quantity,
+                updated_at = NOW()
+            WHERE id = :id
+              AND stock_quantity >= :quantity
+            """,
+        nativeQuery = true,
+    )
+    fun decreaseStockIfAvailable(
+        @Param("id") id: UUID,
+        @Param("quantity") quantity: Int,
+    ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        value = """
+            UPDATE products
+            SET stock_quantity = stock_quantity + :quantity,
+                updated_at = NOW()
+            WHERE id = :id
+            """,
+        nativeQuery = true,
+    )
+    fun increaseStockBy(
+        @Param("id") id: UUID,
+        @Param("quantity") quantity: Int,
+    ): Int
 }

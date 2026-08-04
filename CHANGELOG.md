@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Fixed
+- Stock overselling: atomic decrease + Product `@Version` (Flyway V4)
+- Seed gated by `qmarket.seed.enabled` (off under `prod` profile)
+- CORS origins from config (no wildcard `*`)
+
+### Added
+- `server/Dockerfile` multi-stage bootJar image
+- `application-prod.yml` seed/CORS defaults
+
 ### Added
 - Shared Compose UI: login, catalog, cart, checkout, mock pay
 - Ktor ApiClient: profile, addresses, cart mutate, orders

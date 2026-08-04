@@ -59,8 +59,14 @@ logging:
     org.hibernate.SQL: DEBUG
 
 qmarket:
+  seed:
+    # Dev/local seed (admin + demo catalog). Disable in production.
+    enabled: ${QMARKET_SEED_ENABLED:true}
   security:
     jwt:
       secret: ${JWT_SECRET:change-me-to-a-very-long-and-secure-secret-key-at-least-256-bits}
       access-token-expiration-ms: 900000
       refresh-token-expiration-ms: 604800000
+    cors:
+      # Comma-separated origin patterns (not * in production)
+      allowed-origin-patterns: ${CORS_ORIGINS:http://localhost:*,http://127.0.0.1:*,http://10.0.2.2:*}

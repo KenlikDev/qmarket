@@ -37,7 +37,7 @@ class Address(
     @Column(name = "postal_code", length = 20)
     var postalCode: String? = null,
     @Column(name = "is_default", nullable = false)
-    var default: Boolean = false,
+    var isDefault: Boolean = false,
     @Column(name = "created_at", nullable = false, updatable = false)
     var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)

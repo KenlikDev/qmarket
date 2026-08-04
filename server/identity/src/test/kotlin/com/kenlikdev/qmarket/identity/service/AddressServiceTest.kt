@@ -47,7 +47,7 @@ class AddressServiceTest {
 
         assertTrue(result.default)
         verify { addressRepository.clearDefaultForUser(userId) }
-        verify { addressRepository.save(match { it.default }) }
+        verify { addressRepository.save(match { it.isDefault }) }
     }
 
     @Test
@@ -70,7 +70,7 @@ class AddressServiceTest {
                 recipientName = "Ivan",
                 city = "Moscow",
                 streetLine1 = "Tverskaya 1",
-                default = false,
+                isDefault = false,
             )
         every { addressRepository.findByIdAndUserId(id, userId) } returns address
         every { addressRepository.clearDefaultForUser(userId) } returns Unit
@@ -99,7 +99,7 @@ class AddressServiceTest {
                 recipientName = "Ivan",
                 city = "Moscow",
                 streetLine1 = "A",
-                default = true,
+                isDefault = true,
             )
         val other =
             Address(
@@ -108,17 +108,17 @@ class AddressServiceTest {
                 recipientName = "Petr",
                 city = "Kazan",
                 streetLine1 = "B",
-                default = false,
+                isDefault = false,
             )
         every { addressRepository.findByIdAndUserId(id, userId) } returns address
         every { addressRepository.delete(address) } returns Unit
         every {
-            addressRepository.findAllByUserIdOrderByDefaultDescCreatedAtDesc(userId)
+            addressRepository.findAllByUserIdOrderByIsDefaultDescCreatedAtDesc(userId)
         } returns listOf(other)
         every { addressRepository.save(any()) } answers { firstArg() }
 
         addressService.delete(userId, id)
 
-        verify { addressRepository.save(match { it.id == otherId && it.default }) }
+        verify { addressRepository.save(match { it.id == otherId && it.isDefault }) }
     }
 }

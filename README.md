@@ -98,6 +98,12 @@ Android emulator API host: `10.0.2.2:8080`
 3. Cart → checkout with shipping address
 4. Optional mock pay on order confirmation
 
+### Production notes
+
+- Seed: `qmarket.seed.enabled=false` (or profile `prod`) — no default admin in prod
+- CORS: `CORS_ORIGINS` / `qmarket.security.cors.allowed-origin-patterns`
+- Stock: atomic `UPDATE … WHERE stock >= qty` + `Product.version` (optimistic lock)
+
 ### Тесты и качество (всегда по всему проекту)
 
 ```bash

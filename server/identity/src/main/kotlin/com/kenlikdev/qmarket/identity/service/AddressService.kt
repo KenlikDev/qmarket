@@ -17,7 +17,7 @@ class AddressService(
     @Transactional(readOnly = true)
     fun list(userId: UUID): List<AddressResponse> =
         addressRepository
-            .findAllByUserIdOrderByDefaultDescCreatedAtDesc(userId)
+            .findAllByUserIdOrderByIsDefaultDescCreatedAtDesc(userId)
             .map { it.toResponse() }
 
     @Transactional(readOnly = true)
@@ -53,7 +53,7 @@ class AddressService(
                 streetLine1 = request.streetLine1.trim(),
                 streetLine2 = request.streetLine2?.trim()?.ifEmpty { null },
                 postalCode = request.postalCode?.trim()?.ifEmpty { null },
-                default = makeDefault,
+                isDefault = makeDefault,
             )
         return addressRepository.save(address).toResponse()
     }
@@ -78,11 +78,11 @@ class AddressService(
         request.streetLine2?.let { address.streetLine2 = it.trim().ifEmpty { null } }
         request.postalCode?.let { address.postalCode = it.trim().ifEmpty { null } }
 
-        if (request.default == true && !address.default) {
+        if (request.default == true && !address.isDefault) {
             addressRepository.clearDefaultForUser(userId)
-            address.default = true
+            address.isDefault = true
         } else if (request.default == false) {
-            address.default = false
+            address.isDefault = false
         }
 
         return addressRepository.save(address).toResponse()
@@ -96,12 +96,12 @@ class AddressService(
         val address =
             addressRepository.findByIdAndUserId(addressId, userId)
                 ?: throw NotFoundException("Address not found")
-        val wasDefault = address.default
+        val wasDefault = address.isDefault
         addressRepository.delete(address)
         if (wasDefault) {
-            val remaining = addressRepository.findAllByUserIdOrderByDefaultDescCreatedAtDesc(userId)
+            val remaining = addressRepository.findAllByUserIdOrderByIsDefaultDescCreatedAtDesc(userId)
             remaining.firstOrNull()?.let {
-                it.default = true
+                it.isDefault = true
                 addressRepository.save(it)
             }
         }
@@ -119,7 +119,7 @@ class AddressService(
             streetLine1 = streetLine1,
             streetLine2 = streetLine2,
             postalCode = postalCode,
-            default = default,
+            default = isDefault,
             formatted = formatSingleLine(),
         )
 }
