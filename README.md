@@ -24,6 +24,7 @@
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart |
 | Clients UI | ✅ login, catalog, cart, checkout |
+| Stock concurrency | ✅ atomic UPDATE + IT |
 
 ## Quick start
 
@@ -102,7 +103,7 @@ Android emulator API host: `10.0.2.2:8080`
 
 - Seed: `qmarket.seed.enabled=false` (or profile `prod`) — no default admin in prod
 - CORS: `CORS_ORIGINS` / `qmarket.security.cors.allowed-origin-patterns`
-- Stock: atomic `UPDATE … WHERE stock >= qty` + `Product.version` (optimistic lock)
+- Stock: atomic `UPDATE … WHERE stock >= qty` (DB row lock; no JPA `@Version`)
 
 ### Тесты и качество (всегда по всему проекту)
 

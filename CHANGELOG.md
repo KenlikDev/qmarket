@@ -3,11 +3,14 @@
 ## Unreleased
 
 ### Fixed
-- Stock overselling: atomic decrease + Product `@Version` (Flyway V4)
+- Stock overselling: atomic `UPDATE … WHERE stock >= qty` (no JPA `@Version`)
+- Drop orphan `products.version` column (Flyway V5); was unused after stock strategy change
+- Address entity: `default` → `isDefault` (SQL/JPQL reserved word broke context startup)
 - Seed gated by `qmarket.seed.enabled` (off under `prod` profile)
 - CORS origins from config (no wildcard `*`)
 
 ### Added
+- `StockConcurrencyTest` — parallel decreaseStock never oversells
 - `server/Dockerfile` multi-stage bootJar image
 - `application-prod.yml` seed/CORS defaults
 

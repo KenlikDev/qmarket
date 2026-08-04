@@ -18,3 +18,21 @@ services:
 
 volumes:
   qmarket_pg_data:
+
+  # Uncomment to run API in Docker (build from repo root):
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: server/Dockerfile
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: prod
+  #     QMARKET_SEED_ENABLED: "false"
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/qmarket
+  #     SPRING_DATASOURCE_USERNAME: qmarket
+  #     SPRING_DATASOURCE_PASSWORD: qmarket
+  #     JWT_SECRET: change-me-in-production-to-a-long-secret-key-256bits
+  #     CORS_ORIGINS: http://localhost:*,http://127.0.0.1:*
+  #   depends_on:
+  #     - postgres
