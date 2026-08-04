@@ -34,12 +34,11 @@ dependencies {
     api(project(":server:catalog-api"))
     api(project(":server:cart"))
     api(project(":server:identity"))
-    api(project(":core"))
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockk)
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.named<Test>("test") {

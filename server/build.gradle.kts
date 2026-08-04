@@ -36,7 +36,6 @@ dependencies {
     implementation(project(":server:catalog"))
     implementation(project(":server:cart"))
     implementation(project(":server:order"))
-    implementation(project(":core"))
 
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.actuator)
@@ -56,8 +55,8 @@ dependencies {
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.mockk)
     testImplementation(libs.archunit.junit5)
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
