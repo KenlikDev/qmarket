@@ -23,7 +23,7 @@
 | ArchUnit module boundaries | ✅ |
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart |
-| Clients UI | ✅ login + catalog (shared Compose) |
+| Clients UI | ✅ login, catalog, cart, checkout |
 
 ## Quick start
 
@@ -90,6 +90,13 @@ PUT    /api/v1/orders/admin/{id}/status  { "status": "CONFIRMED" }
 
 Default login: `admin@qmarket.local` / `admin123`  
 Android emulator API host: `10.0.2.2:8080`
+
+### Client flow
+
+1. Login (or anonymous catalog)
+2. Add to cart (requires login)
+3. Cart → checkout with shipping address
+4. Optional mock pay on order confirmation
 
 ### Тесты и качество (всегда по всему проекту)
 

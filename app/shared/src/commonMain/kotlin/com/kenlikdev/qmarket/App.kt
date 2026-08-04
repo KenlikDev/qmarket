@@ -18,7 +18,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,7 +27,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.kenlikdev.qmarket.api.AddCartItemRequestDto
+import com.kenlikdev.qmarket.api.CartDto
+import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
+import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.network.ApiException
 import com.kenlikdev.qmarket.network.MutableTokenProvider
@@ -41,6 +44,10 @@ private sealed interface AppScreen {
     data object Login : AppScreen
 
     data object Catalog : AppScreen
+
+    data object Cart : AppScreen
+
+    data class OrderDone(val order: OrderDto) : AppScreen
 }
 
 @Composable
@@ -61,19 +68,22 @@ fun App() {
         var screen by remember { mutableStateOf<AppScreen>(AppScreen.Login) }
         var email by remember { mutableStateOf("admin@qmarket.local") }
         var password by remember { mutableStateOf("admin123") }
+        var shippingAddress by remember { mutableStateOf("Moscow, Tverskaya 1") }
         var error by remember { mutableStateOf<String?>(null) }
+        var statusMessage by remember { mutableStateOf<String?>(null) }
         var loading by remember { mutableStateOf(false) }
         var products by remember { mutableStateOf<List<ProductDto>>(emptyList()) }
+        var cart by remember { mutableStateOf<CartDto?>(null) }
         var userLabel by remember { mutableStateOf<String?>(null) }
+        var loggedIn by remember { mutableStateOf(false) }
 
-        fun loadCatalog() {
+        fun runApi(block: suspend () -> Unit) {
             scope.launch {
                 loading = true
                 error = null
+                statusMessage = null
                 try {
-                    val page = api.listProducts(size = 50)
-                    products = page.content
-                    screen = AppScreen.Catalog
+                    block()
                 } catch (e: ApiException) {
                     error = e.message
                 } catch (e: Exception) {
@@ -84,8 +94,33 @@ fun App() {
             }
         }
 
+        fun loadCatalog() {
+            runApi {
+                val page = api.listProducts(size = 50)
+                products = page.content
+                screen = AppScreen.Catalog
+            }
+        }
+
+        fun loadCart() {
+            runApi {
+                cart = api.getCart()
+                screen = AppScreen.Cart
+            }
+        }
+
+        fun refreshCartQuiet() {
+            scope.launch {
+                try {
+                    cart = api.getCart()
+                } catch (_: Exception) {
+                    // ignore background refresh errors
+                }
+            }
+        }
+
         Scaffold { padding ->
-            when (screen) {
+            when (val current = screen) {
                 AppScreen.Login -> {
                     Column(
                         modifier =
@@ -119,36 +154,24 @@ fun App() {
                                     .fillMaxWidth()
                                     .padding(top = 8.dp),
                         )
-                        if (error != null) {
-                            Text(
-                                error!!,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
-                        }
+                        ErrorText(error)
                         Button(
                             onClick = {
-                                scope.launch {
-                                    loading = true
-                                    error = null
-                                    try {
-                                        val auth =
-                                            api.login(
-                                                LoginRequestDto(
-                                                    email = email.trim(),
-                                                    password = password,
-                                                ),
-                                            )
-                                        tokens.token = auth.accessToken
-                                        userLabel = auth.user.email
-                                        loadCatalog()
-                                    } catch (e: ApiException) {
-                                        error = e.message
-                                        loading = false
-                                    } catch (e: Exception) {
-                                        error = e.message ?: e.toString()
-                                        loading = false
-                                    }
+                                runApi {
+                                    val auth =
+                                        api.login(
+                                            LoginRequestDto(
+                                                email = email.trim(),
+                                                password = password,
+                                            ),
+                                        )
+                                    tokens.token = auth.accessToken
+                                    userLabel = auth.user.email
+                                    loggedIn = true
+                                    val page = api.listProducts(size = 50)
+                                    products = page.content
+                                    cart = runCatching { api.getCart() }.getOrNull()
+                                    screen = AppScreen.Catalog
                                 }
                             },
                             enabled = !loading,
@@ -162,6 +185,9 @@ fun App() {
                         TextButton(
                             onClick = {
                                 tokens.clear()
+                                loggedIn = false
+                                userLabel = null
+                                cart = null
                                 loadCatalog()
                             },
                             enabled = !loading,
@@ -181,48 +207,36 @@ fun App() {
                                 .fillMaxSize()
                                 .padding(padding),
                     ) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column {
-                                Text("Catalog", style = MaterialTheme.typography.titleLarge)
-                                Text(
-                                    userLabel ?: "Guest",
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                            TextButton(
-                                onClick = {
-                                    tokens.clear()
-                                    userLabel = null
-                                    products = emptyList()
-                                    error = null
-                                    screen = AppScreen.Login
+                        TopBar(
+                            title = "Catalog",
+                            subtitle = userLabel ?: "Guest",
+                            onCart =
+                                if (loggedIn) {
+                                    { loadCart() }
+                                } else {
+                                    null
                                 },
-                            ) {
-                                Text("Logout")
-                            }
-                        }
-                        if (error != null) {
+                            cartCount = cart?.totalItems,
+                            onLogout = {
+                                tokens.clear()
+                                loggedIn = false
+                                userLabel = null
+                                products = emptyList()
+                                cart = null
+                                error = null
+                                screen = AppScreen.Login
+                            },
+                        )
+                        ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
+                        statusMessage?.let {
                             Text(
-                                error!!,
-                                color = MaterialTheme.colorScheme.error,
+                                it,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(horizontal = 16.dp),
                             )
                         }
                         if (loading && products.isEmpty()) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                CircularProgressIndicator()
-                            }
+                            LoadingCenter()
                         } else {
                             LazyColumn(
                                 contentPadding = PaddingValues(16.dp),
@@ -242,6 +256,27 @@ fun App() {
                                             product.shortDescription?.let {
                                                 Text(it, style = MaterialTheme.typography.bodySmall)
                                             }
+                                            if (loggedIn) {
+                                                Button(
+                                                    onClick = {
+                                                        runApi {
+                                                            cart =
+                                                                api.addCartItem(
+                                                                    AddCartItemRequestDto(
+                                                                        productId = product.id,
+                                                                        quantity = 1,
+                                                                    ),
+                                                                )
+                                                            statusMessage =
+                                                                "Added ${product.name} to cart"
+                                                        }
+                                                    },
+                                                    enabled = !loading && product.stockQuantity > 0,
+                                                    modifier = Modifier.padding(top = 8.dp),
+                                                ) {
+                                                    Text("Add to cart")
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -249,11 +284,222 @@ fun App() {
                         }
                     }
                 }
+
+                AppScreen.Cart -> {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding),
+                    ) {
+                        TopBar(
+                            title = "Cart",
+                            subtitle = userLabel ?: "Guest",
+                            onCart = null,
+                            cartCount = cart?.totalItems,
+                            onLogout = {
+                                tokens.clear()
+                                loggedIn = false
+                                userLabel = null
+                                products = emptyList()
+                                cart = null
+                                screen = AppScreen.Login
+                            },
+                        )
+                        TextButton(onClick = { loadCatalog() }) {
+                            Text("← Back to catalog")
+                        }
+                        ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
+                        val currentCart = cart
+                        if (loading && currentCart == null) {
+                            LoadingCenter()
+                        } else if (currentCart == null || currentCart.items.isEmpty()) {
+                            Text(
+                                "Cart is empty",
+                                modifier = Modifier.padding(16.dp),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        } else {
+                            LazyColumn(
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f, fill = true),
+                            ) {
+                                items(currentCart.items, key = { it.productId }) { item ->
+                                    Card(modifier = Modifier.fillMaxWidth()) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Text(
+                                                item.productName,
+                                                style = MaterialTheme.typography.titleMedium,
+                                            )
+                                            Text(
+                                                "×${item.quantity} · ${item.lineTotal}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                            )
+                                            TextButton(
+                                                onClick = {
+                                                    runApi {
+                                                        cart = api.removeCartItem(item.productId)
+                                                    }
+                                                },
+                                                enabled = !loading,
+                                            ) {
+                                                Text("Remove")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    "Total: ${currentCart.totalPrice} (${currentCart.totalItems} items)",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                OutlinedTextField(
+                                    value = shippingAddress,
+                                    onValueChange = { shippingAddress = it },
+                                    label = { Text("Shipping address") },
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 8.dp),
+                                )
+                                Button(
+                                    onClick = {
+                                        runApi {
+                                            val order =
+                                                api.createOrder(
+                                                    CreateOrderRequestDto(
+                                                        shippingAddress = shippingAddress.trim(),
+                                                    ),
+                                                )
+                                            cart = api.getCart()
+                                            screen = AppScreen.OrderDone(order)
+                                        }
+                                    },
+                                    enabled = !loading && shippingAddress.isNotBlank(),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(if (loading) "…" else "Checkout")
+                                }
+                                TextButton(
+                                    onClick = {
+                                        runApi { cart = api.clearCart() }
+                                    },
+                                    enabled = !loading,
+                                ) {
+                                    Text("Clear cart")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                is AppScreen.OrderDone -> {
+                    val order = current.order
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                                .padding(24.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("Order placed", style = MaterialTheme.typography.headlineSmall)
+                        Text("Id: ${order.id}", modifier = Modifier.padding(top = 8.dp))
+                        Text("Status: ${order.status}")
+                        Text("Total: ${order.totalAmount}")
+                        ErrorText(error)
+                        Button(
+                            onClick = {
+                                runApi {
+                                    val paid = api.payOrder(order.id)
+                                    screen = AppScreen.OrderDone(paid)
+                                    statusMessage = "Paid"
+                                }
+                            },
+                            enabled = !loading && order.status.name == "PENDING",
+                            modifier = Modifier.padding(top = 16.dp),
+                        ) {
+                            Text("Pay (mock)")
+                        }
+                        statusMessage?.let {
+                            Text(it, color = MaterialTheme.colorScheme.primary)
+                        }
+                        TextButton(onClick = { loadCatalog() }) {
+                            Text("Back to catalog")
+                        }
+                        TextButton(onClick = { loadCart() }) {
+                            Text("Open cart")
+                        }
+                    }
+                }
             }
         }
+    }
+}
 
-        LaunchedEffect(Unit) {
-            // no auto-login
+@Composable
+private fun TopBar(
+    title: String,
+    subtitle: String,
+    onCart: (() -> Unit)?,
+    cartCount: Int?,
+    onLogout: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall)
         }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onCart != null) {
+                TextButton(onClick = onCart) {
+                    Text(
+                        if (cartCount != null && cartCount > 0) {
+                            "Cart ($cartCount)"
+                        } else {
+                            "Cart"
+                        },
+                    )
+                }
+            }
+            TextButton(onClick = onLogout) {
+                Text("Logout")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ErrorText(
+    error: String?,
+    modifier: Modifier = Modifier,
+) {
+    if (error != null) {
+        Text(
+            error,
+            color = MaterialTheme.colorScheme.error,
+            modifier = modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun LoadingCenter() {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CircularProgressIndicator()
     }
 }
