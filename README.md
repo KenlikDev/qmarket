@@ -23,7 +23,7 @@
 | ArchUnit module boundaries | ✅ |
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart |
-| Clients UI | ⚠️ skeleton |
+| Clients UI | ✅ login + catalog (shared Compose) |
 
 ## Quick start
 
@@ -78,6 +78,18 @@ PUT    /api/v1/orders/admin/{id}/status  { "status": "CONFIRMED" }
 ```
 
 Статусы: `PENDING | CONFIRMED | PAID | SHIPPED | DELIVERED | CANCELLED`
+
+### Client (shared Compose)
+
+```bash
+# backend must be running
+./gradlew :server:bootRun
+# desktop:
+./gradlew :app:desktopApp:run
+```
+
+Default login: `admin@qmarket.local` / `admin123`  
+Android emulator API host: `10.0.2.2:8080`
 
 ### Тесты и качество (всегда по всему проекту)
 

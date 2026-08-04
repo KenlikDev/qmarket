@@ -1,12 +1,12 @@
 package com.kenlikdev.qmarket.network
 
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
 
+// wasm: use default engine if available; fallback to CIO-less default client
 actual fun createPlatformHttpClient(
     baseUrl: String,
     tokenProvider: TokenProvider?,
 ): HttpClient =
-    HttpClient(CIO) {
+    HttpClient {
         qMarketConfig(baseUrl, tokenProvider)
     }
