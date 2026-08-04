@@ -22,6 +22,7 @@
 | catalog-api (ProductCatalog port) | ✅ |
 | ArchUnit module boundaries | ✅ |
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
+| Ktor ApiClient (shared) | ✅ auth/catalog/cart |
 | Clients UI | ⚠️ skeleton |
 
 ## Quick start

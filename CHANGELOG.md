@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Ktor `QMarketApiClient` in app:shared (login/register, products, cart) + MockEngine tests
 - Shared KMP API DTOs in `:core` (auth, catalog, cart, order, address, error) + Json config
 - Order aggregate (cancel/markPaid/applyAdminStatus); repos return Kotlin nullable
 - Cart aggregate methods (addItem/changeQuantity/removeItem); CartRepository returns `Cart?`
