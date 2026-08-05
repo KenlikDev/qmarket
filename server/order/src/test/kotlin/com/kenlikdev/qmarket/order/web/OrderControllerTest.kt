@@ -6,14 +6,13 @@ import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.OrderItemResponse
 import com.kenlikdev.qmarket.order.dto.OrderResponse
+import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.service.OrderService
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.springframework.data.domain.PageImpl
-import org.springframework.data.domain.PageRequest
 import org.springframework.http.MediaType
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.test.web.servlet.MockMvc
@@ -133,7 +132,7 @@ class OrderControllerTest {
     @Test
     fun `GET my orders returns page`() {
         every { orderService.listMyOrders(userId, 0, 20) } returns
-            PageImpl(listOf(sampleOrder), PageRequest.of(0, 20), 1)
+            PageResponse(content = listOf(sampleOrder), page = 0, size = 20, totalElements = 1L, totalPages = 1)
 
         mockMvc
             .perform(
@@ -183,7 +182,7 @@ class OrderControllerTest {
     @Test
     fun `GET admin all returns page`() {
         every { orderService.listAllOrders(0, 20) } returns
-            PageImpl(listOf(sampleOrder), PageRequest.of(0, 20), 1)
+            PageResponse(content = listOf(sampleOrder), page = 0, size = 20, totalElements = 1L, totalPages = 1)
 
         mockMvc
             .perform(

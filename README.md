@@ -23,7 +23,7 @@
 | ArchUnit module boundaries | ✅ |
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart |
-| Clients UI | ✅ login, catalog, cart, checkout |
+| Clients UI | ✅ login, catalog, cart, checkout, orders |
 | Stock concurrency | ✅ atomic UPDATE + IT |
 
 ## Quick start
@@ -98,6 +98,7 @@ Android emulator API host: `10.0.2.2:8080`
 2. Add to cart (requires login)
 3. Cart → checkout with shipping address
 4. Optional mock pay on order confirmation
+5. My orders — list, pay, cancel (PENDING)
 
 ### Production notes
 

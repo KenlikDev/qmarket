@@ -11,9 +11,9 @@ import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.OrderItemResponse
 import com.kenlikdev.qmarket.order.dto.OrderResponse
+import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.repository.OrderRepository
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
@@ -100,13 +100,20 @@ class OrderService(
         userId: UUID,
         page: Int,
         size: Int,
-    ): Page<OrderResponse> {
+    ): PageResponse<OrderResponse> {
         val pageable =
             PageRequest.of(
                 page.coerceAtLeast(0),
                 size.coerceIn(1, 100),
             )
-        return orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable).map { toResponse(it) }
+        val result = orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+        return PageResponse(
+            content = result.content.map { toResponse(it) },
+            page = result.number,
+            size = result.size,
+            totalElements = result.totalElements,
+            totalPages = result.totalPages,
+        )
     }
 
     @Transactional(readOnly = true)
@@ -122,14 +129,21 @@ class OrderService(
     fun listAllOrders(
         page: Int,
         size: Int,
-    ): Page<OrderResponse> {
+    ): PageResponse<OrderResponse> {
         val pageable =
             PageRequest.of(
                 page.coerceAtLeast(0),
                 size.coerceIn(1, 100),
                 Sort.by(Sort.Direction.DESC, "createdAt"),
             )
-        return orderRepository.findAll(pageable).map { toResponse(it) }
+        val result = orderRepository.findAll(pageable)
+        return PageResponse(
+            content = result.content.map { toResponse(it) },
+            page = result.number,
+            size = result.size,
+            totalElements = result.totalElements,
+            totalPages = result.totalPages,
+        )
     }
 
     @Transactional

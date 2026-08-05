@@ -15,7 +15,7 @@
 - `application-prod.yml` seed/CORS defaults
 
 ### Added
-- Shared Compose UI: login, catalog, cart, checkout, mock pay
+- Shared Compose UI: login, catalog, cart, checkout, my orders, mock pay
 - Ktor ApiClient: profile, addresses, cart mutate, orders
 - Ktor `QMarketApiClient` in app:shared (login/register, products, cart) + MockEngine tests
 - Shared KMP API DTOs in `:core` (auth, catalog, cart, order, address, error) + Json config

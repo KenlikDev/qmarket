@@ -31,11 +31,19 @@ data class ProductDto(
     val updatedAt: String? = null,
 )
 
+/**
+ * Unified page envelope.
+ * Catalog uses [page]; raw Spring Data Page JSON uses [number] — both accepted.
+ */
 @Serializable
 data class PageDto<T>(
-    val content: List<T>,
-    val page: Int,
-    val size: Int,
-    val totalElements: Long,
-    val totalPages: Int,
-)
+    val content: List<T> = emptyList(),
+    val page: Int? = null,
+    val size: Int = 0,
+    val totalElements: Long = 0,
+    val totalPages: Int = 0,
+    /** Present when server returns org.springframework.data.domain.Page. */
+    val number: Int? = null,
+) {
+    fun pageIndex(): Int = page ?: number ?: 0
+}

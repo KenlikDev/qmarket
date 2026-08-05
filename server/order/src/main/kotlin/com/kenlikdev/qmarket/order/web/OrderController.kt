@@ -2,10 +2,10 @@ package com.kenlikdev.qmarket.order.web
 
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.OrderResponse
+import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.service.OrderService
 import jakarta.validation.Valid
-import org.springframework.data.domain.Page
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
@@ -40,7 +40,7 @@ class OrderController(
         authentication: Authentication,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
-    ): Page<OrderResponse> = orderService.listMyOrders(currentUserId(authentication), page, size)
+    ): PageResponse<OrderResponse> = orderService.listMyOrders(currentUserId(authentication), page, size)
 
     @GetMapping("/{id}")
     fun myOrder(
@@ -65,7 +65,7 @@ class OrderController(
     fun listAll(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
-    ): Page<OrderResponse> = orderService.listAllOrders(page, size)
+    ): PageResponse<OrderResponse> = orderService.listAllOrders(page, size)
 
     @GetMapping("/admin/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")

@@ -67,6 +67,23 @@ class DtoSerializationTest {
     }
 
     @Test
+    fun springDataPageParsesWithoutPageField() {
+        val payload =
+            """
+            {
+              "content": [],
+              "totalElements": 0,
+              "totalPages": 0,
+              "size": 20,
+              "number": 0
+            }
+            """.trimIndent()
+        val page = json.decodeFromString(PageDto.serializer(ProductDto.serializer()), payload)
+        assertEquals(0, page.pageIndex())
+        assertEquals(0, page.totalElements)
+    }
+
+    @Test
     fun orderStatusEnum() {
         val payload =
             """

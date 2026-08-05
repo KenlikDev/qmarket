@@ -47,6 +47,8 @@ private sealed interface AppScreen {
 
     data object Cart : AppScreen
 
+    data object Orders : AppScreen
+
     data class OrderDone(val order: OrderDto) : AppScreen
 }
 
@@ -74,6 +76,7 @@ fun App() {
         var loading by remember { mutableStateOf(false) }
         var products by remember { mutableStateOf<List<ProductDto>>(emptyList()) }
         var cart by remember { mutableStateOf<CartDto?>(null) }
+        var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
         var userLabel by remember { mutableStateOf<String?>(null) }
         var loggedIn by remember { mutableStateOf(false) }
 
@@ -109,14 +112,23 @@ fun App() {
             }
         }
 
-        fun refreshCartQuiet() {
-            scope.launch {
-                try {
-                    cart = api.getCart()
-                } catch (_: Exception) {
-                    // ignore background refresh errors
-                }
+        fun loadOrders() {
+            runApi {
+                val page = api.listMyOrders(size = 50)
+                orders = page.content
+                screen = AppScreen.Orders
             }
+        }
+
+        fun logout() {
+            tokens.clear()
+            loggedIn = false
+            userLabel = null
+            products = emptyList()
+            cart = null
+            orders = emptyList()
+            error = null
+            screen = AppScreen.Login
         }
 
         Scaffold { padding ->
@@ -210,22 +222,11 @@ fun App() {
                         TopBar(
                             title = "Catalog",
                             subtitle = userLabel ?: "Guest",
-                            onCart =
-                                if (loggedIn) {
-                                    { loadCart() }
-                                } else {
-                                    null
-                                },
+                            loggedIn = loggedIn,
                             cartCount = cart?.totalItems,
-                            onLogout = {
-                                tokens.clear()
-                                loggedIn = false
-                                userLabel = null
-                                products = emptyList()
-                                cart = null
-                                error = null
-                                screen = AppScreen.Login
-                            },
+                            onCart = { loadCart() },
+                            onOrders = { loadOrders() },
+                            onLogout = { logout() },
                         )
                         ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
                         statusMessage?.let {
@@ -295,16 +296,11 @@ fun App() {
                         TopBar(
                             title = "Cart",
                             subtitle = userLabel ?: "Guest",
-                            onCart = null,
+                            loggedIn = loggedIn,
                             cartCount = cart?.totalItems,
-                            onLogout = {
-                                tokens.clear()
-                                loggedIn = false
-                                userLabel = null
-                                products = emptyList()
-                                cart = null
-                                screen = AppScreen.Login
-                            },
+                            onCart = null,
+                            onOrders = { loadOrders() },
+                            onLogout = { logout() },
                         )
                         TextButton(onClick = { loadCatalog() }) {
                             Text("← Back to catalog")
@@ -395,6 +391,114 @@ fun App() {
                     }
                 }
 
+                AppScreen.Orders -> {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding),
+                    ) {
+                        TopBar(
+                            title = "My orders",
+                            subtitle = userLabel ?: "Guest",
+                            loggedIn = loggedIn,
+                            cartCount = cart?.totalItems,
+                            onCart = { loadCart() },
+                            onOrders = null,
+                            onLogout = { logout() },
+                        )
+                        TextButton(onClick = { loadCatalog() }) {
+                            Text("← Back to catalog")
+                        }
+                        ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
+                        if (loading && orders.isEmpty()) {
+                            LoadingCenter()
+                        } else if (orders.isEmpty()) {
+                            Text(
+                                "No orders yet",
+                                modifier = Modifier.padding(16.dp),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        } else {
+                            LazyColumn(
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(orders, key = { it.id }) { order ->
+                                    Card(modifier = Modifier.fillMaxWidth()) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Text(
+                                                order.status.name,
+                                                style = MaterialTheme.typography.titleMedium,
+                                            )
+                                            Text(
+                                                "Total: ${order.totalAmount}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                            )
+                                            order.createdAt?.let {
+                                                Text(it, style = MaterialTheme.typography.bodySmall)
+                                            }
+                                            Text(
+                                                "Id: ${order.id}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                            )
+                                            Row {
+                                                if (order.status.name == "PENDING") {
+                                                    TextButton(
+                                                        onClick = {
+                                                            runApi {
+                                                                val paid = api.payOrder(order.id)
+                                                                orders =
+                                                                    orders.map {
+                                                                        if (it.id == paid.id) {
+                                                                            paid
+                                                                        } else {
+                                                                            it
+                                                                        }
+                                                                    }
+                                                                statusMessage = "Order paid"
+                                                            }
+                                                        },
+                                                        enabled = !loading,
+                                                    ) {
+                                                        Text("Pay")
+                                                    }
+                                                    TextButton(
+                                                        onClick = {
+                                                            runApi {
+                                                                val cancelled =
+                                                                    api.cancelOrder(order.id)
+                                                                orders =
+                                                                    orders.map {
+                                                                        if (it.id == cancelled.id) {
+                                                                            cancelled
+                                                                        } else {
+                                                                            it
+                                                                        }
+                                                                    }
+                                                            }
+                                                        },
+                                                        enabled = !loading,
+                                                    ) {
+                                                        Text("Cancel")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        statusMessage?.let {
+                            Text(
+                                it,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(16.dp),
+                            )
+                        }
+                    }
+                }
+
                 is AppScreen.OrderDone -> {
                     val order = current.order
                     Column(
@@ -427,6 +531,9 @@ fun App() {
                         statusMessage?.let {
                             Text(it, color = MaterialTheme.colorScheme.primary)
                         }
+                        TextButton(onClick = { loadOrders() }) {
+                            Text("My orders")
+                        }
                         TextButton(onClick = { loadCatalog() }) {
                             Text("Back to catalog")
                         }
@@ -444,8 +551,10 @@ fun App() {
 private fun TopBar(
     title: String,
     subtitle: String,
-    onCart: (() -> Unit)?,
+    loggedIn: Boolean,
     cartCount: Int?,
+    onCart: (() -> Unit)?,
+    onOrders: (() -> Unit)?,
     onLogout: () -> Unit,
 ) {
     Row(
@@ -461,7 +570,12 @@ private fun TopBar(
             Text(subtitle, style = MaterialTheme.typography.bodySmall)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (onCart != null) {
+            if (loggedIn && onOrders != null) {
+                TextButton(onClick = onOrders) {
+                    Text("Orders")
+                }
+            }
+            if (loggedIn && onCart != null) {
                 TextButton(onClick = onCart) {
                     Text(
                         if (cartCount != null && cartCount > 0) {
@@ -473,7 +587,7 @@ private fun TopBar(
                 }
             }
             TextButton(onClick = onLogout) {
-                Text("Logout")
+                Text(if (loggedIn) "Logout" else "Login")
             }
         }
     }
