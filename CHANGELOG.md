@@ -10,6 +10,7 @@
 - CORS origins from config (no wildcard `*`)
 
 ### Added
+- Address book: Set default in shared UI
 - `StockConcurrencyTest` — parallel decreaseStock never oversells
 - `server/Dockerfile` multi-stage bootJar image
 - `application-prod.yml` seed/CORS defaults

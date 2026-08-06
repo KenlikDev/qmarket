@@ -23,7 +23,7 @@
 | ArchUnit module boundaries | ✅ |
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart |
-| Clients UI | ✅ login, register, profile, addresses, catalog, cart, checkout, orders |
+| Clients UI | ✅ login, register, profile, addresses (set default), catalog search/sort, cart ±qty, checkout, orders |
 | Stock concurrency | ✅ atomic UPDATE + IT |
 
 ## Quick start
@@ -40,6 +40,9 @@ docker compose up -d
 - Admin: `admin@qmarket.local` / `admin123`
 
 ### Catalog filters
+
+Shared UI: search field, Newest/Price/Name, Featured toggle, Apply.
+
 
 ```
 GET /api/v1/products?q=&categoryId=&featuredOnly=&minPrice=&maxPrice=&sortBy=price|name|createdAt&sortDir=asc|desc&page=&size=

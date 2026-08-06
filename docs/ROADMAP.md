@@ -6,9 +6,9 @@
 
 | Версия | Фокус | Статус |
 |--------|--------|--------|
-| **v0.1 Foundation** | Инфра, auth, catalog, cart, orders (backend), tests, tooling | **WIP** |
-| **v0.2 Catalog & Auth polish** | OAuth optional, профиль, фильтры catalog | pending |
-| **v0.3 Cart & Checkout** | (cart+orders уже в v0.1 backend) UI checkout на клиентах | pending |
+| **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **WIP** (почти закрыт scope) |
+| **v0.2 Catalog & Auth polish** | OAuth optional, admin catalog UX, rate limit login | pending |
+| **v0.3** | (merged into v0.1 client) reserved / skip | done via shared UI |
 | **v1.0 MVP** | Payments (1 провайдер), notifications, admin UI, search | pending |
 | **v1.1 Growth** | Recommendations, reviews, promos, delivery integrations | pending |
 | **v1.2 Scale** | Observability, cache, performance | pending |

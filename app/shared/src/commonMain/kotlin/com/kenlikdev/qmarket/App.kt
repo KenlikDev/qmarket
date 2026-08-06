@@ -36,6 +36,7 @@ import com.kenlikdev.qmarket.api.AddCartItemRequestDto
 import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
 import com.kenlikdev.qmarket.api.AddressDto
 import com.kenlikdev.qmarket.api.CreateAddressRequestDto
+import com.kenlikdev.qmarket.api.UpdateAddressRequestDto
 import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
@@ -757,21 +758,42 @@ if (loading && products.isEmpty()) {
                                                     style = MaterialTheme.typography.bodySmall,
                                                 )
                                             }
-                                            TextButton(
-                                                onClick = {
-                                                    runApi {
-                                                        api.deleteAddress(addr.id)
-                                                        addresses = api.listAddresses()
-                                                        if (selectedAddressId == addr.id) {
-                                                            selectedAddressId =
-                                                                addresses.firstOrNull { it.default }?.id
-                                                                    ?: addresses.firstOrNull()?.id
-                                                        }
+                                            Row {
+                                                if (!addr.default) {
+                                                    TextButton(
+                                                        onClick = {
+                                                            runApi {
+                                                                api.updateAddress(
+                                                                    addr.id,
+                                                                    UpdateAddressRequestDto(default = true),
+                                                                )
+                                                                addresses = api.listAddresses()
+                                                                selectedAddressId = addr.id
+                                                                statusMessage = "Default address updated"
+                                                            }
+                                                        },
+                                                        enabled = !loading,
+                                                        modifier = Modifier.testTag("addressSetDefault"),
+                                                    ) {
+                                                        Text("Set default")
                                                     }
-                                                },
-                                                enabled = !loading,
-                                            ) {
-                                                Text("Delete")
+                                                }
+                                                TextButton(
+                                                    onClick = {
+                                                        runApi {
+                                                            api.deleteAddress(addr.id)
+                                                            addresses = api.listAddresses()
+                                                            if (selectedAddressId == addr.id) {
+                                                                selectedAddressId =
+                                                                    addresses.firstOrNull { it.default }?.id
+                                                                        ?: addresses.firstOrNull()?.id
+                                                            }
+                                                        }
+                                                    },
+                                                    enabled = !loading,
+                                                ) {
+                                                    Text("Delete")
+                                                }
                                             }
                                         }
                                     }
