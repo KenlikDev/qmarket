@@ -66,14 +66,14 @@ class ProfileControllerTest {
                 email = "u@test.com",
                 firstName = "New",
                 lastName = "Name",
-                phone = "+1",
+                phone = "+79001234567",
                 emailVerified = false,
                 roles = listOf("ROLE_USER"),
             )
         val auth = UsernamePasswordAuthenticationToken(userId, null, emptyList())
         val body =
             """
-            {"firstName":"New","lastName":"Name","phone":"+1"}
+            {"firstName":"New","lastName":"Name","phone":"+79001234567"}
             """.trimIndent()
 
         mockMvc

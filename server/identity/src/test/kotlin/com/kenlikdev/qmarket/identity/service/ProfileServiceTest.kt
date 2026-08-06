@@ -43,7 +43,7 @@ class ProfileServiceTest {
                 passwordHash = "hash",
                 firstName = "John",
                 lastName = "Doe",
-                phone = "+1000",
+                phone = "+79001112233",
             ).apply { roles.add(role) }
 
         every { userRepository.findById(userId) } returns Optional.of(user)
@@ -53,7 +53,7 @@ class ProfileServiceTest {
         assertEquals(userId, result.id)
         assertEquals("user@test.com", result.email)
         assertEquals("John", result.firstName)
-        assertEquals("+1000", result.phone)
+        assertEquals("+79001112233", result.phone)
         assertEquals(listOf("ROLE_USER"), result.roles)
     }
 
@@ -82,12 +82,12 @@ class ProfileServiceTest {
         val result =
             profileService.updateMyProfile(
                 userId,
-                UpdateProfileRequest(firstName = "New", lastName = "Name", phone = "+7999"),
+                UpdateProfileRequest(firstName = "New", lastName = "Name", phone = "+79001234567"),
             )
 
         assertEquals("New", result.firstName)
         assertEquals("Name", result.lastName)
-        assertEquals("+7999", result.phone)
+        assertEquals("+79001234567", result.phone)
         verify { userRepository.save(any()) }
     }
 

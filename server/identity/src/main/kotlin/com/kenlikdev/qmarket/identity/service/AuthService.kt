@@ -4,6 +4,7 @@ import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.common.security.JwtProperties
 import com.kenlikdev.qmarket.common.security.JwtService
+import com.kenlikdev.qmarket.common.validation.InputValidation
 import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.dto.AuthResponse
 import com.kenlikdev.qmarket.identity.dto.LoginRequest
@@ -45,8 +46,8 @@ class AuthService(
                 email = email,
                 passwordHash = encodedPassword,
             ).apply {
-                firstName = request.firstName?.trim()?.takeIf { it.isNotBlank() }
-                lastName = request.lastName?.trim()?.takeIf { it.isNotBlank() }
+                firstName = InputValidation.normalizeOptionalName(request.firstName, "First name")
+                lastName = InputValidation.normalizeOptionalName(request.lastName, "Last name")
                 roles = mutableSetOf(userRole)
             }
 

@@ -1,6 +1,8 @@
 package com.kenlikdev.qmarket
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -317,7 +319,7 @@ fun App() {
                                     screen = AppScreen.Catalog
                                 }
                             },
-                            enabled = !loading && email.isNotBlank() && password.length >= 8,
+                            enabled = !loading && isValidEmail(email) && password.length >= 8 && isValidPersonName(firstName) && isValidPersonName(lastName),
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -553,7 +555,13 @@ fun App() {
                         if (loading && profile == null) {
                             LoadingCenter()
                         } else {
-                            Column(modifier = Modifier.padding(16.dp)) {
+                            Column(
+                                modifier =
+                                    Modifier
+                                        .weight(1f, fill = true)
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(16.dp),
+                            ) {
                                 Text(
                                     profile?.email ?: "",
                                     style = MaterialTheme.typography.titleMedium,
@@ -580,7 +588,17 @@ fun App() {
                                 )
                                 OutlinedTextField(
                                     value = phone,
-                                    onValueChange = { phone = it },
+                                    onValueChange = { input ->
+                                        phone =
+                                            input.filter { ch ->
+                                                ch.isDigit() ||
+                                                    ch == '+' ||
+                                                    ch.isWhitespace() ||
+                                                    ch == '-' ||
+                                                    ch == '(' ||
+                                                    ch == ')'
+                                            }
+                                    },
                                     label = { Text("Phone") },
                                     singleLine = true,
                                     modifier =
@@ -588,6 +606,27 @@ fun App() {
                                             .fillMaxWidth()
                                             .padding(top = 8.dp),
                                 )
+                                if (phone.isNotEmpty() && !isValidPhoneInput(phone)) {
+                                    Text(
+                                        "Phone: 7-15 digits, optional leading +",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                                if (firstName.isNotEmpty() && !isValidPersonName(firstName)) {
+                                    Text(
+                                        "First name: letters, spaces, hyphen, apostrophe, period",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                                if (lastName.isNotEmpty() && !isValidPersonName(lastName)) {
+                                    Text(
+                                        "Last name: letters, spaces, hyphen, apostrophe, period",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
                                 Button(
                                     onClick = {
                                         runApi {
@@ -602,7 +641,11 @@ fun App() {
                                             statusMessage = "Profile saved"
                                         }
                                     },
-                                    enabled = !loading,
+                                    enabled =
+                                        !loading &&
+                                            isValidPhoneInput(phone) &&
+                                            isValidPersonName(firstName) &&
+                                            isValidPersonName(lastName),
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
@@ -868,6 +911,30 @@ private fun TopBar(
                 Text(if (loggedIn) "Logout" else "Login")
             }
         }
+    }
+}
+
+
+private fun isValidPhoneInput(value: String): Boolean {
+    val trimmed = value.trim()
+    if (trimmed.isEmpty()) return true
+    if (trimmed.any { it.isLetter() }) return false
+    val digits = trimmed.filter { it.isDigit() }
+    return digits.length in 7..15
+}
+
+private fun isValidEmail(value: String): Boolean {
+    val v = value.trim()
+    return v.contains("@") && v.substringAfter("@").contains(".")
+}
+
+private fun isValidPersonName(value: String): Boolean {
+    val v = value.trim()
+    if (v.isEmpty()) return true
+    if (v.length > 100) return false
+    if (v.all { it.isDigit() || it.isWhitespace() }) return false
+    return v.all { ch ->
+        ch.isLetter() || ch.isWhitespace() || ch == '-' || ch == '.' || ch.code == 39
     }
 }
 

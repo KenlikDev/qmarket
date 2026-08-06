@@ -3,6 +3,7 @@ package com.kenlikdev.qmarket.identity.service
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
+import com.kenlikdev.qmarket.common.validation.InputValidation
 import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.dto.ChangePasswordRequest
 import com.kenlikdev.qmarket.identity.dto.ProfileResponse
@@ -37,9 +38,15 @@ class ProfileService(
                 .findById(userId)
                 .orElseThrow { NotFoundException("User not found") }
 
-        request.firstName?.let { user.firstName = it.trim().ifEmpty { null } }
-        request.lastName?.let { user.lastName = it.trim().ifEmpty { null } }
-        request.phone?.let { user.phone = it.trim().ifEmpty { null } }
+        request.firstName?.let {
+            user.firstName = InputValidation.normalizeOptionalName(it, "First name")
+        }
+        request.lastName?.let {
+            user.lastName = InputValidation.normalizeOptionalName(it, "Last name")
+        }
+        request.phone?.let {
+            user.phone = InputValidation.normalizeOptionalPhone(it)
+        }
 
         return toResponse(userRepository.save(user))
     }
