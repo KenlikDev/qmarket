@@ -1,5 +1,7 @@
 package com.kenlikdev.qmarket
 
+import com.kenlikdev.qmarket.validation.ClientInputValidation
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.AddCartItemRequestDto
+import com.kenlikdev.qmarket.api.AddressDto
+import com.kenlikdev.qmarket.api.CreateAddressRequestDto
 import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
@@ -44,7 +48,6 @@ import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.network.createPlatformHttpClient
 import com.kenlikdev.qmarket.network.defaultApiBaseUrl
-import com.kenlikdev.qmarket.validation.ClientInputValidation
 import kotlinx.coroutines.launch
 
 private sealed interface AppScreen {
@@ -59,6 +62,8 @@ private sealed interface AppScreen {
     data object Orders : AppScreen
 
     data object Profile : AppScreen
+
+    data object Addresses : AppScreen
 
     data class OrderDone(val order: OrderDto) : AppScreen
 }
@@ -96,6 +101,12 @@ fun App() {
         var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
         var userLabel by remember { mutableStateOf<String?>(null) }
         var loggedIn by remember { mutableStateOf(false) }
+        var addresses by remember { mutableStateOf<List<AddressDto>>(emptyList()) }
+        var selectedAddressId by remember { mutableStateOf<String?>(null) }
+        var addrRecipient by remember { mutableStateOf("") }
+        var addrCity by remember { mutableStateOf("") }
+        var addrStreet by remember { mutableStateOf("") }
+        var addrPhone by remember { mutableStateOf("") }
 
         fun runApi(block: suspend () -> Unit) {
             scope.launch {
@@ -125,6 +136,11 @@ fun App() {
         fun loadCart() {
             runApi {
                 cart = api.getCart()
+                addresses = runCatching { api.listAddresses() }.getOrElse { addresses }
+                if (selectedAddressId == null) {
+                    selectedAddressId = addresses.firstOrNull { it.default }?.id
+                        ?: addresses.firstOrNull()?.id
+                }
                 screen = AppScreen.Cart
             }
         }
@@ -145,6 +161,17 @@ fun App() {
                 lastName = p.lastName.orEmpty()
                 phone = p.phone.orEmpty()
                 screen = AppScreen.Profile
+            }
+        }
+
+        fun loadAddresses(navigate: Boolean = true) {
+            runApi {
+                addresses = api.listAddresses()
+                if (selectedAddressId == null) {
+                    selectedAddressId = addresses.firstOrNull { it.default }?.id
+                        ?: addresses.firstOrNull()?.id
+                }
+                if (navigate) screen = AppScreen.Addresses
             }
         }
 
@@ -320,7 +347,7 @@ fun App() {
                                     screen = AppScreen.Catalog
                                 }
                             },
-                            enabled = !loading && ClientInputValidation.isValidEmail(email) && password.length >= 8 && ClientInputValidation.isValidPersonName(firstName) && ClientInputValidation.isValidPersonName(lastName),
+                            enabled = !loading && isValidEmail(email) && password.length >= 8 && isValidPersonName(firstName) && isValidPersonName(lastName),
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -357,6 +384,7 @@ fun App() {
                             cartCount = cart?.totalItems,
                             onCart = { loadCart() },
                             onOrders = { loadOrders() },
+                            onAddresses = { loadAddresses() },
                             onProfile = { loadProfile() },
                             onLogout = { logout() },
                         )
@@ -432,6 +460,7 @@ fun App() {
                             cartCount = cart?.totalItems,
                             onCart = null,
                             onOrders = { loadOrders() },
+                            onAddresses = { loadAddresses() },
                             onProfile = { loadProfile() },
                             onLogout = { logout() },
                         )
@@ -484,10 +513,40 @@ fun App() {
                                     "Total: ${currentCart.totalPrice} (${currentCart.totalItems} items)",
                                     style = MaterialTheme.typography.titleMedium,
                                 )
+                                if (addresses.isNotEmpty()) {
+                                    Text(
+                                        "Ship to saved address",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    )
+                                    addresses.forEach { addr ->
+                                        val selected = addr.id == selectedAddressId
+                                        TextButton(
+                                            onClick = { selectedAddressId = addr.id },
+                                            enabled = !loading,
+                                        ) {
+                                            Text(
+                                                (if (selected) "● " else "○ ") +
+                                                    (addr.formatted
+                                                        ?: "${addr.city}, ${addr.streetLine1}"),
+                                            )
+                                        }
+                                    }
+                                    TextButton(onClick = { loadAddresses() }) {
+                                        Text("Manage addresses")
+                                    }
+                                } else {
+                                    TextButton(onClick = { loadAddresses() }) {
+                                        Text("Add a shipping address")
+                                    }
+                                }
                                 OutlinedTextField(
                                     value = shippingAddress,
-                                    onValueChange = { shippingAddress = it },
-                                    label = { Text("Shipping address") },
+                                    onValueChange = {
+                                        shippingAddress = it
+                                        if (it.isNotBlank()) selectedAddressId = null
+                                    },
+                                    label = { Text("Or free-form shipping address") },
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
@@ -499,14 +558,22 @@ fun App() {
                                             val order =
                                                 api.createOrder(
                                                     CreateOrderRequestDto(
-                                                        shippingAddress = shippingAddress.trim(),
+                                                        addressId = selectedAddressId,
+                                                        shippingAddress =
+                                                            if (selectedAddressId == null) {
+                                                                shippingAddress.trim().ifBlank { null }
+                                                            } else {
+                                                                null
+                                                            },
                                                     ),
                                                 )
                                             cart = api.getCart()
                                             screen = AppScreen.OrderDone(order)
                                         }
                                     },
-                                    enabled = !loading && shippingAddress.isNotBlank(),
+                                    enabled =
+                                        !loading &&
+                                            (selectedAddressId != null || shippingAddress.isNotBlank()),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Text(if (loading) "…" else "Checkout")
@@ -525,6 +592,166 @@ fun App() {
                 }
 
 
+
+                AppScreen.Addresses -> {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding),
+                    ) {
+                        TopBar(
+                            title = "Addresses",
+                            subtitle = userLabel ?: "Guest",
+                            loggedIn = loggedIn,
+                            cartCount = cart?.totalItems,
+                            onCart = { loadCart() },
+                            onOrders = { loadOrders() },
+                            onAddresses = null,
+                            onProfile = { loadProfile() },
+                            onLogout = { logout() },
+                        )
+                        TextButton(onClick = { loadCatalog() }) {
+                            Text("← Back to catalog")
+                        }
+                        ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
+                        statusMessage?.let {
+                            Text(
+                                it,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                            )
+                        }
+                        Column(
+                            modifier =
+                                Modifier
+                                    .weight(1f, fill = true)
+                                    .verticalScroll(rememberScrollState())
+                                    .padding(16.dp),
+                        ) {
+                            if (addresses.isEmpty()) {
+                                Text("No saved addresses", style = MaterialTheme.typography.bodyLarge)
+                            } else {
+                                addresses.forEach { addr ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                    ) {
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            Text(addr.recipientName, style = MaterialTheme.typography.titleMedium)
+                                            Text(addr.formatted ?: "${addr.city}, ${addr.streetLine1}")
+                                            if (addr.default) {
+                                                Text(
+                                                    "Default",
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                )
+                                            }
+                                            TextButton(
+                                                onClick = {
+                                                    runApi {
+                                                        api.deleteAddress(addr.id)
+                                                        addresses = api.listAddresses()
+                                                        if (selectedAddressId == addr.id) {
+                                                            selectedAddressId =
+                                                                addresses.firstOrNull { it.default }?.id
+                                                                    ?: addresses.firstOrNull()?.id
+                                                        }
+                                                    }
+                                                },
+                                                enabled = !loading,
+                                            ) {
+                                                Text("Delete")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Text(
+                                "Add address",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(top = 16.dp),
+                            )
+                            OutlinedTextField(
+                                value = addrRecipient,
+                                onValueChange = { addrRecipient = it },
+                                label = { Text("Recipient name") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            )
+                            if (addrRecipient.isNotEmpty() && !ClientInputValidation.isValidPersonName(addrRecipient)) {
+                                Text(
+                                    "Recipient: letters, spaces, hyphen, apostrophe, period",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            OutlinedTextField(
+                                value = addrCity,
+                                onValueChange = { addrCity = it },
+                                label = { Text("City") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            )
+                            OutlinedTextField(
+                                value = addrStreet,
+                                onValueChange = { addrStreet = it },
+                                label = { Text("Street") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            )
+                            OutlinedTextField(
+                                value = addrPhone,
+                                onValueChange = { input ->
+                                    addrPhone = ClientInputValidation.filterPhoneInput(input)
+                                },
+                                label = { Text("Phone (optional)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            )
+                            if (addrPhone.isNotEmpty() && !ClientInputValidation.isValidPhoneInput(addrPhone)) {
+                                Text(
+                                    "Phone: 7-15 digits, optional leading +",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            Button(
+                                onClick = {
+                                    runApi {
+                                        val created =
+                                            api.createAddress(
+                                                CreateAddressRequestDto(
+                                                    recipientName = addrRecipient.trim(),
+                                                    city = addrCity.trim(),
+                                                    streetLine1 = addrStreet.trim(),
+                                                    phone = addrPhone.trim().ifBlank { null },
+                                                    default = addresses.isEmpty(),
+                                                ),
+                                            )
+                                        addresses = api.listAddresses()
+                                        selectedAddressId = created.id
+                                        addrRecipient = ""
+                                        addrCity = ""
+                                        addrStreet = ""
+                                        addrPhone = ""
+                                        statusMessage = "Address saved"
+                                    }
+                                },
+                                enabled =
+                                    !loading &&
+                                        addrRecipient.isNotBlank() &&
+                                        ClientInputValidation.isValidPersonName(addrRecipient) &&
+                                        addrCity.isNotBlank() &&
+                                        addrStreet.isNotBlank() &&
+                                        ClientInputValidation.isValidPhoneInput(addrPhone),
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                            ) {
+                                Text("Save address")
+                            }
+                        }
+                    }
+                }
+
                 AppScreen.Profile -> {
                     Column(
                         modifier =
@@ -539,6 +766,7 @@ fun App() {
                             cartCount = cart?.totalItems,
                             onCart = { loadCart() },
                             onOrders = { loadOrders() },
+                            onAddresses = { loadAddresses() },
                             onProfile = null,
                             onLogout = { logout() },
                         )
@@ -589,7 +817,17 @@ fun App() {
                                 )
                                 OutlinedTextField(
                                     value = phone,
-                                    onValueChange = { input -> phone = ClientInputValidation.filterPhoneInput(input) },
+                                    onValueChange = { input ->
+                                        phone =
+                                            input.filter { ch ->
+                                                ch.isDigit() ||
+                                                    ch == '+' ||
+                                                    ch.isWhitespace() ||
+                                                    ch == '-' ||
+                                                    ch == '(' ||
+                                                    ch == ')'
+                                            }
+                                    },
                                     label = { Text("Phone") },
                                     singleLine = true,
                                     modifier =
@@ -597,21 +835,21 @@ fun App() {
                                             .fillMaxWidth()
                                             .padding(top = 8.dp),
                                 )
-                                if (phone.isNotEmpty() && !ClientInputValidation.isValidPhoneInput(phone)) {
+                                if (phone.isNotEmpty() && !isValidPhoneInput(phone)) {
                                     Text(
                                         "Phone: 7-15 digits, optional leading +",
                                         color = MaterialTheme.colorScheme.error,
                                         style = MaterialTheme.typography.bodySmall,
                                     )
                                 }
-                                if (firstName.isNotEmpty() && !ClientInputValidation.isValidPersonName(firstName)) {
+                                if (firstName.isNotEmpty() && !isValidPersonName(firstName)) {
                                     Text(
                                         "First name: letters, spaces, hyphen, apostrophe, period",
                                         color = MaterialTheme.colorScheme.error,
                                         style = MaterialTheme.typography.bodySmall,
                                     )
                                 }
-                                if (lastName.isNotEmpty() && !ClientInputValidation.isValidPersonName(lastName)) {
+                                if (lastName.isNotEmpty() && !isValidPersonName(lastName)) {
                                     Text(
                                         "Last name: letters, spaces, hyphen, apostrophe, period",
                                         color = MaterialTheme.colorScheme.error,
@@ -634,9 +872,9 @@ fun App() {
                                     },
                                     enabled =
                                         !loading &&
-                                            ClientInputValidation.isValidPhoneInput(phone) &&
-                                            ClientInputValidation.isValidPersonName(firstName) &&
-                                            ClientInputValidation.isValidPersonName(lastName),
+                                            isValidPhoneInput(phone) &&
+                                            isValidPersonName(firstName) &&
+                                            isValidPersonName(lastName),
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
@@ -710,6 +948,7 @@ fun App() {
                             cartCount = cart?.totalItems,
                             onCart = { loadCart() },
                             onOrders = null,
+                            onAddresses = { loadAddresses() },
                             onProfile = { loadProfile() },
                             onLogout = { logout() },
                         )
@@ -861,6 +1100,7 @@ private fun TopBar(
     cartCount: Int?,
     onCart: (() -> Unit)?,
     onOrders: (() -> Unit)?,
+    onAddresses: (() -> Unit)?,
     onProfile: (() -> Unit)?,
     onLogout: () -> Unit,
 ) {
@@ -877,6 +1117,11 @@ private fun TopBar(
             Text(subtitle, style = MaterialTheme.typography.bodySmall)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (loggedIn && onAddresses != null) {
+                TextButton(onClick = onAddresses) {
+                    Text("Addresses")
+                }
+            }
             if (loggedIn && onProfile != null) {
                 TextButton(onClick = onProfile) {
                     Text("Profile")
@@ -906,13 +1151,20 @@ private fun TopBar(
 }
 
 
+private fun isValidPhoneInput(value: String): Boolean {
+    val trimmed = value.trim()
+    if (trimmed.isEmpty()) return true
+    if (trimmed.any { it.isLetter() }) return false
+    val digits = trimmed.filter { it.isDigit() }
+    return digits.length in 7..15
+}
 
-private fun ClientInputValidation.isValidEmail(value: String): Boolean {
+private fun isValidEmail(value: String): Boolean {
     val v = value.trim()
     return v.contains("@") && v.substringAfter("@").contains(".")
 }
 
-private fun ClientInputValidation.isValidPersonName(value: String): Boolean {
+private fun isValidPersonName(value: String): Boolean {
     val v = value.trim()
     if (v.isEmpty()) return true
     if (v.length > 100) return false

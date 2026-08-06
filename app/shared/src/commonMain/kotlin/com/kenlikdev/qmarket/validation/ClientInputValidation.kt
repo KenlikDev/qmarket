@@ -1,9 +1,5 @@
 package com.kenlikdev.qmarket.validation
 
-/**
- * Client-side mirrors of server [com.kenlikdev.qmarket.common.validation.InputValidation]
- * for Compose form enable/disable and instant feedback.
- */
 object ClientInputValidation {
     fun isValidEmail(value: String): Boolean {
         val v = value.trim()
@@ -30,7 +26,6 @@ object ClientInputValidation {
 
     fun isValidPassword(value: String): Boolean = value.length in 8..100
 
-    /** Filter phone field keystrokes (digits and common separators only). */
     fun filterPhoneInput(input: String): String =
         input.filter { ch ->
             ch.isDigit() ||
