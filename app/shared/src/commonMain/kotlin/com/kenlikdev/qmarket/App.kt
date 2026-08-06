@@ -30,7 +30,11 @@ import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.AddCartItemRequestDto
 import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
+import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
+import com.kenlikdev.qmarket.api.ProfileDto
+import com.kenlikdev.qmarket.api.RegisterRequestDto
+import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.network.ApiException
@@ -43,11 +47,15 @@ import kotlinx.coroutines.launch
 private sealed interface AppScreen {
     data object Login : AppScreen
 
+    data object Register : AppScreen
+
     data object Catalog : AppScreen
 
     data object Cart : AppScreen
 
     data object Orders : AppScreen
+
+    data object Profile : AppScreen
 
     data class OrderDone(val order: OrderDto) : AppScreen
 }
@@ -70,6 +78,12 @@ fun App() {
         var screen by remember { mutableStateOf<AppScreen>(AppScreen.Login) }
         var email by remember { mutableStateOf("admin@qmarket.local") }
         var password by remember { mutableStateOf("admin123") }
+        var firstName by remember { mutableStateOf("") }
+        var lastName by remember { mutableStateOf("") }
+        var phone by remember { mutableStateOf("") }
+        var currentPassword by remember { mutableStateOf("") }
+        var newPassword by remember { mutableStateOf("") }
+        var profile by remember { mutableStateOf<ProfileDto?>(null) }
         var shippingAddress by remember { mutableStateOf("Moscow, Tverskaya 1") }
         var error by remember { mutableStateOf<String?>(null) }
         var statusMessage by remember { mutableStateOf<String?>(null) }
@@ -117,6 +131,17 @@ fun App() {
                 val page = api.listMyOrders(size = 50)
                 orders = page.content
                 screen = AppScreen.Orders
+            }
+        }
+
+        fun loadProfile() {
+            runApi {
+                val p = api.getProfile()
+                profile = p
+                firstName = p.firstName.orEmpty()
+                lastName = p.lastName.orEmpty()
+                phone = p.phone.orEmpty()
+                screen = AppScreen.Profile
             }
         }
 
@@ -196,6 +221,15 @@ fun App() {
                         }
                         TextButton(
                             onClick = {
+                                error = null
+                                screen = AppScreen.Register
+                            },
+                            enabled = !loading,
+                        ) {
+                            Text("Create account")
+                        }
+                        TextButton(
+                            onClick = {
                                 tokens.clear()
                                 loggedIn = false
                                 userLabel = null
@@ -205,6 +239,100 @@ fun App() {
                             enabled = !loading,
                         ) {
                             Text("Browse catalog (anonymous)")
+                        }
+                        if (loading) {
+                            CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
+                        }
+                    }
+                }
+
+
+                AppScreen.Register -> {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                                .padding(24.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text("Register", style = MaterialTheme.typography.headlineMedium)
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it },
+                            label = { Text("Email") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("Password") },
+                            singleLine = true,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                        )
+                        OutlinedTextField(
+                            value = firstName,
+                            onValueChange = { firstName = it },
+                            label = { Text("First name") },
+                            singleLine = true,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                        )
+                        OutlinedTextField(
+                            value = lastName,
+                            onValueChange = { lastName = it },
+                            label = { Text("Last name") },
+                            singleLine = true,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                        )
+                        ErrorText(error)
+                        Button(
+                            onClick = {
+                                runApi {
+                                    val auth =
+                                        api.register(
+                                            RegisterRequestDto(
+                                                email = email.trim(),
+                                                password = password,
+                                                firstName = firstName.trim().ifBlank { null },
+                                                lastName = lastName.trim().ifBlank { null },
+                                            ),
+                                        )
+                                    tokens.token = auth.accessToken
+                                    userLabel = auth.user.email
+                                    loggedIn = true
+                                    val page = api.listProducts(size = 50)
+                                    products = page.content
+                                    cart = runCatching { api.getCart() }.getOrNull()
+                                    screen = AppScreen.Catalog
+                                }
+                            },
+                            enabled = !loading && email.isNotBlank() && password.length >= 8,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 16.dp),
+                        ) {
+                            Text(if (loading) "…" else "Register")
+                        }
+                        TextButton(
+                            onClick = {
+                                error = null
+                                screen = AppScreen.Login
+                            },
+                            enabled = !loading,
+                        ) {
+                            Text("Back to login")
                         }
                         if (loading) {
                             CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
@@ -226,6 +354,7 @@ fun App() {
                             cartCount = cart?.totalItems,
                             onCart = { loadCart() },
                             onOrders = { loadOrders() },
+                            onProfile = { loadProfile() },
                             onLogout = { logout() },
                         )
                         ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
@@ -300,6 +429,7 @@ fun App() {
                             cartCount = cart?.totalItems,
                             onCart = null,
                             onOrders = { loadOrders() },
+                            onProfile = { loadProfile() },
                             onLogout = { logout() },
                         )
                         TextButton(onClick = { loadCatalog() }) {
@@ -391,6 +521,147 @@ fun App() {
                     }
                 }
 
+
+                AppScreen.Profile -> {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(padding),
+                    ) {
+                        TopBar(
+                            title = "Profile",
+                            subtitle = userLabel ?: "Guest",
+                            loggedIn = loggedIn,
+                            cartCount = cart?.totalItems,
+                            onCart = { loadCart() },
+                            onOrders = { loadOrders() },
+                            onProfile = null,
+                            onLogout = { logout() },
+                        )
+                        TextButton(onClick = { loadCatalog() }) {
+                            Text("← Back to catalog")
+                        }
+                        ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
+                        statusMessage?.let {
+                            Text(
+                                it,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                            )
+                        }
+                        if (loading && profile == null) {
+                            LoadingCenter()
+                        } else {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    profile?.email ?: "",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                OutlinedTextField(
+                                    value = firstName,
+                                    onValueChange = { firstName = it },
+                                    label = { Text("First name") },
+                                    singleLine = true,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                )
+                                OutlinedTextField(
+                                    value = lastName,
+                                    onValueChange = { lastName = it },
+                                    label = { Text("Last name") },
+                                    singleLine = true,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                )
+                                OutlinedTextField(
+                                    value = phone,
+                                    onValueChange = { phone = it },
+                                    label = { Text("Phone") },
+                                    singleLine = true,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                )
+                                Button(
+                                    onClick = {
+                                        runApi {
+                                            profile =
+                                                api.updateProfile(
+                                                    UpdateProfileRequestDto(
+                                                        firstName = firstName.trim().ifBlank { null },
+                                                        lastName = lastName.trim().ifBlank { null },
+                                                        phone = phone.trim().ifBlank { null },
+                                                    ),
+                                                )
+                                            statusMessage = "Profile saved"
+                                        }
+                                    },
+                                    enabled = !loading,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 12.dp),
+                                ) {
+                                    Text("Save profile")
+                                }
+                                Text(
+                                    "Change password",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    modifier = Modifier.padding(top = 24.dp),
+                                )
+                                OutlinedTextField(
+                                    value = currentPassword,
+                                    onValueChange = { currentPassword = it },
+                                    label = { Text("Current password") },
+                                    singleLine = true,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                )
+                                OutlinedTextField(
+                                    value = newPassword,
+                                    onValueChange = { newPassword = it },
+                                    label = { Text("New password") },
+                                    singleLine = true,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                )
+                                Button(
+                                    onClick = {
+                                        runApi {
+                                            api.changePassword(
+                                                ChangePasswordRequestDto(
+                                                    currentPassword = currentPassword,
+                                                    newPassword = newPassword,
+                                                ),
+                                            )
+                                            currentPassword = ""
+                                            newPassword = ""
+                                            statusMessage = "Password updated"
+                                        }
+                                    },
+                                    enabled = !loading && currentPassword.isNotBlank() && newPassword.length >= 8,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 12.dp),
+                                ) {
+                                    Text("Update password")
+                                }
+                            }
+                        }
+                    }
+                }
+
                 AppScreen.Orders -> {
                     Column(
                         modifier =
@@ -405,6 +676,7 @@ fun App() {
                             cartCount = cart?.totalItems,
                             onCart = { loadCart() },
                             onOrders = null,
+                            onProfile = { loadProfile() },
                             onLogout = { logout() },
                         )
                         TextButton(onClick = { loadCatalog() }) {
@@ -555,6 +827,7 @@ private fun TopBar(
     cartCount: Int?,
     onCart: (() -> Unit)?,
     onOrders: (() -> Unit)?,
+    onProfile: (() -> Unit)?,
     onLogout: () -> Unit,
 ) {
     Row(
@@ -570,6 +843,11 @@ private fun TopBar(
             Text(subtitle, style = MaterialTheme.typography.bodySmall)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
+            if (loggedIn && onProfile != null) {
+                TextButton(onClick = onProfile) {
+                    Text("Profile")
+                }
+            }
             if (loggedIn && onOrders != null) {
                 TextButton(onClick = onOrders) {
                     Text("Orders")
