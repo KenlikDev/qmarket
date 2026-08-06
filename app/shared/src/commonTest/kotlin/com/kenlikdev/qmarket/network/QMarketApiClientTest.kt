@@ -96,4 +96,87 @@ class QMarketApiClientTest {
                 client.close()
             }
         }
+
+    @Test
+    fun listProductsParsesPageEnvelope() =
+        runTest {
+            val engine =
+                MockEngine {
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                  "content": [
+                                    {
+                                      "id": "11111111-1111-1111-1111-111111111111",
+                                      "name": "Phone",
+                                      "slug": "phone",
+                                      "price": "499.00",
+                                      "stockQuantity": 5,
+                                      "active": true,
+                                      "featured": false
+                                    }
+                                  ],
+                                  "page": 0,
+                                  "size": 20,
+                                  "totalElements": 1,
+                                  "totalPages": 1
+                                }
+                                """.trimIndent(),
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                val page = QMarketApiClient(client).listProducts(size = 20)
+                assertEquals(1, page.content.size)
+                assertEquals("Phone", page.content[0].name)
+                assertEquals(1, page.totalElements)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun listOrdersParsesPageEnvelope() =
+        runTest {
+            val engine =
+                MockEngine {
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                  "content": [
+                                    {
+                                      "id": "22222222-2222-2222-2222-222222222222",
+                                      "userId": "11111111-1111-1111-1111-111111111111",
+                                      "status": "PENDING",
+                                      "totalAmount": "10.00",
+                                      "items": []
+                                    }
+                                  ],
+                                  "page": 0,
+                                  "size": 20,
+                                  "totalElements": 1,
+                                  "totalPages": 1
+                                }
+                                """.trimIndent(),
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                val page = QMarketApiClient(client).listMyOrders(size = 20)
+                assertEquals(1, page.content.size)
+                assertEquals("PENDING", page.content[0].status.name)
+            } finally {
+                client.close()
+            }
+        }
 }

@@ -114,3 +114,5 @@ Android emulator API host: `10.0.2.2:8080`
 ```
 
 Точечно только для отладки: `./gradlew :server:order:test`
+
+Стратегия автотестов: [docs/TESTING.md](docs/TESTING.md)

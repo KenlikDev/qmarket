@@ -44,6 +44,7 @@ import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.network.createPlatformHttpClient
 import com.kenlikdev.qmarket.network.defaultApiBaseUrl
+import com.kenlikdev.qmarket.validation.ClientInputValidation
 import kotlinx.coroutines.launch
 
 private sealed interface AppScreen {
@@ -319,7 +320,7 @@ fun App() {
                                     screen = AppScreen.Catalog
                                 }
                             },
-                            enabled = !loading && isValidEmail(email) && password.length >= 8 && isValidPersonName(firstName) && isValidPersonName(lastName),
+                            enabled = !loading && ClientInputValidation.isValidEmail(email) && password.length >= 8 && ClientInputValidation.isValidPersonName(firstName) && ClientInputValidation.isValidPersonName(lastName),
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -588,17 +589,7 @@ fun App() {
                                 )
                                 OutlinedTextField(
                                     value = phone,
-                                    onValueChange = { input ->
-                                        phone =
-                                            input.filter { ch ->
-                                                ch.isDigit() ||
-                                                    ch == '+' ||
-                                                    ch.isWhitespace() ||
-                                                    ch == '-' ||
-                                                    ch == '(' ||
-                                                    ch == ')'
-                                            }
-                                    },
+                                    onValueChange = { input -> phone = ClientInputValidation.filterPhoneInput(input) },
                                     label = { Text("Phone") },
                                     singleLine = true,
                                     modifier =
@@ -606,21 +597,21 @@ fun App() {
                                             .fillMaxWidth()
                                             .padding(top = 8.dp),
                                 )
-                                if (phone.isNotEmpty() && !isValidPhoneInput(phone)) {
+                                if (phone.isNotEmpty() && !ClientInputValidation.isValidPhoneInput(phone)) {
                                     Text(
                                         "Phone: 7-15 digits, optional leading +",
                                         color = MaterialTheme.colorScheme.error,
                                         style = MaterialTheme.typography.bodySmall,
                                     )
                                 }
-                                if (firstName.isNotEmpty() && !isValidPersonName(firstName)) {
+                                if (firstName.isNotEmpty() && !ClientInputValidation.isValidPersonName(firstName)) {
                                     Text(
                                         "First name: letters, spaces, hyphen, apostrophe, period",
                                         color = MaterialTheme.colorScheme.error,
                                         style = MaterialTheme.typography.bodySmall,
                                     )
                                 }
-                                if (lastName.isNotEmpty() && !isValidPersonName(lastName)) {
+                                if (lastName.isNotEmpty() && !ClientInputValidation.isValidPersonName(lastName)) {
                                     Text(
                                         "Last name: letters, spaces, hyphen, apostrophe, period",
                                         color = MaterialTheme.colorScheme.error,
@@ -643,9 +634,9 @@ fun App() {
                                     },
                                     enabled =
                                         !loading &&
-                                            isValidPhoneInput(phone) &&
-                                            isValidPersonName(firstName) &&
-                                            isValidPersonName(lastName),
+                                            ClientInputValidation.isValidPhoneInput(phone) &&
+                                            ClientInputValidation.isValidPersonName(firstName) &&
+                                            ClientInputValidation.isValidPersonName(lastName),
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
@@ -915,20 +906,13 @@ private fun TopBar(
 }
 
 
-private fun isValidPhoneInput(value: String): Boolean {
-    val trimmed = value.trim()
-    if (trimmed.isEmpty()) return true
-    if (trimmed.any { it.isLetter() }) return false
-    val digits = trimmed.filter { it.isDigit() }
-    return digits.length in 7..15
-}
 
-private fun isValidEmail(value: String): Boolean {
+private fun ClientInputValidation.isValidEmail(value: String): Boolean {
     val v = value.trim()
     return v.contains("@") && v.substringAfter("@").contains(".")
 }
 
-private fun isValidPersonName(value: String): Boolean {
+private fun ClientInputValidation.isValidPersonName(value: String): Boolean {
     val v = value.trim()
     if (v.isEmpty()) return true
     if (v.length > 100) return false
