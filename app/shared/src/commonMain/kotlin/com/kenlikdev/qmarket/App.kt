@@ -30,8 +30,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.AddCartItemRequestDto
+import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
 import com.kenlikdev.qmarket.api.AddressDto
 import com.kenlikdev.qmarket.api.CreateAddressRequestDto
 import com.kenlikdev.qmarket.api.CartDto
@@ -97,6 +99,9 @@ fun App() {
         var statusMessage by remember { mutableStateOf<String?>(null) }
         var loading by remember { mutableStateOf(false) }
         var products by remember { mutableStateOf<List<ProductDto>>(emptyList()) }
+        var catalogQuery by remember { mutableStateOf("") }
+        var catalogSortBy by remember { mutableStateOf("createdAt") }
+        var catalogFeaturedOnly by remember { mutableStateOf(false) }
         var cart by remember { mutableStateOf<CartDto?>(null) }
         var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
         var userLabel by remember { mutableStateOf<String?>(null) }
@@ -125,11 +130,23 @@ fun App() {
             }
         }
 
-        fun loadCatalog() {
+        fun loadCatalog(
+            navigate: Boolean = true,
+            q: String? = catalogQuery.trim().ifBlank { null },
+            sortBy: String? = catalogSortBy,
+            featuredOnly: Boolean? = if (catalogFeaturedOnly) true else null,
+        ) {
             runApi {
-                val page = api.listProducts(size = 50)
+                val page =
+                    api.listProducts(
+                        size = 50,
+                        q = q,
+                        sortBy = sortBy,
+                        sortDir = if (sortBy == "price") "asc" else "desc",
+                        featuredOnly = featuredOnly,
+                    )
                 products = page.content
-                screen = AppScreen.Catalog
+                if (navigate) screen = AppScreen.Catalog
             }
         }
 
@@ -245,7 +262,8 @@ fun App() {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 16.dp),
+                                    .padding(top = 16.dp)
+                                    .testTag("loginSubmit"),
                         ) {
                             Text(if (loading) "…" else "Login")
                         }
@@ -396,7 +414,56 @@ fun App() {
                                 modifier = Modifier.padding(horizontal = 16.dp),
                             )
                         }
-                        if (loading && products.isEmpty()) {
+                                                OutlinedTextField(
+                            value = catalogQuery,
+                            onValueChange = { catalogQuery = it },
+                            label = { Text("Search") },
+                            singleLine = true,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .testTag("catalogSearch"),
+                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    catalogSortBy = "createdAt"
+                                    loadCatalog(navigate = false)
+                                },
+                            ) { Text("Newest") }
+                            TextButton(
+                                onClick = {
+                                    catalogSortBy = "price"
+                                    loadCatalog(navigate = false)
+                                },
+                            ) { Text("Price") }
+                            TextButton(
+                                onClick = {
+                                    catalogSortBy = "name"
+                                    loadCatalog(navigate = false)
+                                },
+                            ) { Text("Name") }
+                            TextButton(
+                                onClick = {
+                                    catalogFeaturedOnly = !catalogFeaturedOnly
+                                    loadCatalog(navigate = false)
+                                },
+                            ) {
+                                Text(if (catalogFeaturedOnly) "Featured ✓" else "Featured")
+                            }
+                            Button(
+                                onClick = { loadCatalog(navigate = false) },
+                                enabled = !loading,
+                                modifier = Modifier.testTag("catalogSearchApply"),
+                            ) {
+                                Text("Apply")
+                            }
+                        }
+if (loading && products.isEmpty()) {
                             LoadingCenter()
                         } else {
                             LazyColumn(
@@ -494,15 +561,59 @@ fun App() {
                                                 "×${item.quantity} · ${item.lineTotal}",
                                                 style = MaterialTheme.typography.bodyMedium,
                                             )
-                                            TextButton(
-                                                onClick = {
-                                                    runApi {
-                                                        cart = api.removeCartItem(item.productId)
-                                                    }
-                                                },
-                                                enabled = !loading,
-                                            ) {
-                                                Text("Remove")
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                TextButton(
+                                                    onClick = {
+                                                        runApi {
+                                                            if (item.quantity <= 1) {
+                                                                cart = api.removeCartItem(item.productId)
+                                                            } else {
+                                                                cart =
+                                                                    api.updateCartItem(
+                                                                        item.productId,
+                                                                        UpdateCartItemRequestDto(
+                                                                            quantity = item.quantity - 1,
+                                                                        ),
+                                                                    )
+                                                            }
+                                                        }
+                                                    },
+                                                    enabled = !loading,
+                                                    modifier = Modifier.testTag("cartQtyDec"),
+                                                ) {
+                                                    Text("−")
+                                                }
+                                                Text(
+                                                    "${item.quantity}",
+                                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                                )
+                                                TextButton(
+                                                    onClick = {
+                                                        runApi {
+                                                            cart =
+                                                                api.updateCartItem(
+                                                                    item.productId,
+                                                                    UpdateCartItemRequestDto(
+                                                                        quantity = item.quantity + 1,
+                                                                    ),
+                                                                )
+                                                        }
+                                                    },
+                                                    enabled = !loading,
+                                                    modifier = Modifier.testTag("cartQtyInc"),
+                                                ) {
+                                                    Text("+")
+                                                }
+                                                TextButton(
+                                                    onClick = {
+                                                        runApi {
+                                                            cart = api.removeCartItem(item.productId)
+                                                        }
+                                                    },
+                                                    enabled = !loading,
+                                                ) {
+                                                    Text("Remove")
+                                                }
                                             }
                                         }
                                     }
