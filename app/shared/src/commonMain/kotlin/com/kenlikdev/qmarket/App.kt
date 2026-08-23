@@ -250,7 +250,7 @@ fun App() {
                                                 password = password,
                                             ),
                                         )
-                                    tokens.token = auth.accessToken
+                                    tokens.applyAuth(auth)
                                     userLabel = auth.user.email
                                     loggedIn = true
                                     val page = api.listProducts(size = 50)
@@ -357,7 +357,7 @@ fun App() {
                                                 lastName = lastName.trim().ifBlank { null },
                                             ),
                                         )
-                                    tokens.token = auth.accessToken
+                                    tokens.applyAuth(auth)
                                     userLabel = auth.user.email
                                     loggedIn = true
                                     val page = api.listProducts(size = 50)

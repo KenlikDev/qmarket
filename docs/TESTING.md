@@ -12,7 +12,7 @@
 | Controller slice | `*ControllerTest` | HTTP mapping + security annotations |
 | Integration | `server/src/test` + Testcontainers | Real Postgres + full HTTP stack |
 | ArchUnit | `ModuleArchitectureTest` | Module boundaries |
-| API client | `app/shared` commonTest + MockEngine | DTO parsing, error mapping |
+| API client | `app/shared` commonTest + MockEngine | DTO parsing, error mapping, refresh |
 | Client validation | `ClientInputValidationTest` | Form rules match server intent |
 
 ## API correctness

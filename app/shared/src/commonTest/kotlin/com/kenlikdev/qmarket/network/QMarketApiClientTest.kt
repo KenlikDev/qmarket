@@ -2,6 +2,7 @@ package com.kenlikdev.qmarket.network
 
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.QMarketJson
+import com.kenlikdev.qmarket.api.RefreshTokenRequestDto
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -175,6 +176,45 @@ class QMarketApiClientTest {
                 val page = QMarketApiClient(client).listMyOrders(size = 20)
                 assertEquals(1, page.content.size)
                 assertEquals("PENDING", page.content[0].status.name)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun refreshParsesAuthResponse() =
+        runTest {
+            val engine =
+                MockEngine {
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                  "accessToken": "new-access",
+                                  "refreshToken": "new-refresh",
+                                  "tokenType": "Bearer",
+                                  "expiresIn": 3600,
+                                  "user": {
+                                    "id": "11111111-1111-1111-1111-111111111111",
+                                    "email": "a@b.c",
+                                    "roles": ["ROLE_USER"]
+                                  }
+                                }
+                                """.trimIndent(),
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                val auth =
+                    QMarketApiClient(client).refresh(
+                        RefreshTokenRequestDto(refreshToken = "old-refresh"),
+                    )
+                assertEquals("new-access", auth.accessToken)
+                assertEquals("new-refresh", auth.refreshToken)
             } finally {
                 client.close()
             }

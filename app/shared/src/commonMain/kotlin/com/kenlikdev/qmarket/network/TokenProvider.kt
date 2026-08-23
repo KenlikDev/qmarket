@@ -1,9 +1,11 @@
 package com.kenlikdev.qmarket.network
 
 /**
- * Supplies the current JWT access token for authenticated requests.
+ * Supplies JWT tokens for authenticated requests.
  * UI layer (or a secure store) implements this.
  */
-fun interface TokenProvider {
+interface TokenProvider {
     fun accessToken(): String?
+
+    fun refreshToken(): String? = null
 }

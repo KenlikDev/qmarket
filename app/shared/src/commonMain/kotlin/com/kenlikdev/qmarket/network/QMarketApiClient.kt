@@ -14,6 +14,7 @@ import com.kenlikdev.qmarket.api.PageDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
 import com.kenlikdev.qmarket.api.QMarketJson
+import com.kenlikdev.qmarket.api.RefreshTokenRequestDto
 import com.kenlikdev.qmarket.api.RegisterRequestDto
 import com.kenlikdev.qmarket.api.UpdateAddressRequestDto
 import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
@@ -48,6 +49,9 @@ class QMarketApiClient(
 
     suspend fun login(request: LoginRequestDto): AuthResponseDto =
         post("/api/v1/auth/login", request)
+
+    suspend fun refresh(request: RefreshTokenRequestDto): AuthResponseDto =
+        post("/api/v1/auth/refresh", request)
 
     // --- Profile ---
 

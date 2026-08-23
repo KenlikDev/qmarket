@@ -6,7 +6,7 @@
 
 | Версия | Фокус | Статус |
 |--------|--------|--------|
-| **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **WIP** (почти закрыт scope) |
+| **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **WIP** (scope почти закрыт) |
 | **v0.2 Catalog & Auth polish** | OAuth optional, admin catalog UX, rate limit login | pending |
 | **v0.3** | (merged into v0.1 client) reserved / skip | done via shared UI |
 | **v1.0 MVP** | Payments (1 провайдер), notifications, admin UI, search | pending |
@@ -14,20 +14,33 @@
 | **v1.2 Scale** | Observability, cache, performance | pending |
 | **v2.0** | Microservices evolution by need | pending |
 
-## v0.1 Foundation — чеклист backend (факт)
+## v0.1 Foundation — чеклист (факт)
 
-- [x] Modular monolith Spring Boot 4.1 (`common`, `identity`, `catalog`, `cart`, `order`)
+### Backend
+
+- [x] Modular monolith Spring Boot 4.1 (`common`, `identity`, `catalog-api`, `catalog`, `cart`, `order`)
 - [x] JWT auth register/login/refresh
 - [x] Catalog CRUD + search + seed
 - [x] Cart API
-- [x] Orders: create from cart, list, cancel, admin status
-- [x] Unit + controller slice + integration tests (incl. order IT)
+- [x] Orders: create from cart, list, cancel, admin status, mock pay
+- [x] Profile + shipping addresses
+- [x] Unit + controller slice + integration tests (incl. stock concurrency)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize
-- [x] Flyway SoT via `spring-boot-starter-flyway` (V1+V2, validate)
-- [x] Payments (mock only; real PSP later)
-- [x] Profile API (GET/PATCH /users/me)
-- [x] Shipping addresses CRUD
-- [ ] Shared KMP DTOs / client UI beyond skeleton
+- [x] Flyway SoT V1–V5, app `ddl-auto=validate`
+- [x] `ProductCatalog` port + ArchUnit boundaries
+- [x] Atomic stock `UPDATE … WHERE stock >= qty`
+
+### Shared client (Compose + Ktor)
+
+- [x] KMP DTOs in `:core` (kotlinx.serialization)
+- [x] `QMarketApiClient` (auth, catalog, cart, orders, profile, addresses)
+- [x] Login / register / profile / change password
+- [x] Addresses (list/add/delete/set default) + checkout `addressId`
+- [x] Catalog search/sort/featured
+- [x] Cart quantity +/−, checkout, orders list, mock pay/cancel
+- [x] JWT Bearer + refresh on 401
+- [ ] Compose UI tests (testTags seeded; harness later)
+- [ ] Secure token storage (currently in-memory session)
 
 ## v1.0 MVP (из плана)
 
@@ -35,9 +48,13 @@
 Админ: товары, заказы, пользователи.  
 Платформы: Android + Web (+ Desktop); iOS параллельно.
 
+Открыто для v1.0: реальный PSP, rate limit login, admin UI, отзыв refresh-токенов.
+
 ## Архитектура
 
 Монолит → модульный монолит (сейчас) → микросервисы по нагрузке (v2.0+).
+
+Контракты модулей — в `*.api` (как `catalog-api`), не в `common`.
 
 ## Правило релиза
 

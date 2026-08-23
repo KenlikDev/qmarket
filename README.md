@@ -15,14 +15,14 @@
 | Seed admin + demo catalog | ✅ |
 | Unit / controller / integration tests | ✅ |
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
-| Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1+V2, app: `validate`, tests: Flyway |
+| Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V5, app: `validate`, tests: Flyway |
 | Payments (mock) | ✅ POST /api/v1/orders/{id}/pay |
 | Profile (GET/PATCH /users/me) | ✅ |
 | Shipping addresses | ✅ |
 | catalog-api (ProductCatalog port) | ✅ |
 | ArchUnit module boundaries | ✅ |
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
-| Ktor ApiClient (shared) | ✅ auth/catalog/cart |
+| Ktor ApiClient (shared) | ✅ auth/catalog/cart/orders; Bearer + refresh on 401 |
 | Clients UI | ✅ login, register, profile, addresses (set default), catalog search/sort, cart ±qty, checkout, orders |
 | Stock concurrency | ✅ atomic UPDATE + IT |
 
