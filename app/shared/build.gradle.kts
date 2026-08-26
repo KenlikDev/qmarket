@@ -74,6 +74,13 @@ kotlin {
             implementation(libs.ktor.client.mock)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.compose.ui.test)
+        }
+        jvmTest.dependencies {
+            // Native Skiko for host OS — required by runComposeUiTest on JVM
+            implementation(compose.desktop.currentOs)
+            implementation(libs.compose.ui.test.junit4)
+            implementation(libs.kotlinx.coroutinesSwing)
         }
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)

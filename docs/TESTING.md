@@ -16,6 +16,7 @@
 | Client validation | `ClientInputValidationTest` | Form rules match server intent |
 | Catalog/checkout rules | `CatalogFilterParamsTest`, `CheckoutSelectionTest` | Same objects the UI calls |
 | Session store | `MutableTokenProviderTest`, `InMemorySessionStoreTest` | Persist + reload tokens |
+| Compose UI | `ui/*ScreenTest` + `runComposeUiTest` (JVM) | testTags, enabled state, click callbacks |
 
 ## API correctness
 
@@ -25,10 +26,8 @@
 
 ## UI / multi-device
 
-I (assistant) cannot drive your emulator. Automate instead:
-
-1. **Now**: pure logic tests (`ClientInputValidation`, `CatalogFilterParams`, `CheckoutSelection`) + API client tests.
-2. **Next**: Compose UI tests (`testTag` + `compose-ui-test`) on **JVM desktop** and/or **Android**. Screens are split under `ui/` so harness can mount one screen at a time.
+1. **Now**: pure logic tests + API client tests + **Compose UI tests on JVM** (`./gradlew :app:shared:jvmTest`).
+2. **Next**: Android instrumented Compose tests / more screen coverage (Profile, Orders, Addresses).
 3. **Later**: screenshot tests (Roborazzi), Maestro/Appium for E2E on devices.
 
 ## Manual smoke (when UI changes)

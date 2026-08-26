@@ -41,7 +41,7 @@
 - [x] JWT Bearer + refresh on 401
 - [x] UI split: `ui/` screens + `App.kt` composition root
 - [x] Persistent session store (Android prefs / JVM file / iOS defaults / JS localStorage)
-- [ ] Compose UI tests (testTags on screens; harness next)
+- [x] Compose UI tests (`runComposeUiTest` on Login/Register/Catalog/Cart; JVM)
 
 ## v1.0 MVP (из плана)
 

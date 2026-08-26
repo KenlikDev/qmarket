@@ -25,6 +25,7 @@
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart/orders; Bearer + refresh on 401 |
 | Clients UI | ✅ screens in `app/shared/.../ui/`; `App.kt` composition root |
 | Session persistence | ✅ platform SessionStore (Android/JVM/iOS/JS) |
+| Compose UI tests (JVM) | ✅ Login / Register / Catalog / Cart |
 | Stock concurrency | ✅ atomic UPDATE + IT |
 
 ## Quick start

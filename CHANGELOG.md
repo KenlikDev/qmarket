@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- Compose UI tests: `runComposeUiTest` for Login, Register, Catalog, Cart (JVM via `compose-ui-test`)
+- testTags on login email/password fields
 - Persistent JWT session: `SessionStore` + platform actuals (Android SharedPreferences, JVM `~/.qmarket/session.properties`, iOS NSUserDefaults, JS localStorage)
 - `MutableTokenProvider` loads/saves via store; `App` restores session on launch
 - Android: `initAndroidSessionStore` from MainActivity
@@ -48,6 +50,6 @@
 - No admin UI yet
 - Refresh tokens are not revocable (stateless JWT)
 - No login rate limiting
-- Compose UI tests not yet wired (testTags exist; screens are now extractable)
+- Compose UI tests cover key screens on JVM; Android instrumented / iOS UI tests not wired yet
 - Session storage is app-private but not hardware-backed (no EncryptedSharedPreferences / Keychain yet)
 - wasmJs session remains in-memory

@@ -50,7 +50,7 @@ fun LoginScreen(
             onValueChange = onEmailChange,
             label = { Text("Email") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("loginEmail"),
         )
         OutlinedTextField(
             value = password,
@@ -60,7 +60,8 @@ fun LoginScreen(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(top = 8.dp)
+                    .testTag("loginPassword"),
         )
         ErrorText(error)
         Button(
