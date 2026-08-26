@@ -18,6 +18,7 @@ import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
 import com.kenlikdev.qmarket.api.CreateAddressRequestDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
+import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.ProductDto
@@ -33,6 +34,8 @@ import com.kenlikdev.qmarket.network.createPlatformHttpClient
 import com.kenlikdev.qmarket.network.createPlatformSessionStore
 import com.kenlikdev.qmarket.network.defaultApiBaseUrl
 import com.kenlikdev.qmarket.ui.AddressesScreen
+import com.kenlikdev.qmarket.ui.AdminScreen
+import com.kenlikdev.qmarket.ui.slugifyProductName
 import com.kenlikdev.qmarket.ui.AppScreen
 import com.kenlikdev.qmarket.ui.CartScreen
 import com.kenlikdev.qmarket.ui.CatalogFilterParams
@@ -83,6 +86,12 @@ fun App() {
         var catalogQuery by remember { mutableStateOf("") }
         var catalogSortBy by remember { mutableStateOf("createdAt") }
         var catalogFeaturedOnly by remember { mutableStateOf(false) }
+        var isAdmin by remember { mutableStateOf(false) }
+        var adminProductName by remember { mutableStateOf("") }
+        var adminProductSlug by remember { mutableStateOf("") }
+        var adminProductPrice by remember { mutableStateOf("9.99") }
+        var adminProductStock by remember { mutableStateOf("10") }
+        var adminProductFeatured by remember { mutableStateOf(false) }
         var cart by remember { mutableStateOf<CartDto?>(null) }
         var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
         var userLabel by remember { mutableStateOf(tokens.sessionEmail()) }
@@ -120,12 +129,18 @@ fun App() {
                 val page = api.listProducts(size = 50)
                 products = page.content
                 cart = runCatching { api.getCart() }.getOrNull()
+                runCatching { api.getProfile() }.onSuccess { p ->
+                    tokens.applyRoles(p.roles)
+                    isAdmin = tokens.isAdmin()
+                }
                 loggedIn = true
                 userLabel = tokens.sessionEmail()
+                isAdmin = tokens.isAdmin()
                 screen = AppScreen.Catalog
             } catch (e: Exception) {
                 tokens.clear()
                 loggedIn = false
+                isAdmin = false
                 userLabel = null
                 products = emptyList()
                 cart = null
@@ -194,6 +209,7 @@ fun App() {
         }
 
         fun logout() {
+            isAdmin = false
             tokens.clear()
             loggedIn = false
             userLabel = null
@@ -207,6 +223,7 @@ fun App() {
         fun applySession(authEmail: String) {
             userLabel = authEmail
             loggedIn = true
+            isAdmin = tokens.isAdmin()
         }
 
         Scaffold { padding ->
@@ -336,6 +353,11 @@ fun App() {
                         onOrders = { loadOrders() },
                         onAddresses = { loadAddresses() },
                         onProfile = { loadProfile() },
+                        onAdmin = if (isAdmin) {
+                            { screen = AppScreen.Admin }
+                        } else {
+                            null
+                        },
                         onLogout = { logout() },
                         modifier = screenModifier,
                     )
@@ -568,6 +590,62 @@ fun App() {
                             }
                         },
                         onCart = { loadCart() },
+                        onAddresses = { loadAddresses() },
+                        onProfile = { loadProfile() },
+                        onLogout = { logout() },
+                        modifier = screenModifier,
+                    )
+                }
+
+                AppScreen.Admin -> {
+                    AdminScreen(
+                        productName = adminProductName,
+                        productSlug = adminProductSlug,
+                        productPrice = adminProductPrice,
+                        productStock = adminProductStock,
+                        productFeatured = adminProductFeatured,
+                        loggedIn = loggedIn,
+                        userLabel = userLabel,
+                        cartCount = cart?.totalItems,
+                        error = error,
+                        statusMessage = statusMessage,
+                        loading = loading,
+                        onBackToCatalog = { loadCatalog() },
+                        onNameChange = { name ->
+                            val previousAutoSlug = slugifyProductName(adminProductName)
+                            adminProductName = name
+                            if (adminProductSlug.isBlank() || adminProductSlug == previousAutoSlug) {
+                                adminProductSlug = slugifyProductName(name)
+                            }
+                        },
+                        onSlugChange = { adminProductSlug = it },
+                        onPriceChange = { adminProductPrice = it },
+                        onStockChange = { adminProductStock = it.filter { ch -> ch.isDigit() } },
+                        onToggleFeatured = { adminProductFeatured = !adminProductFeatured },
+                        onCreate = {
+                            runApi {
+                                val created =
+                                    api.createProduct(
+                                        CreateProductRequestDto(
+                                            name = adminProductName.trim(),
+                                            slug = adminProductSlug.trim(),
+                                            price = adminProductPrice.trim(),
+                                            stockQuantity = adminProductStock.toIntOrNull() ?: 0,
+                                            featured = adminProductFeatured,
+                                            active = true,
+                                        ),
+                                    )
+                                statusMessage = "Created ${created.name}"
+                                adminProductName = ""
+                                adminProductSlug = ""
+                                adminProductPrice = "9.99"
+                                adminProductStock = "10"
+                                adminProductFeatured = false
+                                loadCatalog(navigate = true)
+                            }
+                        },
+                        onCart = { loadCart() },
+                        onOrders = { loadOrders() },
                         onAddresses = { loadAddresses() },
                         onProfile = { loadProfile() },
                         onLogout = { logout() },

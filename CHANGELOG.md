@@ -3,7 +3,8 @@
 ## Unreleased
 
 ### Added
-- Compose UI tests: Profile, Orders, Addresses (JVM `runComposeUiTest` v2)
+- Admin create product UI + `CreateProductRequestDto` / `QMarketApiClient.createProduct`
+- Compose UI tests: Profile, Orders, Addresses, Admin (JVM `runComposeUiTest` v2)
 - Login rate limiting: sliding window per email (`qmarket.auth.login-max-attempts` / `login-window-seconds`), HTTP 429
 
 
@@ -54,7 +55,6 @@
 - Real PSP payments (mock only)
 - No admin UI yet
 - Refresh tokens are not revocable (stateless JWT)
-- No login rate limiting
 - Compose UI tests cover key screens on JVM; Android instrumented / iOS UI tests not wired yet
 - Session storage is app-private but not hardware-backed (no EncryptedSharedPreferences / Keychain yet)
 - wasmJs session remains in-memory

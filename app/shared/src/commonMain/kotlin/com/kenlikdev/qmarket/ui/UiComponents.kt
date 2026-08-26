@@ -25,6 +25,7 @@ fun TopBar(
     onOrders: (() -> Unit)?,
     onAddresses: (() -> Unit)?,
     onProfile: (() -> Unit)?,
+    onAdmin: (() -> Unit)? = null,
     onLogout: () -> Unit,
 ) {
     Row(
@@ -48,6 +49,11 @@ fun TopBar(
             if (loggedIn && onProfile != null) {
                 TextButton(onClick = onProfile) {
                     Text("Profile")
+                }
+            }
+            if (loggedIn && onAdmin != null) {
+                TextButton(onClick = onAdmin) {
+                    Text("Admin")
                 }
             }
             if (loggedIn && onOrders != null) {

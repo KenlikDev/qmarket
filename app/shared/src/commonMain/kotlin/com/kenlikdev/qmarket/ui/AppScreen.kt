@@ -17,5 +17,7 @@ sealed interface AppScreen {
 
     data object Addresses : AppScreen
 
+    data object Admin : AppScreen
+
     data class OrderDone(val order: OrderDto) : AppScreen
 }

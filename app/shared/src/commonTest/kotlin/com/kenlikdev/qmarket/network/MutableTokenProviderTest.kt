@@ -46,6 +46,28 @@ class MutableTokenProviderTest {
         assertEquals("u@qmarket.local", provider.sessionEmail())
         assertTrue(provider.hasSession())
     }
+
+    @Test
+    fun isAdminFromRoles() {
+        val provider = MutableTokenProvider(InMemorySessionStore())
+        assertFalse(provider.isAdmin())
+        provider.applyAuth(
+            AuthResponseDto(
+                accessToken = "a",
+                refreshToken = "r",
+                expiresIn = 60,
+                user =
+                    UserDto(
+                        id = "1",
+                        email = "admin@qmarket.local",
+                        roles = listOf("ROLE_ADMIN"),
+                    ),
+            ),
+        )
+        assertTrue(provider.isAdmin())
+        provider.applyRoles(listOf("ROLE_USER"))
+        assertFalse(provider.isAdmin())
+    }
 }
 
 class InMemorySessionStoreTest {

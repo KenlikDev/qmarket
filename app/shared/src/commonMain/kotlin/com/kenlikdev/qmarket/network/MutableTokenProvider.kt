@@ -18,11 +18,21 @@ class MutableTokenProvider(
     @Volatile
     private var email: String? = store.readEmail()
 
+    @Volatile
+    private var roles: List<String> = emptyList()
+
     override fun accessToken(): String? = token
 
     override fun refreshToken(): String? = refresh
 
     fun sessionEmail(): String? = email
+
+    fun sessionRoles(): List<String> = roles
+
+    fun isAdmin(): Boolean =
+        roles.any { r ->
+            r == "ROLE_ADMIN" || r == "ADMIN" || r.endsWith("_ADMIN")
+        }
 
     fun hasSession(): Boolean = !token.isNullOrBlank() || !refresh.isNullOrBlank()
 
@@ -30,13 +40,19 @@ class MutableTokenProvider(
         token = auth.accessToken
         refresh = auth.refreshToken
         email = auth.user.email
+        roles = auth.user.roles
         store.write(auth.accessToken, auth.refreshToken, auth.user.email)
+    }
+
+    fun applyRoles(newRoles: List<String>) {
+        roles = newRoles
     }
 
     fun clear() {
         token = null
         refresh = null
         email = null
+        roles = emptyList()
         store.clear()
     }
 }

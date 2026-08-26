@@ -8,6 +8,7 @@ import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
 import com.kenlikdev.qmarket.api.CreateAddressRequestDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
+import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.PageDto
@@ -107,6 +108,9 @@ class QMarketApiClient(
             }
         return response.parseBody()
     }
+
+    suspend fun createProduct(request: CreateProductRequestDto): ProductDto =
+        post("/api/v1/products", request)
 
     // --- Cart ---
 

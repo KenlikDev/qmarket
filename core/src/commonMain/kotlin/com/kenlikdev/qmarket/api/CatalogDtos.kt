@@ -47,3 +47,21 @@ data class PageDto<T>(
 ) {
     fun pageIndex(): Int = page ?: number ?: 0
 }
+
+@Serializable
+data class CreateProductRequestDto(
+    val name: String,
+    val slug: String,
+    val description: String? = null,
+    val shortDescription: String? = null,
+    val sku: String? = null,
+    /** Decimal amount as string (e.g. "19.99"). */
+    val price: String,
+    val compareAtPrice: String? = null,
+    val costPrice: String? = null,
+    val stockQuantity: Int = 0,
+    val active: Boolean = true,
+    val featured: Boolean = false,
+    val categoryId: String? = null,
+)
+

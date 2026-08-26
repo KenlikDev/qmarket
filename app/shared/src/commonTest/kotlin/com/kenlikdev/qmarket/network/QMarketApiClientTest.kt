@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.network
 
+import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.QMarketJson
 import com.kenlikdev.qmarket.api.RefreshTokenRequestDto
@@ -219,4 +220,47 @@ class QMarketApiClientTest {
                 client.close()
             }
         }
+
+    @Test
+    fun createProductParsesResponse() =
+        runTest {
+            val engine =
+                MockEngine {
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                  "id": "33333333-3333-3333-3333-333333333333",
+                                  "name": "Widget",
+                                  "slug": "widget",
+                                  "price": "12.50",
+                                  "stockQuantity": 5,
+                                  "active": true,
+                                  "featured": false
+                                }
+                                """.trimIndent(),
+                            ),
+                        status = HttpStatusCode.Created,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                val product =
+                    QMarketApiClient(client).createProduct(
+                        CreateProductRequestDto(
+                            name = "Widget",
+                            slug = "widget",
+                            price = "12.50",
+                            stockQuantity = 5,
+                        ),
+                    )
+                assertEquals("Widget", product.name)
+                assertEquals("12.50", product.price)
+            } finally {
+                client.close()
+            }
+        }
+
 }
