@@ -4,12 +4,15 @@ import com.kenlikdev.qmarket.api.AuthResponseDto
 import com.kenlikdev.qmarket.api.UserDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class MutableTokenProviderTest {
     @Test
-    fun applyAuthStoresBothTokens() {
-        val provider = MutableTokenProvider()
+    fun applyAuthStoresBothTokensAndEmail() {
+        val store = InMemorySessionStore()
+        val provider = MutableTokenProvider(store)
         provider.applyAuth(
             AuthResponseDto(
                 accessToken = "a1",
@@ -20,8 +23,42 @@ class MutableTokenProviderTest {
         )
         assertEquals("a1", provider.accessToken())
         assertEquals("r1", provider.refreshToken())
+        assertEquals("a@b.c", provider.sessionEmail())
+        assertTrue(provider.hasSession())
+        assertEquals("a1", store.readAccessToken())
+        assertEquals("r1", store.readRefreshToken())
+        assertEquals("a@b.c", store.readEmail())
         provider.clear()
         assertNull(provider.accessToken())
         assertNull(provider.refreshToken())
+        assertNull(provider.sessionEmail())
+        assertFalse(provider.hasSession())
+        assertNull(store.readAccessToken())
+    }
+
+    @Test
+    fun loadsExistingSessionFromStore() {
+        val store = InMemorySessionStore()
+        store.write("access", "refresh", "u@qmarket.local")
+        val provider = MutableTokenProvider(store)
+        assertEquals("access", provider.accessToken())
+        assertEquals("refresh", provider.refreshToken())
+        assertEquals("u@qmarket.local", provider.sessionEmail())
+        assertTrue(provider.hasSession())
+    }
+}
+
+class InMemorySessionStoreTest {
+    @Test
+    fun writeAndClear() {
+        val store = InMemorySessionStore()
+        store.write("a", "r", "e@x.com")
+        assertEquals("a", store.readAccessToken())
+        assertEquals("r", store.readRefreshToken())
+        assertEquals("e@x.com", store.readEmail())
+        store.clear()
+        assertNull(store.readAccessToken())
+        assertNull(store.readRefreshToken())
+        assertNull(store.readEmail())
     }
 }

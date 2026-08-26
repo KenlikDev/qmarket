@@ -40,8 +40,8 @@
 - [x] Cart quantity +/−, checkout, orders list, mock pay/cancel
 - [x] JWT Bearer + refresh on 401
 - [x] UI split: `ui/` screens + `App.kt` composition root
+- [x] Persistent session store (Android prefs / JVM file / iOS defaults / JS localStorage)
 - [ ] Compose UI tests (testTags on screens; harness next)
-- [ ] Secure token storage (currently in-memory session)
 
 ## v1.0 MVP (из плана)
 

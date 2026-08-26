@@ -2,13 +2,19 @@
 
 ## Unreleased
 
+### Added
+- Persistent JWT session: `SessionStore` + platform actuals (Android SharedPreferences, JVM `~/.qmarket/session.properties`, iOS NSUserDefaults, JS localStorage)
+- `MutableTokenProvider` loads/saves via store; `App` restores session on launch
+- Android: `initAndroidSessionStore` from MainActivity
+- Session unit tests (`InMemorySessionStore`, reload from store)
+
 ### Changed
 - Shared Compose UI split into `ui/` screens (`LoginScreen`, `CatalogScreen`, `CartScreen`, …)
 - `App.kt` is composition root only (session, API, navigation)
 - Catalog query mapping and checkout enable rules live in `CatalogFilterParams` / `CheckoutSelection` (used by UI and tests)
 - Profile phone input uses the same `ClientInputValidation.filterPhoneInput` as addresses
 
-### Added
+### Added (earlier)
 - Shared client: Ktor Bearer auth with automatic refresh on 401 (`/api/v1/auth/refresh`)
 - `MutableTokenProvider.applyAuth` stores access + refresh; login/register persist both
 - `QMarketApiClient.refresh` + `MutableTokenProviderTest`
@@ -43,4 +49,5 @@
 - Refresh tokens are not revocable (stateless JWT)
 - No login rate limiting
 - Compose UI tests not yet wired (testTags exist; screens are now extractable)
-- Session tokens are in-memory (lost on process restart)
+- Session storage is app-private but not hardware-backed (no EncryptedSharedPreferences / Keychain yet)
+- wasmJs session remains in-memory

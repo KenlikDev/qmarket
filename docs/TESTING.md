@@ -15,6 +15,7 @@
 | API client | `app/shared` commonTest + MockEngine | DTO parsing, error mapping, refresh |
 | Client validation | `ClientInputValidationTest` | Form rules match server intent |
 | Catalog/checkout rules | `CatalogFilterParamsTest`, `CheckoutSelectionTest` | Same objects the UI calls |
+| Session store | `MutableTokenProviderTest`, `InMemorySessionStoreTest` | Persist + reload tokens |
 
 ## API correctness
 

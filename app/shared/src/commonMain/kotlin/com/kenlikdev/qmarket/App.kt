@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import com.kenlikdev.qmarket.network.ApiException
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.network.createPlatformHttpClient
+import com.kenlikdev.qmarket.network.createPlatformSessionStore
 import com.kenlikdev.qmarket.network.defaultApiBaseUrl
 import com.kenlikdev.qmarket.ui.AddressesScreen
 import com.kenlikdev.qmarket.ui.AppScreen
@@ -47,7 +49,8 @@ import kotlinx.coroutines.launch
 @Preview
 fun App() {
     MaterialTheme {
-        val tokens = remember { MutableTokenProvider() }
+        val sessionStore = remember { createPlatformSessionStore() }
+        val tokens = remember { MutableTokenProvider(sessionStore) }
         val http =
             remember {
                 createPlatformHttpClient(
@@ -58,8 +61,13 @@ fun App() {
         val api = remember(http) { QMarketApiClient(http) }
         val scope = rememberCoroutineScope()
 
-        var screen by remember { mutableStateOf<AppScreen>(AppScreen.Login) }
-        var email by remember { mutableStateOf("admin@qmarket.local") }
+        val restoredSession = tokens.hasSession()
+        var screen by remember {
+            mutableStateOf<AppScreen>(
+                if (restoredSession) AppScreen.Catalog else AppScreen.Login,
+            )
+        }
+        var email by remember { mutableStateOf(tokens.sessionEmail() ?: "admin@qmarket.local") }
         var password by remember { mutableStateOf("admin123") }
         var firstName by remember { mutableStateOf("") }
         var lastName by remember { mutableStateOf("") }
@@ -77,8 +85,8 @@ fun App() {
         var catalogFeaturedOnly by remember { mutableStateOf(false) }
         var cart by remember { mutableStateOf<CartDto?>(null) }
         var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
-        var userLabel by remember { mutableStateOf<String?>(null) }
-        var loggedIn by remember { mutableStateOf(false) }
+        var userLabel by remember { mutableStateOf(tokens.sessionEmail()) }
+        var loggedIn by remember { mutableStateOf(restoredSession) }
         var addresses by remember { mutableStateOf<List<AddressDto>>(emptyList()) }
         var selectedAddressId by remember { mutableStateOf<String?>(null) }
         var addrRecipient by remember { mutableStateOf("") }
@@ -100,6 +108,31 @@ fun App() {
                 } finally {
                     loading = false
                 }
+            }
+        }
+
+        // Restore session: load catalog (and cart) after process restart
+        LaunchedEffect(restoredSession) {
+            if (!restoredSession) return@LaunchedEffect
+            loading = true
+            error = null
+            try {
+                val page = api.listProducts(size = 50)
+                products = page.content
+                cart = runCatching { api.getCart() }.getOrNull()
+                loggedIn = true
+                userLabel = tokens.sessionEmail()
+                screen = AppScreen.Catalog
+            } catch (e: Exception) {
+                tokens.clear()
+                loggedIn = false
+                userLabel = null
+                products = emptyList()
+                cart = null
+                screen = AppScreen.Login
+                error = e.message ?: "Session expired — please sign in again"
+            } finally {
+                loading = false
             }
         }
 
