@@ -1,75 +1,47 @@
 package com.kenlikdev.qmarket
 
-import com.kenlikdev.qmarket.validation.ClientInputValidation
-
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.AddCartItemRequestDto
-import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
 import com.kenlikdev.qmarket.api.AddressDto
-import com.kenlikdev.qmarket.api.CreateAddressRequestDto
-import com.kenlikdev.qmarket.api.UpdateAddressRequestDto
 import com.kenlikdev.qmarket.api.CartDto
-import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
+import com.kenlikdev.qmarket.api.CreateAddressRequestDto
+import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
-import com.kenlikdev.qmarket.api.ProfileDto
-import com.kenlikdev.qmarket.api.RegisterRequestDto
-import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.ProductDto
+import com.kenlikdev.qmarket.api.ProfileDto
+import com.kenlikdev.qmarket.api.RegisterRequestDto
+import com.kenlikdev.qmarket.api.UpdateAddressRequestDto
+import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
+import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
 import com.kenlikdev.qmarket.network.ApiException
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.network.createPlatformHttpClient
 import com.kenlikdev.qmarket.network.defaultApiBaseUrl
+import com.kenlikdev.qmarket.ui.AddressesScreen
+import com.kenlikdev.qmarket.ui.AppScreen
+import com.kenlikdev.qmarket.ui.CartScreen
+import com.kenlikdev.qmarket.ui.CatalogFilterParams
+import com.kenlikdev.qmarket.ui.CatalogScreen
+import com.kenlikdev.qmarket.ui.LoginScreen
+import com.kenlikdev.qmarket.ui.OrderDoneScreen
+import com.kenlikdev.qmarket.ui.OrdersScreen
+import com.kenlikdev.qmarket.ui.ProfileScreen
+import com.kenlikdev.qmarket.ui.RegisterScreen
+import com.kenlikdev.qmarket.validation.ClientInputValidation
 import kotlinx.coroutines.launch
-
-private sealed interface AppScreen {
-    data object Login : AppScreen
-
-    data object Register : AppScreen
-
-    data object Catalog : AppScreen
-
-    data object Cart : AppScreen
-
-    data object Orders : AppScreen
-
-    data object Profile : AppScreen
-
-    data object Addresses : AppScreen
-
-    data class OrderDone(val order: OrderDto) : AppScreen
-}
 
 @Composable
 @Preview
@@ -131,20 +103,15 @@ fun App() {
             }
         }
 
-        fun loadCatalog(
-            navigate: Boolean = true,
-            q: String? = catalogQuery.trim().ifBlank { null },
-            sortBy: String? = catalogSortBy,
-            featuredOnly: Boolean? = if (catalogFeaturedOnly) true else null,
-        ) {
+        fun loadCatalog(navigate: Boolean = true) {
             runApi {
                 val page =
                     api.listProducts(
                         size = 50,
-                        q = q,
-                        sortBy = sortBy,
-                        sortDir = if (sortBy == "price") "asc" else "desc",
-                        featuredOnly = featuredOnly,
+                        q = CatalogFilterParams.queryParam(catalogQuery),
+                        sortBy = catalogSortBy,
+                        sortDir = CatalogFilterParams.sortDir(catalogSortBy),
+                        featuredOnly = CatalogFilterParams.featuredParam(catalogFeaturedOnly),
                     )
                 products = page.content
                 if (navigate) screen = AppScreen.Catalog
@@ -204,1130 +171,397 @@ fun App() {
             screen = AppScreen.Login
         }
 
+        fun applySession(authEmail: String) {
+            userLabel = authEmail
+            loggedIn = true
+        }
+
         Scaffold { padding ->
+            val screenModifier = Modifier.padding(padding)
             when (val current = screen) {
                 AppScreen.Login -> {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding)
-                                .padding(24.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text("QMarket", style = MaterialTheme.typography.headlineMedium)
-                        Text(
-                            "API: ${defaultApiBaseUrl()}",
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(bottom = 16.dp),
-                        )
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = { email = it },
-                            label = { Text("Email") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = { Text("Password") },
-                            singleLine = true,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                        )
-                        ErrorText(error)
-                        Button(
-                            onClick = {
-                                runApi {
-                                    val auth =
-                                        api.login(
-                                            LoginRequestDto(
-                                                email = email.trim(),
-                                                password = password,
-                                            ),
-                                        )
-                                    tokens.applyAuth(auth)
-                                    userLabel = auth.user.email
-                                    loggedIn = true
-                                    val page = api.listProducts(size = 50)
-                                    products = page.content
-                                    cart = runCatching { api.getCart() }.getOrNull()
-                                    screen = AppScreen.Catalog
-                                }
-                            },
-                            enabled = !loading,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 16.dp)
-                                    .testTag("loginSubmit"),
-                        ) {
-                            Text(if (loading) "…" else "Login")
-                        }
-                        TextButton(
-                            onClick = {
-                                error = null
-                                screen = AppScreen.Register
-                            },
-                            enabled = !loading,
-                        ) {
-                            Text("Create account")
-                        }
-                        TextButton(
-                            onClick = {
-                                tokens.clear()
-                                loggedIn = false
-                                userLabel = null
-                                cart = null
-                                loadCatalog()
-                            },
-                            enabled = !loading,
-                        ) {
-                            Text("Browse catalog (anonymous)")
-                        }
-                        if (loading) {
-                            CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
-                        }
-                    }
+                    LoginScreen(
+                        email = email,
+                        password = password,
+                        error = error,
+                        loading = loading,
+                        onEmailChange = { email = it },
+                        onPasswordChange = { password = it },
+                        onLogin = {
+                            runApi {
+                                val auth =
+                                    api.login(
+                                        LoginRequestDto(
+                                            email = email.trim(),
+                                            password = password,
+                                        ),
+                                    )
+                                tokens.applyAuth(auth)
+                                applySession(auth.user.email)
+                                val page = api.listProducts(size = 50)
+                                products = page.content
+                                cart = runCatching { api.getCart() }.getOrNull()
+                                screen = AppScreen.Catalog
+                            }
+                        },
+                        onCreateAccount = {
+                            error = null
+                            screen = AppScreen.Register
+                        },
+                        onBrowseCatalog = {
+                            tokens.clear()
+                            loggedIn = false
+                            userLabel = null
+                            cart = null
+                            loadCatalog()
+                        },
+                        modifier = screenModifier,
+                    )
                 }
 
-
                 AppScreen.Register -> {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding)
-                                .padding(24.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text("Register", style = MaterialTheme.typography.headlineMedium)
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = { email = it },
-                            label = { Text("Email") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = { Text("Password") },
-                            singleLine = true,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                        )
-                        OutlinedTextField(
-                            value = firstName,
-                            onValueChange = { firstName = it },
-                            label = { Text("First name") },
-                            singleLine = true,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                        )
-                        OutlinedTextField(
-                            value = lastName,
-                            onValueChange = { lastName = it },
-                            label = { Text("Last name") },
-                            singleLine = true,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                        )
-                        ErrorText(error)
-                        Button(
-                            onClick = {
-                                runApi {
-                                    val auth =
-                                        api.register(
-                                            RegisterRequestDto(
-                                                email = email.trim(),
-                                                password = password,
-                                                firstName = firstName.trim().ifBlank { null },
-                                                lastName = lastName.trim().ifBlank { null },
-                                            ),
-                                        )
-                                    tokens.applyAuth(auth)
-                                    userLabel = auth.user.email
-                                    loggedIn = true
-                                    val page = api.listProducts(size = 50)
-                                    products = page.content
-                                    cart = runCatching { api.getCart() }.getOrNull()
-                                    screen = AppScreen.Catalog
-                                }
-                            },
-                            enabled = !loading && isValidEmail(email) && password.length >= 8 && isValidPersonName(firstName) && isValidPersonName(lastName),
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 16.dp),
-                        ) {
-                            Text(if (loading) "…" else "Register")
-                        }
-                        TextButton(
-                            onClick = {
-                                error = null
-                                screen = AppScreen.Login
-                            },
-                            enabled = !loading,
-                        ) {
-                            Text("Back to login")
-                        }
-                        if (loading) {
-                            CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
-                        }
-                    }
+                    RegisterScreen(
+                        email = email,
+                        password = password,
+                        firstName = firstName,
+                        lastName = lastName,
+                        error = error,
+                        loading = loading,
+                        onEmailChange = { email = it },
+                        onPasswordChange = { password = it },
+                        onFirstNameChange = { firstName = it },
+                        onLastNameChange = { lastName = it },
+                        onRegister = {
+                            runApi {
+                                val auth =
+                                    api.register(
+                                        RegisterRequestDto(
+                                            email = email.trim(),
+                                            password = password,
+                                            firstName = firstName.trim().ifBlank { null },
+                                            lastName = lastName.trim().ifBlank { null },
+                                        ),
+                                    )
+                                tokens.applyAuth(auth)
+                                applySession(auth.user.email)
+                                val page = api.listProducts(size = 50)
+                                products = page.content
+                                cart = runCatching { api.getCart() }.getOrNull()
+                                screen = AppScreen.Catalog
+                            }
+                        },
+                        onBackToLogin = {
+                            error = null
+                            screen = AppScreen.Login
+                        },
+                        modifier = screenModifier,
+                    )
                 }
 
                 AppScreen.Catalog -> {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding),
-                    ) {
-                        TopBar(
-                            title = "Catalog",
-                            subtitle = userLabel ?: "Guest",
-                            loggedIn = loggedIn,
-                            cartCount = cart?.totalItems,
-                            onCart = { loadCart() },
-                            onOrders = { loadOrders() },
-                            onAddresses = { loadAddresses() },
-                            onProfile = { loadProfile() },
-                            onLogout = { logout() },
-                        )
-                        ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
-                        statusMessage?.let {
-                            Text(
-                                it,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                            )
-                        }
-                                                OutlinedTextField(
-                            value = catalogQuery,
-                            onValueChange = { catalogQuery = it },
-                            label = { Text("Search") },
-                            singleLine = true,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                                    .testTag("catalogSearch"),
-                        )
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    catalogSortBy = "createdAt"
-                                    loadCatalog(navigate = false)
-                                },
-                            ) { Text("Newest") }
-                            TextButton(
-                                onClick = {
-                                    catalogSortBy = "price"
-                                    loadCatalog(navigate = false)
-                                },
-                            ) { Text("Price") }
-                            TextButton(
-                                onClick = {
-                                    catalogSortBy = "name"
-                                    loadCatalog(navigate = false)
-                                },
-                            ) { Text("Name") }
-                            TextButton(
-                                onClick = {
-                                    catalogFeaturedOnly = !catalogFeaturedOnly
-                                    loadCatalog(navigate = false)
-                                },
-                            ) {
-                                Text(if (catalogFeaturedOnly) "Featured ✓" else "Featured")
+                    CatalogScreen(
+                        products = products,
+                        catalogQuery = catalogQuery,
+                        catalogFeaturedOnly = catalogFeaturedOnly,
+                        loggedIn = loggedIn,
+                        userLabel = userLabel,
+                        cartCount = cart?.totalItems,
+                        error = error,
+                        statusMessage = statusMessage,
+                        loading = loading,
+                        onQueryChange = { catalogQuery = it },
+                        onSortNewest = {
+                            catalogSortBy = "createdAt"
+                            loadCatalog(navigate = false)
+                        },
+                        onSortPrice = {
+                            catalogSortBy = "price"
+                            loadCatalog(navigate = false)
+                        },
+                        onSortName = {
+                            catalogSortBy = "name"
+                            loadCatalog(navigate = false)
+                        },
+                        onToggleFeatured = {
+                            catalogFeaturedOnly = !catalogFeaturedOnly
+                            loadCatalog(navigate = false)
+                        },
+                        onApplySearch = { loadCatalog(navigate = false) },
+                        onAddToCart = { product ->
+                            runApi {
+                                cart =
+                                    api.addCartItem(
+                                        AddCartItemRequestDto(
+                                            productId = product.id,
+                                            quantity = 1,
+                                        ),
+                                    )
+                                statusMessage = "Added ${product.name} to cart"
                             }
-                            Button(
-                                onClick = { loadCatalog(navigate = false) },
-                                enabled = !loading,
-                                modifier = Modifier.testTag("catalogSearchApply"),
-                            ) {
-                                Text("Apply")
-                            }
-                        }
-if (loading && products.isEmpty()) {
-                            LoadingCenter()
-                        } else {
-                            LazyColumn(
-                                contentPadding = PaddingValues(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                items(products, key = { it.id }) { product ->
-                                    Card(modifier = Modifier.fillMaxWidth()) {
-                                        Column(modifier = Modifier.padding(12.dp)) {
-                                            Text(
-                                                product.name,
-                                                style = MaterialTheme.typography.titleMedium,
-                                            )
-                                            Text(
-                                                "${product.price} · stock ${product.stockQuantity}",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                            )
-                                            product.shortDescription?.let {
-                                                Text(it, style = MaterialTheme.typography.bodySmall)
-                                            }
-                                            if (loggedIn) {
-                                                Button(
-                                                    onClick = {
-                                                        runApi {
-                                                            cart =
-                                                                api.addCartItem(
-                                                                    AddCartItemRequestDto(
-                                                                        productId = product.id,
-                                                                        quantity = 1,
-                                                                    ),
-                                                                )
-                                                            statusMessage =
-                                                                "Added ${product.name} to cart"
-                                                        }
-                                                    },
-                                                    enabled = !loading && product.stockQuantity > 0,
-                                                    modifier = Modifier.padding(top = 8.dp),
-                                                ) {
-                                                    Text("Add to cart")
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                        },
+                        onCart = { loadCart() },
+                        onOrders = { loadOrders() },
+                        onAddresses = { loadAddresses() },
+                        onProfile = { loadProfile() },
+                        onLogout = { logout() },
+                        modifier = screenModifier,
+                    )
                 }
 
                 AppScreen.Cart -> {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding),
-                    ) {
-                        TopBar(
-                            title = "Cart",
-                            subtitle = userLabel ?: "Guest",
-                            loggedIn = loggedIn,
-                            cartCount = cart?.totalItems,
-                            onCart = null,
-                            onOrders = { loadOrders() },
-                            onAddresses = { loadAddresses() },
-                            onProfile = { loadProfile() },
-                            onLogout = { logout() },
-                        )
-                        TextButton(onClick = { loadCatalog() }) {
-                            Text("← Back to catalog")
-                        }
-                        ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
-                        val currentCart = cart
-                        if (loading && currentCart == null) {
-                            LoadingCenter()
-                        } else if (currentCart == null || currentCart.items.isEmpty()) {
-                            Text(
-                                "Cart is empty",
-                                modifier = Modifier.padding(16.dp),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        } else {
-                            LazyColumn(
-                                contentPadding = PaddingValues(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.weight(1f, fill = true),
-                            ) {
-                                items(currentCart.items, key = { it.productId }) { item ->
-                                    Card(modifier = Modifier.fillMaxWidth()) {
-                                        Column(modifier = Modifier.padding(12.dp)) {
-                                            Text(
-                                                item.productName,
-                                                style = MaterialTheme.typography.titleMedium,
-                                            )
-                                            Text(
-                                                "×${item.quantity} · ${item.lineTotal}",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                            )
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                TextButton(
-                                                    onClick = {
-                                                        runApi {
-                                                            if (item.quantity <= 1) {
-                                                                cart = api.removeCartItem(item.productId)
-                                                            } else {
-                                                                cart =
-                                                                    api.updateCartItem(
-                                                                        item.productId,
-                                                                        UpdateCartItemRequestDto(
-                                                                            quantity = item.quantity - 1,
-                                                                        ),
-                                                                    )
-                                                            }
-                                                        }
-                                                    },
-                                                    enabled = !loading,
-                                                    modifier = Modifier.testTag("cartQtyDec"),
-                                                ) {
-                                                    Text("−")
-                                                }
-                                                Text(
-                                                    "${item.quantity}",
-                                                    modifier = Modifier.padding(horizontal = 8.dp),
-                                                )
-                                                TextButton(
-                                                    onClick = {
-                                                        runApi {
-                                                            cart =
-                                                                api.updateCartItem(
-                                                                    item.productId,
-                                                                    UpdateCartItemRequestDto(
-                                                                        quantity = item.quantity + 1,
-                                                                    ),
-                                                                )
-                                                        }
-                                                    },
-                                                    enabled = !loading,
-                                                    modifier = Modifier.testTag("cartQtyInc"),
-                                                ) {
-                                                    Text("+")
-                                                }
-                                                TextButton(
-                                                    onClick = {
-                                                        runApi {
-                                                            cart = api.removeCartItem(item.productId)
-                                                        }
-                                                    },
-                                                    enabled = !loading,
-                                                ) {
-                                                    Text("Remove")
-                                                }
-                                            }
-                                        }
+                    CartScreen(
+                        cart = cart,
+                        addresses = addresses,
+                        selectedAddressId = selectedAddressId,
+                        shippingAddress = shippingAddress,
+                        loggedIn = loggedIn,
+                        userLabel = userLabel,
+                        error = error,
+                        loading = loading,
+                        onBackToCatalog = { loadCatalog() },
+                        onDecreaseQty = { item ->
+                            runApi {
+                                cart =
+                                    if (item.quantity <= 1) {
+                                        api.removeCartItem(item.productId)
+                                    } else {
+                                        api.updateCartItem(
+                                            item.productId,
+                                            UpdateCartItemRequestDto(quantity = item.quantity - 1),
+                                        )
                                     }
-                                }
                             }
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    "Total: ${currentCart.totalPrice} (${currentCart.totalItems} items)",
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                if (addresses.isNotEmpty()) {
-                                    Text(
-                                        "Ship to saved address",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        modifier = Modifier.padding(top = 8.dp),
+                        },
+                        onIncreaseQty = { item ->
+                            runApi {
+                                cart =
+                                    api.updateCartItem(
+                                        item.productId,
+                                        UpdateCartItemRequestDto(quantity = item.quantity + 1),
                                     )
-                                    addresses.forEach { addr ->
-                                        val selected = addr.id == selectedAddressId
-                                        TextButton(
-                                            onClick = { selectedAddressId = addr.id },
-                                            enabled = !loading,
-                                        ) {
-                                            Text(
-                                                (if (selected) "● " else "○ ") +
-                                                    (addr.formatted
-                                                        ?: "${addr.city}, ${addr.streetLine1}"),
-                                            )
-                                        }
-                                    }
-                                    TextButton(onClick = { loadAddresses() }) {
-                                        Text("Manage addresses")
-                                    }
-                                } else {
-                                    TextButton(onClick = { loadAddresses() }) {
-                                        Text("Add a shipping address")
-                                    }
-                                }
-                                OutlinedTextField(
-                                    value = shippingAddress,
-                                    onValueChange = {
-                                        shippingAddress = it
-                                        if (it.isNotBlank()) selectedAddressId = null
-                                    },
-                                    label = { Text("Or free-form shipping address") },
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 8.dp),
-                                )
-                                Button(
-                                    onClick = {
-                                        runApi {
-                                            val order =
-                                                api.createOrder(
-                                                    CreateOrderRequestDto(
-                                                        addressId = selectedAddressId,
-                                                        shippingAddress =
-                                                            if (selectedAddressId == null) {
-                                                                shippingAddress.trim().ifBlank { null }
-                                                            } else {
-                                                                null
-                                                            },
-                                                    ),
-                                                )
-                                            cart = api.getCart()
-                                            screen = AppScreen.OrderDone(order)
-                                        }
-                                    },
-                                    enabled =
-                                        !loading &&
-                                            (selectedAddressId != null || shippingAddress.isNotBlank()),
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(if (loading) "…" else "Checkout")
-                                }
-                                TextButton(
-                                    onClick = {
-                                        runApi { cart = api.clearCart() }
-                                    },
-                                    enabled = !loading,
-                                ) {
-                                    Text("Clear cart")
-                                }
                             }
-                        }
-                    }
+                        },
+                        onRemoveItem = { item ->
+                            runApi { cart = api.removeCartItem(item.productId) }
+                        },
+                        onSelectAddress = { selectedAddressId = it },
+                        onManageAddresses = { loadAddresses() },
+                        onShippingChange = {
+                            shippingAddress = it
+                            if (it.isNotBlank()) selectedAddressId = null
+                        },
+                        onCheckout = {
+                            runApi {
+                                val order =
+                                    api.createOrder(
+                                        CreateOrderRequestDto(
+                                            addressId = selectedAddressId,
+                                            shippingAddress =
+                                                if (selectedAddressId == null) {
+                                                    shippingAddress.trim().ifBlank { null }
+                                                } else {
+                                                    null
+                                                },
+                                        ),
+                                    )
+                                cart = api.getCart()
+                                screen = AppScreen.OrderDone(order)
+                            }
+                        },
+                        onClearCart = {
+                            runApi { cart = api.clearCart() }
+                        },
+                        onOrders = { loadOrders() },
+                        onAddresses = { loadAddresses() },
+                        onProfile = { loadProfile() },
+                        onLogout = { logout() },
+                        modifier = screenModifier,
+                    )
                 }
 
-
-
                 AppScreen.Addresses -> {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding),
-                    ) {
-                        TopBar(
-                            title = "Addresses",
-                            subtitle = userLabel ?: "Guest",
-                            loggedIn = loggedIn,
-                            cartCount = cart?.totalItems,
-                            onCart = { loadCart() },
-                            onOrders = { loadOrders() },
-                            onAddresses = null,
-                            onProfile = { loadProfile() },
-                            onLogout = { logout() },
-                        )
-                        TextButton(onClick = { loadCatalog() }) {
-                            Text("← Back to catalog")
-                        }
-                        ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
-                        statusMessage?.let {
-                            Text(
-                                it,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                            )
-                        }
-                        Column(
-                            modifier =
-                                Modifier
-                                    .weight(1f, fill = true)
-                                    .verticalScroll(rememberScrollState())
-                                    .padding(16.dp),
-                        ) {
-                            if (addresses.isEmpty()) {
-                                Text("No saved addresses", style = MaterialTheme.typography.bodyLarge)
-                            } else {
-                                addresses.forEach { addr ->
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                    ) {
-                                        Column(modifier = Modifier.padding(12.dp)) {
-                                            Text(addr.recipientName, style = MaterialTheme.typography.titleMedium)
-                                            Text(addr.formatted ?: "${addr.city}, ${addr.streetLine1}")
-                                            if (addr.default) {
-                                                Text(
-                                                    "Default",
-                                                    color = MaterialTheme.colorScheme.primary,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                )
-                                            }
-                                            Row {
-                                                if (!addr.default) {
-                                                    TextButton(
-                                                        onClick = {
-                                                            runApi {
-                                                                api.updateAddress(
-                                                                    addr.id,
-                                                                    UpdateAddressRequestDto(default = true),
-                                                                )
-                                                                addresses = api.listAddresses()
-                                                                selectedAddressId = addr.id
-                                                                statusMessage = "Default address updated"
-                                                            }
-                                                        },
-                                                        enabled = !loading,
-                                                        modifier = Modifier.testTag("addressSetDefault"),
-                                                    ) {
-                                                        Text("Set default")
-                                                    }
-                                                }
-                                                TextButton(
-                                                    onClick = {
-                                                        runApi {
-                                                            api.deleteAddress(addr.id)
-                                                            addresses = api.listAddresses()
-                                                            if (selectedAddressId == addr.id) {
-                                                                selectedAddressId =
-                                                                    addresses.firstOrNull { it.default }?.id
-                                                                        ?: addresses.firstOrNull()?.id
-                                                            }
-                                                        }
-                                                    },
-                                                    enabled = !loading,
-                                                ) {
-                                                    Text("Delete")
-                                                }
-                                            }
-                                        }
-                                    }
+                    AddressesScreen(
+                        addresses = addresses,
+                        addrRecipient = addrRecipient,
+                        addrCity = addrCity,
+                        addrStreet = addrStreet,
+                        addrPhone = addrPhone,
+                        loggedIn = loggedIn,
+                        userLabel = userLabel,
+                        cartCount = cart?.totalItems,
+                        error = error,
+                        statusMessage = statusMessage,
+                        loading = loading,
+                        onBackToCatalog = { loadCatalog() },
+                        onSetDefault = { addr ->
+                            runApi {
+                                api.updateAddress(
+                                    addr.id,
+                                    UpdateAddressRequestDto(default = true),
+                                )
+                                addresses = api.listAddresses()
+                                selectedAddressId = addr.id
+                                statusMessage = "Default address updated"
+                            }
+                        },
+                        onDelete = { addr ->
+                            runApi {
+                                api.deleteAddress(addr.id)
+                                addresses = api.listAddresses()
+                                if (selectedAddressId == addr.id) {
+                                    selectedAddressId = addresses.firstOrNull { it.default }?.id
+                                        ?: addresses.firstOrNull()?.id
                                 }
                             }
-                            Text(
-                                "Add address",
-                                style = MaterialTheme.typography.titleSmall,
-                                modifier = Modifier.padding(top = 16.dp),
-                            )
-                            OutlinedTextField(
-                                value = addrRecipient,
-                                onValueChange = { addrRecipient = it },
-                                label = { Text("Recipient name") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            )
-                            if (addrRecipient.isNotEmpty() && !ClientInputValidation.isValidPersonName(addrRecipient)) {
-                                Text(
-                                    "Recipient: letters, spaces, hyphen, apostrophe, period",
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
+                        },
+                        onRecipientChange = { addrRecipient = it },
+                        onCityChange = { addrCity = it },
+                        onStreetChange = { addrStreet = it },
+                        onPhoneChange = {
+                            addrPhone = ClientInputValidation.filterPhoneInput(it)
+                        },
+                        onSave = {
+                            runApi {
+                                val created =
+                                    api.createAddress(
+                                        CreateAddressRequestDto(
+                                            recipientName = addrRecipient.trim(),
+                                            city = addrCity.trim(),
+                                            streetLine1 = addrStreet.trim(),
+                                            phone = addrPhone.trim().ifBlank { null },
+                                            default = addresses.isEmpty(),
+                                        ),
+                                    )
+                                addresses = api.listAddresses()
+                                selectedAddressId = created.id
+                                addrRecipient = ""
+                                addrCity = ""
+                                addrStreet = ""
+                                addrPhone = ""
+                                statusMessage = "Address saved"
                             }
-                            OutlinedTextField(
-                                value = addrCity,
-                                onValueChange = { addrCity = it },
-                                label = { Text("City") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            )
-                            OutlinedTextField(
-                                value = addrStreet,
-                                onValueChange = { addrStreet = it },
-                                label = { Text("Street") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            )
-                            OutlinedTextField(
-                                value = addrPhone,
-                                onValueChange = { input ->
-                                    addrPhone = ClientInputValidation.filterPhoneInput(input)
-                                },
-                                label = { Text("Phone (optional)") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                            )
-                            if (addrPhone.isNotEmpty() && !ClientInputValidation.isValidPhoneInput(addrPhone)) {
-                                Text(
-                                    "Phone: 7-15 digits, optional leading +",
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                            Button(
-                                onClick = {
-                                    runApi {
-                                        val created =
-                                            api.createAddress(
-                                                CreateAddressRequestDto(
-                                                    recipientName = addrRecipient.trim(),
-                                                    city = addrCity.trim(),
-                                                    streetLine1 = addrStreet.trim(),
-                                                    phone = addrPhone.trim().ifBlank { null },
-                                                    default = addresses.isEmpty(),
-                                                ),
-                                            )
-                                        addresses = api.listAddresses()
-                                        selectedAddressId = created.id
-                                        addrRecipient = ""
-                                        addrCity = ""
-                                        addrStreet = ""
-                                        addrPhone = ""
-                                        statusMessage = "Address saved"
-                                    }
-                                },
-                                enabled =
-                                    !loading &&
-                                        addrRecipient.isNotBlank() &&
-                                        ClientInputValidation.isValidPersonName(addrRecipient) &&
-                                        addrCity.isNotBlank() &&
-                                        addrStreet.isNotBlank() &&
-                                        ClientInputValidation.isValidPhoneInput(addrPhone),
-                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                            ) {
-                                Text("Save address")
-                            }
-                        }
-                    }
+                        },
+                        onCart = { loadCart() },
+                        onOrders = { loadOrders() },
+                        onProfile = { loadProfile() },
+                        onLogout = { logout() },
+                        modifier = screenModifier,
+                    )
                 }
 
                 AppScreen.Profile -> {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding),
-                    ) {
-                        TopBar(
-                            title = "Profile",
-                            subtitle = userLabel ?: "Guest",
-                            loggedIn = loggedIn,
-                            cartCount = cart?.totalItems,
-                            onCart = { loadCart() },
-                            onOrders = { loadOrders() },
-                            onAddresses = { loadAddresses() },
-                            onProfile = null,
-                            onLogout = { logout() },
-                        )
-                        TextButton(onClick = { loadCatalog() }) {
-                            Text("← Back to catalog")
-                        }
-                        ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
-                        statusMessage?.let {
-                            Text(
-                                it,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                            )
-                        }
-                        if (loading && profile == null) {
-                            LoadingCenter()
-                        } else {
-                            Column(
-                                modifier =
-                                    Modifier
-                                        .weight(1f, fill = true)
-                                        .verticalScroll(rememberScrollState())
-                                        .padding(16.dp),
-                            ) {
-                                Text(
-                                    profile?.email ?: "",
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                OutlinedTextField(
-                                    value = firstName,
-                                    onValueChange = { firstName = it },
-                                    label = { Text("First name") },
-                                    singleLine = true,
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp),
-                                )
-                                OutlinedTextField(
-                                    value = lastName,
-                                    onValueChange = { lastName = it },
-                                    label = { Text("Last name") },
-                                    singleLine = true,
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp),
-                                )
-                                OutlinedTextField(
-                                    value = phone,
-                                    onValueChange = { input ->
-                                        phone =
-                                            input.filter { ch ->
-                                                ch.isDigit() ||
-                                                    ch == '+' ||
-                                                    ch.isWhitespace() ||
-                                                    ch == '-' ||
-                                                    ch == '(' ||
-                                                    ch == ')'
-                                            }
-                                    },
-                                    label = { Text("Phone") },
-                                    singleLine = true,
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp),
-                                )
-                                if (phone.isNotEmpty() && !isValidPhoneInput(phone)) {
-                                    Text(
-                                        "Phone: 7-15 digits, optional leading +",
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall,
+                    ProfileScreen(
+                        profile = profile,
+                        firstName = firstName,
+                        lastName = lastName,
+                        phone = phone,
+                        currentPassword = currentPassword,
+                        newPassword = newPassword,
+                        loggedIn = loggedIn,
+                        userLabel = userLabel,
+                        cartCount = cart?.totalItems,
+                        error = error,
+                        statusMessage = statusMessage,
+                        loading = loading,
+                        onBackToCatalog = { loadCatalog() },
+                        onFirstNameChange = { firstName = it },
+                        onLastNameChange = { lastName = it },
+                        onPhoneChange = {
+                            phone = ClientInputValidation.filterPhoneInput(it)
+                        },
+                        onSaveProfile = {
+                            runApi {
+                                profile =
+                                    api.updateProfile(
+                                        UpdateProfileRequestDto(
+                                            firstName = firstName.trim().ifBlank { null },
+                                            lastName = lastName.trim().ifBlank { null },
+                                            phone = phone.trim().ifBlank { null },
+                                        ),
                                     )
-                                }
-                                if (firstName.isNotEmpty() && !isValidPersonName(firstName)) {
-                                    Text(
-                                        "First name: letters, spaces, hyphen, apostrophe, period",
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                }
-                                if (lastName.isNotEmpty() && !isValidPersonName(lastName)) {
-                                    Text(
-                                        "Last name: letters, spaces, hyphen, apostrophe, period",
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                }
-                                Button(
-                                    onClick = {
-                                        runApi {
-                                            profile =
-                                                api.updateProfile(
-                                                    UpdateProfileRequestDto(
-                                                        firstName = firstName.trim().ifBlank { null },
-                                                        lastName = lastName.trim().ifBlank { null },
-                                                        phone = phone.trim().ifBlank { null },
-                                                    ),
-                                                )
-                                            statusMessage = "Profile saved"
-                                        }
-                                    },
-                                    enabled =
-                                        !loading &&
-                                            isValidPhoneInput(phone) &&
-                                            isValidPersonName(firstName) &&
-                                            isValidPersonName(lastName),
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 12.dp),
-                                ) {
-                                    Text("Save profile")
-                                }
-                                Text(
-                                    "Change password",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    modifier = Modifier.padding(top = 24.dp),
-                                )
-                                OutlinedTextField(
-                                    value = currentPassword,
-                                    onValueChange = { currentPassword = it },
-                                    label = { Text("Current password") },
-                                    singleLine = true,
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp),
-                                )
-                                OutlinedTextField(
-                                    value = newPassword,
-                                    onValueChange = { newPassword = it },
-                                    label = { Text("New password") },
-                                    singleLine = true,
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp),
-                                )
-                                Button(
-                                    onClick = {
-                                        runApi {
-                                            api.changePassword(
-                                                ChangePasswordRequestDto(
-                                                    currentPassword = currentPassword,
-                                                    newPassword = newPassword,
-                                                ),
-                                            )
-                                            currentPassword = ""
-                                            newPassword = ""
-                                            statusMessage = "Password updated"
-                                        }
-                                    },
-                                    enabled = !loading && currentPassword.isNotBlank() && newPassword.length >= 8,
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 12.dp),
-                                ) {
-                                    Text("Update password")
-                                }
+                                statusMessage = "Profile saved"
                             }
-                        }
-                    }
+                        },
+                        onCurrentPasswordChange = { currentPassword = it },
+                        onNewPasswordChange = { newPassword = it },
+                        onUpdatePassword = {
+                            runApi {
+                                api.changePassword(
+                                    ChangePasswordRequestDto(
+                                        currentPassword = currentPassword,
+                                        newPassword = newPassword,
+                                    ),
+                                )
+                                currentPassword = ""
+                                newPassword = ""
+                                statusMessage = "Password updated"
+                            }
+                        },
+                        onCart = { loadCart() },
+                        onOrders = { loadOrders() },
+                        onAddresses = { loadAddresses() },
+                        onLogout = { logout() },
+                        modifier = screenModifier,
+                    )
                 }
 
                 AppScreen.Orders -> {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding),
-                    ) {
-                        TopBar(
-                            title = "My orders",
-                            subtitle = userLabel ?: "Guest",
-                            loggedIn = loggedIn,
-                            cartCount = cart?.totalItems,
-                            onCart = { loadCart() },
-                            onOrders = null,
-                            onAddresses = { loadAddresses() },
-                            onProfile = { loadProfile() },
-                            onLogout = { logout() },
-                        )
-                        TextButton(onClick = { loadCatalog() }) {
-                            Text("← Back to catalog")
-                        }
-                        ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
-                        if (loading && orders.isEmpty()) {
-                            LoadingCenter()
-                        } else if (orders.isEmpty()) {
-                            Text(
-                                "No orders yet",
-                                modifier = Modifier.padding(16.dp),
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                        } else {
-                            LazyColumn(
-                                contentPadding = PaddingValues(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                items(orders, key = { it.id }) { order ->
-                                    Card(modifier = Modifier.fillMaxWidth()) {
-                                        Column(modifier = Modifier.padding(12.dp)) {
-                                            Text(
-                                                order.status.name,
-                                                style = MaterialTheme.typography.titleMedium,
-                                            )
-                                            Text(
-                                                "Total: ${order.totalAmount}",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                            )
-                                            order.createdAt?.let {
-                                                Text(it, style = MaterialTheme.typography.bodySmall)
-                                            }
-                                            Text(
-                                                "Id: ${order.id}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
-                                            Row {
-                                                if (order.status.name == "PENDING") {
-                                                    TextButton(
-                                                        onClick = {
-                                                            runApi {
-                                                                val paid = api.payOrder(order.id)
-                                                                orders =
-                                                                    orders.map {
-                                                                        if (it.id == paid.id) {
-                                                                            paid
-                                                                        } else {
-                                                                            it
-                                                                        }
-                                                                    }
-                                                                statusMessage = "Order paid"
-                                                            }
-                                                        },
-                                                        enabled = !loading,
-                                                    ) {
-                                                        Text("Pay")
-                                                    }
-                                                    TextButton(
-                                                        onClick = {
-                                                            runApi {
-                                                                val cancelled =
-                                                                    api.cancelOrder(order.id)
-                                                                orders =
-                                                                    orders.map {
-                                                                        if (it.id == cancelled.id) {
-                                                                            cancelled
-                                                                        } else {
-                                                                            it
-                                                                        }
-                                                                    }
-                                                            }
-                                                        },
-                                                        enabled = !loading,
-                                                    ) {
-                                                        Text("Cancel")
-                                                    }
-                                                }
-                                            }
-                                        }
+                    OrdersScreen(
+                        orders = orders,
+                        loggedIn = loggedIn,
+                        userLabel = userLabel,
+                        cartCount = cart?.totalItems,
+                        error = error,
+                        statusMessage = statusMessage,
+                        loading = loading,
+                        onBackToCatalog = { loadCatalog() },
+                        onPay = { order ->
+                            runApi {
+                                val paid = api.payOrder(order.id)
+                                orders =
+                                    orders.map {
+                                        if (it.id == paid.id) paid else it
                                     }
-                                }
+                                statusMessage = "Order paid"
                             }
-                        }
-                        statusMessage?.let {
-                            Text(
-                                it,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(16.dp),
-                            )
-                        }
-                    }
+                        },
+                        onCancel = { order ->
+                            runApi {
+                                val cancelled = api.cancelOrder(order.id)
+                                orders =
+                                    orders.map {
+                                        if (it.id == cancelled.id) cancelled else it
+                                    }
+                            }
+                        },
+                        onCart = { loadCart() },
+                        onAddresses = { loadAddresses() },
+                        onProfile = { loadProfile() },
+                        onLogout = { logout() },
+                        modifier = screenModifier,
+                    )
                 }
 
                 is AppScreen.OrderDone -> {
-                    val order = current.order
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxSize()
-                                .padding(padding)
-                                .padding(24.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text("Order placed", style = MaterialTheme.typography.headlineSmall)
-                        Text("Id: ${order.id}", modifier = Modifier.padding(top = 8.dp))
-                        Text("Status: ${order.status}")
-                        Text("Total: ${order.totalAmount}")
-                        ErrorText(error)
-                        Button(
-                            onClick = {
-                                runApi {
-                                    val paid = api.payOrder(order.id)
-                                    screen = AppScreen.OrderDone(paid)
-                                    statusMessage = "Paid"
-                                }
-                            },
-                            enabled = !loading && order.status.name == "PENDING",
-                            modifier = Modifier.padding(top = 16.dp),
-                        ) {
-                            Text("Pay (mock)")
-                        }
-                        statusMessage?.let {
-                            Text(it, color = MaterialTheme.colorScheme.primary)
-                        }
-                        TextButton(onClick = { loadOrders() }) {
-                            Text("My orders")
-                        }
-                        TextButton(onClick = { loadCatalog() }) {
-                            Text("Back to catalog")
-                        }
-                        TextButton(onClick = { loadCart() }) {
-                            Text("Open cart")
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TopBar(
-    title: String,
-    subtitle: String,
-    loggedIn: Boolean,
-    cartCount: Int?,
-    onCart: (() -> Unit)?,
-    onOrders: (() -> Unit)?,
-    onAddresses: (() -> Unit)?,
-    onProfile: (() -> Unit)?,
-    onLogout: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (loggedIn && onAddresses != null) {
-                TextButton(onClick = onAddresses) {
-                    Text("Addresses")
-                }
-            }
-            if (loggedIn && onProfile != null) {
-                TextButton(onClick = onProfile) {
-                    Text("Profile")
-                }
-            }
-            if (loggedIn && onOrders != null) {
-                TextButton(onClick = onOrders) {
-                    Text("Orders")
-                }
-            }
-            if (loggedIn && onCart != null) {
-                TextButton(onClick = onCart) {
-                    Text(
-                        if (cartCount != null && cartCount > 0) {
-                            "Cart ($cartCount)"
-                        } else {
-                            "Cart"
+                    OrderDoneScreen(
+                        order = current.order,
+                        error = error,
+                        statusMessage = statusMessage,
+                        loading = loading,
+                        onPay = {
+                            runApi {
+                                val paid = api.payOrder(current.order.id)
+                                screen = AppScreen.OrderDone(paid)
+                                statusMessage = "Paid"
+                            }
                         },
+                        onMyOrders = { loadOrders() },
+                        onBackToCatalog = { loadCatalog() },
+                        onOpenCart = { loadCart() },
+                        modifier = screenModifier,
                     )
                 }
             }
-            TextButton(onClick = onLogout) {
-                Text(if (loggedIn) "Logout" else "Login")
-            }
         }
-    }
-}
-
-
-private fun isValidPhoneInput(value: String): Boolean {
-    val trimmed = value.trim()
-    if (trimmed.isEmpty()) return true
-    if (trimmed.any { it.isLetter() }) return false
-    val digits = trimmed.filter { it.isDigit() }
-    return digits.length in 7..15
-}
-
-private fun isValidEmail(value: String): Boolean {
-    val v = value.trim()
-    return v.contains("@") && v.substringAfter("@").contains(".")
-}
-
-private fun isValidPersonName(value: String): Boolean {
-    val v = value.trim()
-    if (v.isEmpty()) return true
-    if (v.length > 100) return false
-    if (v.all { it.isDigit() || it.isWhitespace() }) return false
-    return v.all { ch ->
-        ch.isLetter() || ch.isWhitespace() || ch == '-' || ch == '.' || ch.code == 39
-    }
-}
-
-@Composable
-private fun ErrorText(
-    error: String?,
-    modifier: Modifier = Modifier,
-) {
-    if (error != null) {
-        Text(
-            error,
-            color = MaterialTheme.colorScheme.error,
-            modifier = modifier.padding(top = 8.dp),
-        )
-    }
-}
-
-@Composable
-private fun LoadingCenter() {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        CircularProgressIndicator()
     }
 }

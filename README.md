@@ -23,7 +23,7 @@
 | ArchUnit module boundaries | ✅ |
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart/orders; Bearer + refresh on 401 |
-| Clients UI | ✅ login, register, profile, addresses (set default), catalog search/sort, cart ±qty, checkout, orders |
+| Clients UI | ✅ screens in `app/shared/.../ui/`; `App.kt` composition root |
 | Stock concurrency | ✅ atomic UPDATE + IT |
 
 ## Quick start

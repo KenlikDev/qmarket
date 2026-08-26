@@ -39,7 +39,8 @@
 - [x] Catalog search/sort/featured
 - [x] Cart quantity +/−, checkout, orders list, mock pay/cancel
 - [x] JWT Bearer + refresh on 401
-- [ ] Compose UI tests (testTags seeded; harness later)
+- [x] UI split: `ui/` screens + `App.kt` composition root
+- [ ] Compose UI tests (testTags on screens; harness next)
 - [ ] Secure token storage (currently in-memory session)
 
 ## v1.0 MVP (из плана)
@@ -55,6 +56,8 @@
 Монолит → модульный монолит (сейчас) → микросервисы по нагрузке (v2.0+).
 
 Контракты модулей — в `*.api` (как `catalog-api`), не в `common`.
+
+Клиент: экраны в `app/shared/.../ui/`, сеть в `network/`, валидация в `validation/`.
 
 ## Правило релиза
 

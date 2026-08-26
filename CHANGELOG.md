@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Changed
+- Shared Compose UI split into `ui/` screens (`LoginScreen`, `CatalogScreen`, `CartScreen`, …)
+- `App.kt` is composition root only (session, API, navigation)
+- Catalog query mapping and checkout enable rules live in `CatalogFilterParams` / `CheckoutSelection` (used by UI and tests)
+- Profile phone input uses the same `ClientInputValidation.filterPhoneInput` as addresses
+
 ### Added
 - Shared client: Ktor Bearer auth with automatic refresh on 401 (`/api/v1/auth/refresh`)
 - `MutableTokenProvider.applyAuth` stores access + refresh; login/register persist both
@@ -36,5 +42,5 @@
 - No admin UI yet
 - Refresh tokens are not revocable (stateless JWT)
 - No login rate limiting
-- Compose UI tests not yet wired (testTags exist)
+- Compose UI tests not yet wired (testTags exist; screens are now extractable)
 - Session tokens are in-memory (lost on process restart)

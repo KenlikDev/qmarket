@@ -1,32 +1,28 @@
 package com.kenlikdev.qmarket
 
+import com.kenlikdev.qmarket.ui.CatalogFilterParams
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Documents how catalog UI maps to listProducts query params. */
+/** Guards catalog UI → listProducts query mapping. */
 class CatalogFilterParamsTest {
-    private fun queryParam(raw: String): String? = raw.trim().ifBlank { null }
-
-    private fun featuredParam(featuredOnly: Boolean): Boolean? = if (featuredOnly) true else null
-
-    private fun sortDir(sortBy: String): String = if (sortBy == "price") "asc" else "desc"
-
     @Test
     fun blankSearchBecomesNull() {
-        assertNull(queryParam("  "))
-        assertEquals("phone", queryParam(" phone "))
+        assertNull(CatalogFilterParams.queryParam("  "))
+        assertEquals("phone", CatalogFilterParams.queryParam(" phone "))
     }
 
     @Test
     fun featuredOnlyWhenToggled() {
-        assertNull(featuredParam(false))
-        assertEquals(true, featuredParam(true))
+        assertNull(CatalogFilterParams.featuredParam(false))
+        assertEquals(true, CatalogFilterParams.featuredParam(true))
     }
 
     @Test
     fun priceSortAscending() {
-        assertEquals("asc", sortDir("price"))
-        assertEquals("desc", sortDir("name"))
+        assertEquals("asc", CatalogFilterParams.sortDir("price"))
+        assertEquals("desc", CatalogFilterParams.sortDir("name"))
+        assertEquals("desc", CatalogFilterParams.sortDir("createdAt"))
     }
 }

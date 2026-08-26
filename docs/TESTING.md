@@ -14,6 +14,7 @@
 | ArchUnit | `ModuleArchitectureTest` | Module boundaries |
 | API client | `app/shared` commonTest + MockEngine | DTO parsing, error mapping, refresh |
 | Client validation | `ClientInputValidationTest` | Form rules match server intent |
+| Catalog/checkout rules | `CatalogFilterParamsTest`, `CheckoutSelectionTest` | Same objects the UI calls |
 
 ## API correctness
 
@@ -25,14 +26,13 @@
 
 I (assistant) cannot drive your emulator. Automate instead:
 
-1. **Now**: pure logic tests (`ClientInputValidation`) + API client tests.
-2. **Next**: Compose UI tests (`testTag` + `compose-ui-test`) on **JVM desktop** and/or **Android**.
+1. **Now**: pure logic tests (`ClientInputValidation`, `CatalogFilterParams`, `CheckoutSelection`) + API client tests.
+2. **Next**: Compose UI tests (`testTag` + `compose-ui-test`) on **JVM desktop** and/or **Android**. Screens are split under `ui/` so harness can mount one screen at a time.
 3. **Later**: screenshot tests (Roborazzi), Maestro/Appium for E2E on devices.
-
-Compose Multiplatform UI tests need `testTag` on controls and a small test harness; add when flows stabilize.
 
 ## Manual smoke (when UI changes)
 
 1. Login admin → catalog → add to cart → checkout → pay → orders.
 2. Register new user (password ≥ 8).
 3. Profile: reject digit-only name; phone accepts only digits/`+`.
+4. Addresses: add, set default; checkout with saved address.
