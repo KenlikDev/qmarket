@@ -10,6 +10,16 @@ enum class OrderStatusDto {
     SHIPPED,
     DELIVERED,
     CANCELLED,
+    ;
+
+    fun nextAdminTargets(): List<OrderStatusDto> =
+        when (this) {
+            PENDING -> listOf(CONFIRMED, PAID, CANCELLED)
+            CONFIRMED -> listOf(PAID, CANCELLED)
+            PAID -> listOf(SHIPPED)
+            SHIPPED -> listOf(DELIVERED)
+            DELIVERED, CANCELLED -> emptyList()
+        }
 }
 
 @Serializable

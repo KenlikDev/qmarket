@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.CategoryDto
+import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.ProductDto
 
 /**
@@ -28,6 +30,7 @@ fun AdminScreen(
     categories: List<CategoryDto>,
     categoryName: String,
     categorySlug: String,
+    adminOrders: List<OrderDto> = emptyList(),
     products: List<ProductDto>,
     editingProductId: String?,
     productName: String,
@@ -46,6 +49,7 @@ fun AdminScreen(
     onCategorySlugChange: (String) -> Unit,
     onCreateCategory: () -> Unit,
     onDeleteCategory: (CategoryDto) -> Unit,
+    onUpdateOrderStatus: (OrderDto, OrderStatusDto) -> Unit = { _, _ -> },
     onNameChange: (String) -> Unit,
     onSlugChange: (String) -> Unit,
     onPriceChange: (String) -> Unit,
@@ -254,6 +258,43 @@ fun AdminScreen(
                             .testTag("adminCreateProduct"),
                 ) {
                     Text("Create product")
+                }
+            }
+
+            Text(
+                "Orders (${adminOrders.size})",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 24.dp),
+            )
+            if (adminOrders.isEmpty()) {
+                Text("No orders yet", style = MaterialTheme.typography.bodySmall)
+            }
+            adminOrders.forEach { order ->
+                Card(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .testTag("adminOrderCard"),
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            "${order.status.name} · ${order.totalAmount}",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(order.id.take(8) + "…", style = MaterialTheme.typography.bodySmall)
+                        Row {
+                            order.status.nextAdminTargets().forEach { target ->
+                                TextButton(
+                                    onClick = { onUpdateOrderStatus(order, target) },
+                                    enabled = !loading,
+                                    modifier = Modifier.testTag("adminOrderStatus_${target.name}"),
+                                ) {
+                                    Text(target.name)
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

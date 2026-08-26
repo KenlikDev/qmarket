@@ -56,6 +56,7 @@
 
 - [x] Admin: create / update / delete product UI (shared client, ROLE_ADMIN)
 - [x] Admin: categories UI (list/create/delete in Admin screen)
+- [x] Admin: orders list + status transitions UI
 - [ ] OAuth (optional)
 
 ## v1.0 MVP (из плана)

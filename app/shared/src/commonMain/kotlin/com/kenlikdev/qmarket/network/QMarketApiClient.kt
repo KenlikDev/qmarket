@@ -15,6 +15,8 @@ import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.OrderStatusDto
+import com.kenlikdev.qmarket.api.UpdateOrderStatusRequestDto
 import com.kenlikdev.qmarket.api.PageDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
@@ -25,6 +27,8 @@ import com.kenlikdev.qmarket.api.UpdateAddressRequestDto
 import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
 import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.auth.authProvider
+import io.ktor.client.plugins.auth.providers.BearerAuthProvider
 import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.delete
@@ -48,6 +52,14 @@ import io.ktor.http.isSuccess
 class QMarketApiClient(
     private val http: HttpClient,
 ) {
+    /**
+     * Ktor Auth caches BearerTokens after the first loadTokens call.
+     * Clear after login/register/logout so the next request uses the new session JWT.
+     */
+    fun clearBearerTokenCache() {
+        http.authProvider<BearerAuthProvider>()?.clearToken()
+    }
+
     // --- Auth ---
 
     suspend fun register(request: RegisterRequestDto): AuthResponseDto =
@@ -206,6 +218,27 @@ class QMarketApiClient(
     suspend fun cancelOrder(id: String): OrderDto = postEmpty("/api/v1/orders/$id/cancel")
 
     suspend fun payOrder(id: String): OrderDto = postEmpty("/api/v1/orders/$id/pay")
+
+    suspend fun listAdminOrders(
+        page: Int = 0,
+        size: Int = 50,
+    ): PageDto<OrderDto> {
+        val response =
+            http.get("/api/v1/orders/admin/all") {
+                parameter("page", page)
+                parameter("size", size)
+            }
+        return response.parseBody()
+    }
+
+    suspend fun updateAdminOrderStatus(
+        id: String,
+        status: OrderStatusDto,
+    ): OrderDto =
+        put(
+            "/api/v1/orders/admin/$id/status",
+            UpdateOrderStatusRequestDto(status = status),
+        )
 
     // --- HTTP helpers ---
 

@@ -11,6 +11,10 @@
 
 ## Unreleased
 
+### Fixed
+- Session switch: clear Ktor Bearer token cache on login/register/logout (previously requests kept the previous user JWT)
+- Clear user-scoped UI state (orders, profile fields, cart, addresses) on account switch
+
 ### Added
 - `application-dev.yml`: seed enabled only with profile `dev` (default and prod stay off)
 - : seed on only with profile  (default/prod stay off)

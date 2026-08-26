@@ -24,6 +24,7 @@ import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
 import com.kenlikdev.qmarket.api.RegisterRequestDto
@@ -99,6 +100,7 @@ fun App() {
         var categories by remember { mutableStateOf<List<CategoryDto>>(emptyList()) }
         var adminCategoryName by remember { mutableStateOf("") }
         var adminCategorySlug by remember { mutableStateOf("") }
+        var adminOrders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
         var cart by remember { mutableStateOf<CartDto?>(null) }
         var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
         var userLabel by remember { mutableStateOf(tokens.sessionEmail()) }
@@ -127,6 +129,22 @@ fun App() {
             }
         }
 
+        fun clearUserScopedUiState() {
+            orders = emptyList()
+            adminOrders = emptyList()
+            addresses = emptyList()
+            selectedAddressId = null
+            profile = null
+            firstName = ""
+            lastName = ""
+            phone = ""
+            currentPassword = ""
+            newPassword = ""
+            cart = null
+            editingProductId = null
+            statusMessage = null
+        }
+
         // Restore session: load catalog (and cart) after process restart
         LaunchedEffect(restoredSession) {
             if (!restoredSession) return@LaunchedEffect
@@ -146,11 +164,12 @@ fun App() {
                 screen = AppScreen.Catalog
             } catch (e: Exception) {
                 tokens.clear()
+                api.clearBearerTokenCache()
+                clearUserScopedUiState()
                 loggedIn = false
                 isAdmin = false
                 userLabel = null
                 products = emptyList()
-                cart = null
                 screen = AppScreen.Login
                 error = e.message ?: "Session expired — please sign in again"
             } finally {
@@ -223,13 +242,11 @@ fun App() {
                 }
                 isAdmin = false
                 tokens.clear()
+                api.clearBearerTokenCache()
+                clearUserScopedUiState()
                 loggedIn = false
                 userLabel = null
                 products = emptyList()
-                cart = null
-                orders = emptyList()
-                addresses = emptyList()
-                selectedAddressId = null
                 error = null
                 screen = AppScreen.Login
             }
@@ -262,6 +279,8 @@ fun App() {
                                         ),
                                     )
                                 tokens.applyAuth(auth)
+                                api.clearBearerTokenCache()
+                                clearUserScopedUiState()
                                 applySession(auth.user.email)
                                 val page = api.listProducts(size = 50)
                                 products = page.content
@@ -275,9 +294,10 @@ fun App() {
                         },
                         onBrowseCatalog = {
                             tokens.clear()
+                            api.clearBearerTokenCache()
+                            clearUserScopedUiState()
                             loggedIn = false
                             userLabel = null
-                            cart = null
                             loadCatalog()
                         },
                         modifier = screenModifier,
@@ -308,6 +328,8 @@ fun App() {
                                         ),
                                     )
                                 tokens.applyAuth(auth)
+                                api.clearBearerTokenCache()
+                                clearUserScopedUiState()
                                 applySession(auth.user.email)
                                 val page = api.listProducts(size = 50)
                                 products = page.content
@@ -372,6 +394,7 @@ fun App() {
                             {
                                 runApi {
                                     categories = api.listCategories(activeOnly = false)
+                                    adminOrders = api.listAdminOrders().content
                                     screen = AppScreen.Admin
                                 }
                             }
@@ -630,6 +653,7 @@ fun App() {
                         categories = categories,
                         categoryName = adminCategoryName,
                         categorySlug = adminCategorySlug,
+                        adminOrders = adminOrders,
                         products = products,
                         editingProductId = editingProductId,
                         productName = adminProductName,
@@ -671,6 +695,13 @@ fun App() {
                                 api.deleteCategory(category.id)
                                 categories = api.listCategories(activeOnly = false)
                                 statusMessage = "Category deleted"
+                            }
+                        },
+                        onUpdateOrderStatus = { order, status ->
+                            runApi {
+                                api.updateAdminOrderStatus(order.id, status)
+                                adminOrders = api.listAdminOrders().content
+                                statusMessage = "Order → ${status.name}"
                             }
                         },
                         onNameChange = { name ->

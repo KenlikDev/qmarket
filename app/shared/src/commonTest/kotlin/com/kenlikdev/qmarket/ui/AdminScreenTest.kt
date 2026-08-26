@@ -8,6 +8,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.ProductDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -49,6 +51,7 @@ class AdminScreenTest {
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
+                    adminOrders = emptyList(),
                     products = emptyList(),
                     editingProductId = null,
                     productName = "Widget",
@@ -67,6 +70,7 @@ class AdminScreenTest {
                     onCategorySlugChange = {},
                     onCreateCategory = {},
                     onDeleteCategory = {},
+                    onUpdateOrderStatus = { _, _ -> },
                     onNameChange = {},
                     onSlugChange = {},
                     onPriceChange = {},
@@ -95,6 +99,7 @@ class AdminScreenTest {
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
+                    adminOrders = emptyList(),
                     products = emptyList(),
                     editingProductId = null,
                     productName = "Widget",
@@ -113,6 +118,7 @@ class AdminScreenTest {
                     onCategorySlugChange = {},
                     onCreateCategory = {},
                     onDeleteCategory = {},
+                    onUpdateOrderStatus = { _, _ -> },
                     onNameChange = {},
                     onSlugChange = {},
                     onPriceChange = {},
@@ -141,6 +147,7 @@ class AdminScreenTest {
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
+                    adminOrders = emptyList(),
                     products = listOf(sampleProduct()),
                     editingProductId = "p1",
                     productName = "Seed Widget",
@@ -159,6 +166,7 @@ class AdminScreenTest {
                     onCategorySlugChange = {},
                     onCreateCategory = {},
                     onDeleteCategory = {},
+                    onUpdateOrderStatus = { _, _ -> },
                     onNameChange = {},
                     onSlugChange = {},
                     onPriceChange = {},
@@ -190,6 +198,7 @@ class AdminScreenTest {
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
+                    adminOrders = emptyList(),
                     products = listOf(sampleProduct()),
                     editingProductId = null,
                     productName = "",
@@ -208,6 +217,7 @@ class AdminScreenTest {
                     onCategorySlugChange = {},
                     onCreateCategory = {},
                     onDeleteCategory = {},
+                    onUpdateOrderStatus = { _, _ -> },
                     onNameChange = {},
                     onSlugChange = {},
                     onPriceChange = {},
@@ -246,6 +256,7 @@ class AdminScreenTest {
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
+                    adminOrders = emptyList(),
                     products = emptyList(),
                     editingProductId = null,
                     productName = "",
@@ -264,6 +275,7 @@ class AdminScreenTest {
                     onCategorySlugChange = {},
                     onCreateCategory = {},
                     onDeleteCategory = {},
+                    onUpdateOrderStatus = { _, _ -> },
                     onNameChange = {},
                     onSlugChange = {},
                     onPriceChange = {},
@@ -282,5 +294,64 @@ class AdminScreenTest {
                 )
             }
             onNodeWithTag("adminCreateCategory").assertIsNotEnabled()
+        }
+
+    @Test
+    fun adminOrderShowsNextStatusActions() =
+        runComposeUiTest {
+            val order =
+                OrderDto(
+                    id = "o1",
+                    userId = "u1",
+                    status = OrderStatusDto.PENDING,
+                    totalAmount = "10.00",
+                )
+            var updated: OrderStatusDto? = null
+            setContent {
+                AdminScreen(
+                    categories = emptyList(),
+                    categoryName = "",
+                    categorySlug = "",
+                    adminOrders = listOf(order),
+                    products = emptyList(),
+                    editingProductId = null,
+                    productName = "",
+                    productSlug = "",
+                    productPrice = "9.99",
+                    productStock = "10",
+                    productFeatured = false,
+                    loggedIn = true,
+                    userLabel = "admin@qmarket.local",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
+                    onUpdateOrderStatus = { _, s -> updated = s },
+                    onNameChange = {},
+                    onSlugChange = {},
+                    onPriceChange = {},
+                    onStockChange = {},
+                    onToggleFeatured = {},
+                    onCreate = {},
+                    onUpdate = {},
+                    onDelete = {},
+                    onEdit = {},
+                    onClearEdit = {},
+                    onCart = {},
+                    onOrders = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+            onNodeWithTag("adminOrderStatus_CONFIRMED")
+                .performScrollTo()
+                .performClick()
+            assertEquals(OrderStatusDto.CONFIRMED, updated)
         }
 }
