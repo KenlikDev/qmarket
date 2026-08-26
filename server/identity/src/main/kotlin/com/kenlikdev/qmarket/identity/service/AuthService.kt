@@ -5,17 +5,21 @@ import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.common.security.JwtProperties
 import com.kenlikdev.qmarket.common.security.JwtService
 import com.kenlikdev.qmarket.common.validation.InputValidation
+import com.kenlikdev.qmarket.identity.domain.RefreshToken
 import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.dto.AuthResponse
 import com.kenlikdev.qmarket.identity.dto.LoginRequest
 import com.kenlikdev.qmarket.identity.dto.RefreshTokenRequest
 import com.kenlikdev.qmarket.identity.dto.RegisterRequest
 import com.kenlikdev.qmarket.identity.dto.UserResponse
+import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
+import java.util.UUID
 
 @Service
 class AuthService(
@@ -25,6 +29,7 @@ class AuthService(
     private val jwtService: JwtService,
     private val jwtProperties: JwtProperties,
     private val loginRateLimiter: LoginRateLimiter,
+    private val refreshTokenRepository: RefreshTokenRepository,
 ) {
     @Transactional
     fun register(request: RegisterRequest): AuthResponse {
@@ -34,10 +39,9 @@ class AuthService(
         }
 
         val userRole =
-            roleRepository
-                .findByName("ROLE_USER") ?: throw IllegalStateException("ROLE_USER not found in database. Run Flyway migrations.")
+            roleRepository.findByName("ROLE_USER")
+                ?: throw IllegalStateException("ROLE_USER not found in database. Run Flyway migrations.")
 
-        // Spring Security's PasswordEncoder.encode is annotated in a way that Kotlin sees String?
         val encodedPassword =
             passwordEncoder.encode(request.password)
                 ?: throw IllegalStateException("Password encoding returned null")
@@ -53,16 +57,16 @@ class AuthService(
             }
 
         val saved = userRepository.save(user)
-        return buildAuthResponse(saved)
+        return issueTokens(saved, familyId = UUID.randomUUID())
     }
 
+    @Transactional
     fun login(request: LoginRequest): AuthResponse {
         val email = request.email.lowercase().trim()
         loginRateLimiter.assertAllowed(email)
 
         val user =
-            userRepository
-                .findByEmail(email)
+            userRepository.findByEmail(email)
                 ?: run {
                     loginRateLimiter.recordFailure(email)
                     throw UnauthorizedException("Invalid email or password")
@@ -79,9 +83,10 @@ class AuthService(
         }
 
         loginRateLimiter.clear(email)
-        return buildAuthResponse(user)
+        return issueTokens(user, familyId = UUID.randomUUID())
     }
 
+    @Transactional
     fun refresh(request: RefreshTokenRequest): AuthResponse {
         try {
             val claims = jwtService.parseClaims(request.refreshToken)
@@ -89,6 +94,29 @@ class AuthService(
                 throw UnauthorizedException("Invalid refresh token")
             }
             val userId = jwtService.getUserId(claims)
+            val jti = jwtService.getJti(claims)
+            val stored =
+                refreshTokenRepository.findByJti(jti)
+                    ?: throw UnauthorizedException("Invalid refresh token")
+
+            if (stored.userId != userId) {
+                throw UnauthorizedException("Invalid refresh token")
+            }
+
+            if (stored.isExpired) {
+                stored.revoke()
+                refreshTokenRepository.save(stored)
+                throw UnauthorizedException("Refresh token expired")
+            }
+
+            if (stored.isRevoked) {
+                refreshTokenRepository.revokeFamily(stored.familyId, Instant.now())
+                throw UnauthorizedException("Refresh token reuse detected")
+            }
+
+            stored.revoke()
+            refreshTokenRepository.save(stored)
+
             val user =
                 userRepository
                     .findById(userId)
@@ -96,7 +124,8 @@ class AuthService(
             if (!user.enabled) {
                 throw UnauthorizedException("Account is disabled")
             }
-            return buildAuthResponse(user)
+
+            return issueTokens(user, familyId = stored.familyId)
         } catch (ex: UnauthorizedException) {
             throw ex
         } catch (ex: Exception) {
@@ -104,11 +133,44 @@ class AuthService(
         }
     }
 
-    private fun buildAuthResponse(user: User): AuthResponse {
-        val roles = user.roles.map { it.name }
+    @Transactional
+    fun logout(request: RefreshTokenRequest) {
+        try {
+            val claims = jwtService.parseClaims(request.refreshToken)
+            if (!jwtService.isRefreshToken(claims)) {
+                return
+            }
+            val jti = jwtService.getJti(claims)
+            val stored = refreshTokenRepository.findByJti(jti) ?: return
+            if (!stored.isRevoked) {
+                stored.revoke()
+                refreshTokenRepository.save(stored)
+            }
+        } catch (_: Exception) {
+            // best-effort
+        }
+    }
+
+    private fun issueTokens(
+        user: User,
+        familyId: UUID,
+    ): AuthResponse {
+        val roles = user.roles.map { it.name }.toList()
         val userId = requireNotNull(user.id) { "User id must not be null after save" }
         val accessToken = jwtService.generateAccessToken(userId, user.email, roles)
-        val refreshToken = jwtService.generateRefreshToken(userId)
+        val jti = UUID.randomUUID()
+        val refreshToken = jwtService.generateRefreshToken(userId, jti)
+        val expiresAt = Instant.ofEpochMilli(jwtService.refreshTokenExpiresAt().time)
+
+        refreshTokenRepository.save(
+            RefreshToken(
+                userId = userId,
+                jti = jti,
+                familyId = familyId,
+                expiresAt = expiresAt,
+            ),
+        )
+
         return AuthResponse(
             accessToken = accessToken,
             refreshToken = refreshToken,

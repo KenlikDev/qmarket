@@ -56,6 +56,15 @@ class QMarketApiClient(
     suspend fun refresh(request: RefreshTokenRequestDto): AuthResponseDto =
         post("/api/v1/auth/refresh", request)
 
+    suspend fun logout(refreshToken: String) {
+        runCatching {
+            postNoContent(
+                "/api/v1/auth/logout",
+                RefreshTokenRequestDto(refreshToken = refreshToken),
+            )
+        }
+    }
+
     // --- Profile ---
 
     suspend fun getProfile(): ProfileDto = get("/api/v1/users/me")

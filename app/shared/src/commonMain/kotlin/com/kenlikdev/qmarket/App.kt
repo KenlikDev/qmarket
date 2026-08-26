@@ -211,15 +211,23 @@ fun App() {
         }
 
         fun logout() {
-            isAdmin = false
-            tokens.clear()
-            loggedIn = false
-            userLabel = null
-            products = emptyList()
-            cart = null
-            orders = emptyList()
-            error = null
-            screen = AppScreen.Login
+            val refresh = tokens.refreshToken()
+            runApi {
+                if (!refresh.isNullOrBlank()) {
+                    api.logout(refresh)
+                }
+                isAdmin = false
+                tokens.clear()
+                loggedIn = false
+                userLabel = null
+                products = emptyList()
+                cart = null
+                orders = emptyList()
+                addresses = emptyList()
+                selectedAddressId = null
+                error = null
+                screen = AppScreen.Login
+            }
         }
 
         fun applySession(authEmail: String) {

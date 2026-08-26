@@ -12,6 +12,7 @@
 ## Unreleased
 
 ### Added
+- Refresh token rotation: server-side jti (Flyway V7), family reuse detection, POST /auth/logout
 - Checkout idempotency: Idempotency-Key on POST /api/v1/orders (201 first / 200 replay); Flyway V6
 - Client sends random idempotency key on checkout
 - Admin create product UI + `CreateProductRequestDto` / `QMarketApiClient.createProduct`

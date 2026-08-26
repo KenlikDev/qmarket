@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import org.springframework.stereotype.Service
+import java.util.ArrayList
 import java.util.Date
 import java.util.UUID
 import javax.crypto.SecretKey
@@ -23,11 +24,13 @@ class JwtService(
     ): String {
         val now = Date()
         val expiry = Date(now.time + props.accessTokenExpirationMs)
+        // ArrayList avoids JWT/Kotlin List interop issues
+        val roleList = ArrayList(roles)
         return Jwts
             .builder()
             .subject(userId.toString())
             .claim("email", email)
-            .claim("roles", roles)
+            .claim("roles", roleList)
             .claim("type", "access")
             .issuedAt(now)
             .expiration(expiry)
@@ -35,11 +38,15 @@ class JwtService(
             .compact()
     }
 
-    fun generateRefreshToken(userId: UUID): String {
+    fun generateRefreshToken(
+        userId: UUID,
+        jti: UUID = UUID.randomUUID(),
+    ): String {
         val now = Date()
         val expiry = Date(now.time + props.refreshTokenExpirationMs)
         return Jwts
             .builder()
+            .id(jti.toString())
             .subject(userId.toString())
             .claim("type", "refresh")
             .issuedAt(now)
@@ -61,4 +68,11 @@ class JwtService(
     fun isRefreshToken(claims: Claims): Boolean = claims["type"] == "refresh"
 
     fun getUserId(claims: Claims): UUID = UUID.fromString(claims.subject)
+
+    fun getJti(claims: Claims): UUID {
+        val id = claims.id ?: throw IllegalArgumentException("Missing jti")
+        return UUID.fromString(id)
+    }
+
+    fun refreshTokenExpiresAt(from: Date = Date()): Date = Date(from.time + props.refreshTokenExpirationMs)
 }

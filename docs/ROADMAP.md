@@ -50,7 +50,7 @@
 - [x] Strict order status state machine
 - [x] Seed default off; prod JWT secret required
 - [x] Checkout idempotency key (`Idempotency-Key` header on POST /orders)
-- [ ] Refresh token rotation / revocation
+- [x] Refresh token rotation / revocation (V7, logout, reuse detection)
 
 ### v0.2 started
 

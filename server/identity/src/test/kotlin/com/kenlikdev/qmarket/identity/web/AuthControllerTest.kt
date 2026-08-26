@@ -121,4 +121,18 @@ class AuthControllerTest {
             ).andExpect(status().isUnauthorized)
             .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
     }
+
+    @Test
+    fun `POST logout returns 204`() {
+        every { authService.logout(any()) } returns Unit
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/logout")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"refreshToken":"refresh-token"}"""),
+            ).andExpect(status().isNoContent)
+
+        verify(exactly = 1) { authService.logout(any()) }
+    }
 }

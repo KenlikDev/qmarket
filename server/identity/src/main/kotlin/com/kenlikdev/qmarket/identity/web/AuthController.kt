@@ -33,4 +33,12 @@ class AuthController(
     fun refresh(
         @Valid @RequestBody request: RefreshTokenRequest,
     ): AuthResponse = authService.refresh(request)
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun logout(
+        @Valid @RequestBody request: RefreshTokenRequest,
+    ) {
+        authService.logout(request)
+    }
 }

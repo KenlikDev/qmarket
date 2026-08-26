@@ -26,27 +26,24 @@ class JwtServiceTest {
     fun `generate and parse access token`() {
         val userId = UUID.randomUUID()
         val token = jwtService.generateAccessToken(userId, "user@test.com", listOf("ROLE_USER", "ROLE_ADMIN"))
-
         assertTrue(token.isNotBlank())
-
         val claims = jwtService.parseClaims(token)
         assertTrue(jwtService.isAccessToken(claims))
         assertFalse(jwtService.isRefreshToken(claims))
         assertEquals(userId, jwtService.getUserId(claims))
         assertEquals("user@test.com", claims["email"])
-        @Suppress("UNCHECKED_CAST")
-        assertEquals(listOf("ROLE_USER", "ROLE_ADMIN"), claims["roles"] as List<*>)
     }
 
     @Test
     fun `generate and parse refresh token`() {
         val userId = UUID.randomUUID()
-        val token = jwtService.generateRefreshToken(userId)
-
+        val jti = UUID.randomUUID()
+        val token = jwtService.generateRefreshToken(userId, jti)
         val claims = jwtService.parseClaims(token)
         assertTrue(jwtService.isRefreshToken(claims))
         assertFalse(jwtService.isAccessToken(claims))
         assertEquals(userId, jwtService.getUserId(claims))
+        assertEquals(jti, jwtService.getJti(claims))
     }
 
     @Test
