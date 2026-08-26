@@ -409,17 +409,25 @@ fun App() {
                         },
                         onCheckout = {
                             runApi {
+                                val checkoutKey =
+                                    buildString {
+                                        repeat(32) {
+                                            append("0123456789abcdef"[kotlin.random.Random.nextInt(16)])
+                                        }
+                                    }
                                 val order =
                                     api.createOrder(
-                                        CreateOrderRequestDto(
-                                            addressId = selectedAddressId,
-                                            shippingAddress =
-                                                if (selectedAddressId == null) {
-                                                    shippingAddress.trim().ifBlank { null }
-                                                } else {
-                                                    null
-                                                },
-                                        ),
+                                        request =
+                                            CreateOrderRequestDto(
+                                                addressId = selectedAddressId,
+                                                shippingAddress =
+                                                    if (selectedAddressId == null) {
+                                                        shippingAddress.trim().ifBlank { null }
+                                                    } else {
+                                                        null
+                                                    },
+                                            ),
+                                        idempotencyKey = checkoutKey,
                                     )
                                 cart = api.getCart()
                                 screen = AppScreen.OrderDone(order)

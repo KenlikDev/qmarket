@@ -6,6 +6,7 @@ import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
+import com.kenlikdev.qmarket.order.domain.OrderIdempotencyKey
 import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
@@ -13,6 +14,7 @@ import com.kenlikdev.qmarket.order.dto.OrderItemResponse
 import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
+import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -27,12 +29,26 @@ class OrderService(
     private val cartRepository: CartRepository,
     private val productCatalog: ProductCatalog,
     private val addressRepository: AddressRepository,
+    private val idempotencyKeyRepository: OrderIdempotencyKeyRepository,
 ) {
     @Transactional
     fun createFromCart(
         userId: UUID,
         request: CreateOrderRequest,
+        idempotencyKey: String? = null,
     ): OrderResponse {
+        val normalizedKey = normalizeIdempotencyKey(idempotencyKey)
+        if (normalizedKey != null) {
+            val existing = idempotencyKeyRepository.findByUserIdAndKey(userId, normalizedKey)
+            if (existing != null) {
+                val order =
+                    orderRepository.findById(existing.orderId).orElseThrow {
+                        NotFoundException("Order not found for idempotency key")
+                    }
+                return toResponse(order)
+            }
+        }
+
         val cart =
             cartRepository.findByUserId(userId)
                 ?: throw BadRequestException("Cart is empty")
@@ -78,10 +94,36 @@ class OrderService(
         order.totalAmount = total
         val saved = orderRepository.save(order)
 
+        if (normalizedKey != null) {
+            idempotencyKeyRepository.save(
+                OrderIdempotencyKey(
+                    userId = userId,
+                    key = normalizedKey,
+                    orderId = saved.id!!,
+                ),
+            )
+        }
+
         cart.items.clear()
         cartRepository.save(cart)
 
         return toResponse(saved)
+    }
+
+    fun findIdempotentOrderId(
+        userId: UUID,
+        rawKey: String,
+    ): UUID? {
+        val key = normalizeIdempotencyKey(rawKey) ?: return null
+        return idempotencyKeyRepository.findByUserIdAndKey(userId, key)?.orderId
+    }
+
+    private fun normalizeIdempotencyKey(raw: String?): String? {
+        val key = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (key.length > 128) {
+            throw BadRequestException("Idempotency-Key must be at most 128 characters")
+        }
+        return key
     }
 
     @Transactional(readOnly = true)

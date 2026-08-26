@@ -10,10 +10,12 @@ import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.domain.Address
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
+import com.kenlikdev.qmarket.order.domain.OrderIdempotencyKey
 import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
+import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import io.mockk.every
 import io.mockk.mockk
@@ -32,6 +34,7 @@ class OrderServiceTest {
     private lateinit var cartRepository: CartRepository
     private lateinit var productCatalog: ProductCatalog
     private lateinit var addressRepository: AddressRepository
+    private lateinit var idempotencyKeyRepository: OrderIdempotencyKeyRepository
     private lateinit var orderService: OrderService
 
     private val userId = UUID.randomUUID()
@@ -53,7 +56,15 @@ class OrderServiceTest {
         cartRepository = mockk()
         productCatalog = mockk()
         addressRepository = mockk()
-        orderService = OrderService(orderRepository, cartRepository, productCatalog, addressRepository)
+        idempotencyKeyRepository = mockk(relaxed = true)
+        orderService =
+            OrderService(
+                orderRepository,
+                cartRepository,
+                productCatalog,
+                addressRepository,
+                idempotencyKeyRepository,
+            )
     }
 
     @Test
@@ -309,5 +320,68 @@ class OrderServiceTest {
 
         assertEquals(OrderStatus.CANCELLED, result.status)
         verify(exactly = 1) { productCatalog.increaseStock(productId, 1) }
+    }
+
+    @Test
+    fun `createFromCart with same idempotency key returns existing order`() {
+        val orderId = UUID.randomUUID()
+        val existing =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("100.00"),
+                shippingAddress = "Moscow",
+            )
+        every { idempotencyKeyRepository.findByUserIdAndKey(userId, "key-1") } returns
+            OrderIdempotencyKey(userId = userId, key = "key-1", orderId = orderId)
+        every { orderRepository.findById(orderId) } returns Optional.of(existing)
+
+        val result =
+            orderService.createFromCart(
+                userId,
+                CreateOrderRequest(shippingAddress = "Moscow"),
+                idempotencyKey = "key-1",
+            )
+
+        assertEquals(orderId, result.id)
+        verify(exactly = 0) { productCatalog.decreaseStock(any(), any()) }
+        verify(exactly = 0) { cartRepository.findByUserId(any()) }
+    }
+
+    @Test
+    fun `createFromCart stores idempotency key on first success`() {
+        val cart =
+            Cart(id = UUID.randomUUID(), userId = userId).apply {
+                items.add(CartItem(cart = this, productId = productId, quantity = 1))
+            }
+        every { idempotencyKeyRepository.findByUserIdAndKey(userId, "checkout-abc") } returns null
+        every { cartRepository.findByUserId(userId) } returns cart
+        every { productCatalog.requireActive(productId) } returns product
+        every { productCatalog.decreaseStock(productId, 1) } returns Unit
+        every { orderRepository.save(any()) } answers {
+            firstArg<Order>().also { it.id = UUID.randomUUID() }
+        }
+        every { cartRepository.save(any()) } answers { firstArg() }
+        every { idempotencyKeyRepository.save(any()) } answers { firstArg() }
+
+        orderService.createFromCart(
+            userId,
+            CreateOrderRequest(shippingAddress = "Moscow, Red Square 1"),
+            idempotencyKey = "checkout-abc",
+        )
+
+        verify(exactly = 1) { idempotencyKeyRepository.save(match { it.key == "checkout-abc" && it.userId == userId }) }
+    }
+
+    @Test
+    fun `idempotency key longer than 128 chars is rejected`() {
+        assertThrows<BadRequestException> {
+            orderService.createFromCart(
+                userId,
+                CreateOrderRequest(shippingAddress = "x"),
+                idempotencyKey = "k".repeat(129),
+            )
+        }
     }
 }

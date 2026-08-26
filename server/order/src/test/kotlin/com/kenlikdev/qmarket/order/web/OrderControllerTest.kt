@@ -76,7 +76,8 @@ class OrderControllerTest {
 
     @Test
     fun `POST create returns 201`() {
-        every { orderService.createFromCart(userId, any()) } returns sampleOrder
+        every { orderService.createFromCart(userId, any(), any()) } returns sampleOrder
+        every { orderService.findIdempotentOrderId(userId, any()) } returns null
 
         mockMvc
             .perform(
@@ -96,12 +97,28 @@ class OrderControllerTest {
             .andExpect(jsonPath("$.status").value("PENDING"))
             .andExpect(jsonPath("$.totalAmount").value(99.99))
 
-        verify(exactly = 1) { orderService.createFromCart(userId, any()) }
+        verify(exactly = 1) { orderService.createFromCart(userId, any(), any()) }
+    }
+
+    @Test
+    fun `POST create with known Idempotency-Key returns 200 on replay`() {
+        every { orderService.findIdempotentOrderId(userId, "replay-key") } returns orderId
+        every { orderService.createFromCart(userId, any(), any()) } returns sampleOrder
+
+        mockMvc
+            .perform(
+                post("/api/v1/orders")
+                    .principal(auth)
+                    .header("Idempotency-Key", "replay-key")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"shippingAddress":"Test Street 1"}"""),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(orderId.toString()))
     }
 
     @Test
     fun `POST create with blank address returns 400`() {
-        every { orderService.createFromCart(userId, any()) } throws
+        every { orderService.createFromCart(userId, any(), any()) } throws
             BadRequestException("Either shippingAddress or addressId is required")
 
         mockMvc
@@ -116,7 +133,7 @@ class OrderControllerTest {
 
     @Test
     fun `POST create empty cart returns 400`() {
-        every { orderService.createFromCart(userId, any()) } throws
+        every { orderService.createFromCart(userId, any(), any()) } throws
             BadRequestException("Cart is empty")
 
         mockMvc

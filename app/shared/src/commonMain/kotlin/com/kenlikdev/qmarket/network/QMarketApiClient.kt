@@ -23,6 +23,7 @@ import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
 import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.request.header
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -141,8 +142,20 @@ class QMarketApiClient(
 
     // --- Orders ---
 
-    suspend fun createOrder(request: CreateOrderRequestDto): OrderDto =
-        post("/api/v1/orders", request)
+    suspend fun createOrder(
+        request: CreateOrderRequestDto,
+        idempotencyKey: String? = null,
+    ): OrderDto {
+        val response =
+            http.post("/api/v1/orders") {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+                if (!idempotencyKey.isNullOrBlank()) {
+                    header("Idempotency-Key", idempotencyKey.trim())
+                }
+            }
+        return response.parseBody()
+    }
 
     suspend fun listMyOrders(
         page: Int = 0,

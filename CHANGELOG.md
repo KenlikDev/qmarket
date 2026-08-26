@@ -12,6 +12,8 @@
 ## Unreleased
 
 ### Added
+- Checkout idempotency: Idempotency-Key on POST /api/v1/orders (201 first / 200 replay); Flyway V6
+- Client sends random idempotency key on checkout
 - Admin create product UI + `CreateProductRequestDto` / `QMarketApiClient.createProduct`
 - Compose UI tests: Profile, Orders, Addresses, Admin (JVM `runComposeUiTest` v2)
 - Login rate limiting: sliding window per email (`qmarket.auth.login-max-attempts` / `login-window-seconds`), HTTP 429

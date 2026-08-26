@@ -49,7 +49,7 @@
 - [x] Admin cancel restocks stock; cancel before restock
 - [x] Strict order status state machine
 - [x] Seed default off; prod JWT secret required
-- [ ] Checkout idempotency key
+- [x] Checkout idempotency key (`Idempotency-Key` header on POST /orders)
 - [ ] Refresh token rotation / revocation
 
 ### v0.2 started
