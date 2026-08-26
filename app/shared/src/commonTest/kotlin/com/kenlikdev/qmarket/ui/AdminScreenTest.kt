@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.kenlikdev.qmarket.api.ProductDto
 import kotlin.test.Test
@@ -45,6 +46,9 @@ class AdminScreenTest {
         runComposeUiTest {
             setContent {
                 AdminScreen(
+                    categories = emptyList(),
+                    categoryName = "",
+                    categorySlug = "",
                     products = emptyList(),
                     editingProductId = null,
                     productName = "Widget",
@@ -59,6 +63,10 @@ class AdminScreenTest {
                     statusMessage = null,
                     loading = false,
                     onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
                     onNameChange = {},
                     onSlugChange = {},
                     onPriceChange = {},
@@ -84,6 +92,9 @@ class AdminScreenTest {
         runComposeUiTest {
             setContent {
                 AdminScreen(
+                    categories = emptyList(),
+                    categoryName = "",
+                    categorySlug = "",
                     products = emptyList(),
                     editingProductId = null,
                     productName = "Widget",
@@ -98,6 +109,10 @@ class AdminScreenTest {
                     statusMessage = null,
                     loading = false,
                     onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
                     onNameChange = {},
                     onSlugChange = {},
                     onPriceChange = {},
@@ -123,6 +138,9 @@ class AdminScreenTest {
         runComposeUiTest {
             setContent {
                 AdminScreen(
+                    categories = emptyList(),
+                    categoryName = "",
+                    categorySlug = "",
                     products = listOf(sampleProduct()),
                     editingProductId = "p1",
                     productName = "Seed Widget",
@@ -137,6 +155,10 @@ class AdminScreenTest {
                     statusMessage = null,
                     loading = false,
                     onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
                     onNameChange = {},
                     onSlugChange = {},
                     onPriceChange = {},
@@ -165,6 +187,9 @@ class AdminScreenTest {
             var deleted: String? = null
             setContent {
                 AdminScreen(
+                    categories = emptyList(),
+                    categoryName = "",
+                    categorySlug = "",
                     products = listOf(sampleProduct()),
                     editingProductId = null,
                     productName = "",
@@ -179,6 +204,10 @@ class AdminScreenTest {
                     statusMessage = null,
                     loading = false,
                     onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
                     onNameChange = {},
                     onSlugChange = {},
                     onPriceChange = {},
@@ -196,7 +225,9 @@ class AdminScreenTest {
                     onLogout = {},
                 )
             }
-            onNodeWithTag("adminDeleteProduct").performClick()
+            onNodeWithTag("adminDeleteProduct")
+                .performScrollTo()
+                .performClick()
             assertEquals("p1", deleted)
         }
 
@@ -206,4 +237,50 @@ class AdminScreenTest {
         assertEquals("a-b", slugifyProductName("  A   B  "))
         assertEquals("product", slugifyProductName("!!!"))
     }
+
+    @Test
+    fun createCategoryDisabledWhenEmpty() =
+        runComposeUiTest {
+            setContent {
+                AdminScreen(
+                    categories = emptyList(),
+                    categoryName = "",
+                    categorySlug = "",
+                    products = emptyList(),
+                    editingProductId = null,
+                    productName = "",
+                    productSlug = "",
+                    productPrice = "9.99",
+                    productStock = "10",
+                    productFeatured = false,
+                    loggedIn = true,
+                    userLabel = "admin@qmarket.local",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
+                    onNameChange = {},
+                    onSlugChange = {},
+                    onPriceChange = {},
+                    onStockChange = {},
+                    onToggleFeatured = {},
+                    onCreate = {},
+                    onUpdate = {},
+                    onDelete = {},
+                    onEdit = {},
+                    onClearEdit = {},
+                    onCart = {},
+                    onOrders = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+            onNodeWithTag("adminCreateCategory").assertIsNotEnabled()
+        }
 }

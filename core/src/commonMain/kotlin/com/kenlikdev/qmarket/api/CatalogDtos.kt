@@ -9,6 +9,28 @@ data class CategoryDto(
     val slug: String,
     val description: String? = null,
     val parentId: String? = null,
+    val sortOrder: Int = 0,
+    val active: Boolean = true,
+)
+
+@Serializable
+data class CreateCategoryRequestDto(
+    val name: String,
+    val slug: String,
+    val description: String? = null,
+    val parentId: String? = null,
+    val sortOrder: Int = 0,
+    val active: Boolean = true,
+)
+
+@Serializable
+data class UpdateCategoryRequestDto(
+    val name: String? = null,
+    val slug: String? = null,
+    val description: String? = null,
+    val parentId: String? = null,
+    val sortOrder: Int? = null,
+    val active: Boolean? = null,
 )
 
 @Serializable

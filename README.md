@@ -109,7 +109,13 @@ Android emulator API host: `10.0.2.2:8080`
 
 ### Production notes
 
-- Seed: `qmarket.seed.enabled=false` (or profile `prod`) — no default admin in prod
+- Seed: `qmarket.seed.enabled=false` by default; profile `prod` keeps it off
+- Local demo data: Spring profile `dev` (`server/.../application-dev.yml` sets seed on)
+  ```bash
+  ./gradlew :server:bootRun --args="--spring.profiles.active=dev"
+  ```
+  Alternative without profile: `QMARKET_SEED_ENABLED=true`
+  Demo admin: `admin@qmarket.local` / `admin123`
 - CORS: `CORS_ORIGINS` / `qmarket.security.cors.allowed-origin-patterns`
 - Stock: atomic `UPDATE … WHERE stock >= qty` (DB row lock; no JPA `@Version`)
 

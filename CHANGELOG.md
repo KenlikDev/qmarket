@@ -12,6 +12,8 @@
 ## Unreleased
 
 ### Added
+- `application-dev.yml`: seed enabled only with profile `dev` (default and prod stay off)
+- : seed on only with profile  (default/prod stay off)
 - Refresh token rotation: server-side jti (Flyway V7), family reuse detection, POST /auth/logout
 - Checkout idempotency: Idempotency-Key on POST /api/v1/orders (201 first / 200 replay); Flyway V6
 - Client sends random idempotency key on checkout

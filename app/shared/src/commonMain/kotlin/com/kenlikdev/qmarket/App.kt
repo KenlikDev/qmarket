@@ -15,6 +15,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.kenlikdev.qmarket.api.AddCartItemRequestDto
 import com.kenlikdev.qmarket.api.AddressDto
 import com.kenlikdev.qmarket.api.CartDto
+import com.kenlikdev.qmarket.api.CategoryDto
+import com.kenlikdev.qmarket.api.CreateCategoryRequestDto
 import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
 import com.kenlikdev.qmarket.api.CreateAddressRequestDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
@@ -94,6 +96,9 @@ fun App() {
         var adminProductStock by remember { mutableStateOf("10") }
         var adminProductFeatured by remember { mutableStateOf(false) }
         var editingProductId by remember { mutableStateOf<String?>(null) }
+        var categories by remember { mutableStateOf<List<CategoryDto>>(emptyList()) }
+        var adminCategoryName by remember { mutableStateOf("") }
+        var adminCategorySlug by remember { mutableStateOf("") }
         var cart by remember { mutableStateOf<CartDto?>(null) }
         var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
         var userLabel by remember { mutableStateOf(tokens.sessionEmail()) }
@@ -364,7 +369,12 @@ fun App() {
                         onAddresses = { loadAddresses() },
                         onProfile = { loadProfile() },
                         onAdmin = if (isAdmin) {
-                            { screen = AppScreen.Admin }
+                            {
+                                runApi {
+                                    categories = api.listCategories(activeOnly = false)
+                                    screen = AppScreen.Admin
+                                }
+                            }
                         } else {
                             null
                         },
@@ -617,6 +627,9 @@ fun App() {
 
                 AppScreen.Admin -> {
                     AdminScreen(
+                        categories = categories,
+                        categoryName = adminCategoryName,
+                        categorySlug = adminCategorySlug,
                         products = products,
                         editingProductId = editingProductId,
                         productName = adminProductName,
@@ -631,6 +644,35 @@ fun App() {
                         statusMessage = statusMessage,
                         loading = loading,
                         onBackToCatalog = { loadCatalog() },
+                        onCategoryNameChange = { name ->
+                            val previousAutoSlug = slugifyProductName(adminCategoryName)
+                            adminCategoryName = name
+                            if (adminCategorySlug.isBlank() || adminCategorySlug == previousAutoSlug) {
+                                adminCategorySlug = slugifyProductName(name)
+                            }
+                        },
+                        onCategorySlugChange = { adminCategorySlug = it },
+                        onCreateCategory = {
+                            runApi {
+                                api.createCategory(
+                                    CreateCategoryRequestDto(
+                                        name = adminCategoryName.trim(),
+                                        slug = adminCategorySlug.trim(),
+                                    ),
+                                )
+                                categories = api.listCategories(activeOnly = false)
+                                adminCategoryName = ""
+                                adminCategorySlug = ""
+                                statusMessage = "Category created"
+                            }
+                        },
+                        onDeleteCategory = { category ->
+                            runApi {
+                                api.deleteCategory(category.id)
+                                categories = api.listCategories(activeOnly = false)
+                                statusMessage = "Category deleted"
+                            }
+                        },
                         onNameChange = { name ->
                             val previousAutoSlug = slugifyProductName(adminProductName)
                             adminProductName = name
@@ -652,7 +694,6 @@ fun App() {
                                             price = adminProductPrice.trim(),
                                             stockQuantity = adminProductStock.toIntOrNull() ?: 0,
                                             featured = adminProductFeatured,
-                                            active = true,
                                         ),
                                     )
                                 statusMessage = "Created ${created.name}"
@@ -661,35 +702,33 @@ fun App() {
                                 adminProductPrice = "9.99"
                                 adminProductStock = "10"
                                 adminProductFeatured = false
-                                editingProductId = null
-                                loadCatalog(navigate = false)
-                                screen = AppScreen.Admin
+                                val page = api.listProducts(size = 50)
+                                products = page.content
                             }
                         },
                         onUpdate = {
                             val id = editingProductId
                             if (id != null) {
                                 runApi {
-                                    val updated =
-                                        api.updateProduct(
-                                            id,
-                                            UpdateProductRequestDto(
-                                                name = adminProductName.trim(),
-                                                slug = adminProductSlug.trim(),
-                                                price = adminProductPrice.trim(),
-                                                stockQuantity = adminProductStock.toIntOrNull() ?: 0,
-                                                featured = adminProductFeatured,
-                                            ),
-                                        )
-                                    statusMessage = "Updated ${updated.name}"
+                                    api.updateProduct(
+                                        id,
+                                        UpdateProductRequestDto(
+                                            name = adminProductName.trim(),
+                                            slug = adminProductSlug.trim(),
+                                            price = adminProductPrice.trim(),
+                                            stockQuantity = adminProductStock.toIntOrNull() ?: 0,
+                                            featured = adminProductFeatured,
+                                        ),
+                                    )
+                                    statusMessage = "Updated product"
                                     editingProductId = null
                                     adminProductName = ""
                                     adminProductSlug = ""
                                     adminProductPrice = "9.99"
                                     adminProductStock = "10"
                                     adminProductFeatured = false
-                                    loadCatalog(navigate = false)
-                                    screen = AppScreen.Admin
+                                    val page = api.listProducts(size = 50)
+                                    products = page.content
                                 }
                             }
                         },
@@ -699,11 +738,9 @@ fun App() {
                                 statusMessage = "Deleted ${product.name}"
                                 if (editingProductId == product.id) {
                                     editingProductId = null
-                                    adminProductName = ""
-                                    adminProductSlug = ""
                                 }
-                                loadCatalog(navigate = false)
-                                screen = AppScreen.Admin
+                                val page = api.listProducts(size = 50)
+                                products = page.content
                             }
                         },
                         onEdit = { product ->
@@ -729,8 +766,8 @@ fun App() {
                         onAddresses = { loadAddresses() },
                         onProfile = { loadProfile() },
                         onLogout = { logout() },
-                        modifier = screenModifier,
                     )
+
                 }
 
                 is AppScreen.OrderDone -> {

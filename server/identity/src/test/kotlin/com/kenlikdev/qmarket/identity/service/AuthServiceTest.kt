@@ -226,4 +226,33 @@ class AuthServiceTest {
         }
         verify(exactly = 1) { refreshTokenRepository.revokeFamily(familyId, any()) }
     }
+
+    @Test
+    fun `logout is best-effort on invalid token`() {
+        every { jwtService.parseClaims(any()) } throws RuntimeException("bad token")
+        authService.logout(RefreshTokenRequest(refreshToken = "not-a-jwt"))
+        // must not throw UnexpectedRollbackException / any exception
+    }
+
+    @Test
+    fun `logout revokes stored refresh token`() {
+        val jti = UUID.randomUUID()
+        val stored =
+            RefreshToken(
+                userId = UUID.randomUUID(),
+                jti = jti,
+                familyId = UUID.randomUUID(),
+                expiresAt = Instant.now().plusSeconds(3600),
+            )
+        val claims = mockk<Claims>()
+        every { jwtService.parseClaims("refresh") } returns claims
+        every { jwtService.isRefreshToken(claims) } returns true
+        every { jwtService.getJti(claims) } returns jti
+        every { refreshTokenRepository.findByJti(jti) } returns stored
+
+        authService.logout(RefreshTokenRequest(refreshToken = "refresh"))
+
+        assertTrue(stored.isRevoked)
+        verify(exactly = 1) { refreshTokenRepository.save(stored) }
+    }
 }

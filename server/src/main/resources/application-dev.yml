@@ -1,0 +1,11 @@
+# Local development — activate: spring.profiles.active=dev
+# or: ./gradlew :server:bootRun --args='--spring.profiles.active=dev'
+#
+# Seed stays OFF by default and in prod; only this profile turns it on.
+qmarket:
+  seed:
+    enabled: true
+
+logging:
+  level:
+    com.kenlikdev.qmarket: DEBUG

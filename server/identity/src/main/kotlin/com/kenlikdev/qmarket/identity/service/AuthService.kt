@@ -133,7 +133,13 @@ class AuthService(
         }
     }
 
-    @Transactional
+    /**
+     * Best-effort revoke of the presented refresh token.
+     * Not [Transactional]: callers must always clear the client session even if revoke fails
+     * (expired JWT, missing V7 table, already-revoked jti). Catching exceptions inside a
+     * class-level/@Transactional method leaves the TX rollback-only → UnexpectedRollbackException.
+     * Repository [save] still runs in its own short transaction.
+     */
     fun logout(request: RefreshTokenRequest) {
         try {
             val claims = jwtService.parseClaims(request.refreshToken)
@@ -147,7 +153,7 @@ class AuthService(
                 refreshTokenRepository.save(stored)
             }
         } catch (_: Exception) {
-            // best-effort
+            // best-effort: logout must not fail the client session clear
         }
     }
 

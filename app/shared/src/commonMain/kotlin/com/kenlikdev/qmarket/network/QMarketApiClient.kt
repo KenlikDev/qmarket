@@ -8,7 +8,10 @@ import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
 import com.kenlikdev.qmarket.api.CreateAddressRequestDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
+import com.kenlikdev.qmarket.api.CategoryDto
+import com.kenlikdev.qmarket.api.CreateCategoryRequestDto
 import com.kenlikdev.qmarket.api.CreateProductRequestDto
+import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.OrderDto
@@ -130,6 +133,26 @@ class QMarketApiClient(
 
     suspend fun deleteProduct(id: String) {
         deleteNoContent("/api/v1/products/$id")
+    }
+
+    suspend fun listCategories(activeOnly: Boolean = false): List<CategoryDto> {
+        val response =
+            http.get("/api/v1/categories") {
+                parameter("activeOnly", activeOnly)
+            }
+        return response.parseBody()
+    }
+
+    suspend fun createCategory(request: CreateCategoryRequestDto): CategoryDto =
+        post("/api/v1/categories", request)
+
+    suspend fun updateCategory(
+        id: String,
+        request: UpdateCategoryRequestDto,
+    ): CategoryDto = put("/api/v1/categories/$id", request)
+
+    suspend fun deleteCategory(id: String) {
+        deleteNoContent("/api/v1/categories/$id")
     }
 
     // --- Cart ---
