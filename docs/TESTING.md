@@ -18,7 +18,7 @@
 | Session store | `MutableTokenProviderTest`, `InMemorySessionStoreTest` | Persist + reload tokens |
 | Compose UI | `Login/Register/Catalog/Cart/Profile/Orders/Addresses*ScreenTest` | testTags, enabled state, pay/cancel, validation |
 | Login rate limit | `LoginRateLimiterTest` | lock after N failures; clear on success |
-| Admin UI | `AdminScreenTest` | create form enable rules; slugify |
+| Admin UI | `AdminScreenTest` | create/update form; delete; slugify |
 | Admin API client | `createProductParsesResponse` | POST /products envelope |
 
 ## API correctness

@@ -1,3 +1,6 @@
+### Added
+- Admin product update/delete UI + `UpdateProductRequestDto` / client methods
+
 # Changelog
 
 ## Unreleased
@@ -53,7 +56,7 @@
 
 ### Known limitations
 - Real PSP payments (mock only)
-- No admin UI yet
+- Admin product CRUD UI (create/update/delete); categories UI still open
 - Refresh tokens are not revocable (stateless JWT)
 - Compose UI tests cover key screens on JVM; Android instrumented / iOS UI tests not wired yet
 - Session storage is app-private but not hardware-backed (no EncryptedSharedPreferences / Keychain yet)

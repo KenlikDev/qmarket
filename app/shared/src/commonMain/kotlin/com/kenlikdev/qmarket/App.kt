@@ -19,6 +19,7 @@ import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
 import com.kenlikdev.qmarket.api.CreateAddressRequestDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.CreateProductRequestDto
+import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.ProductDto
@@ -92,6 +93,7 @@ fun App() {
         var adminProductPrice by remember { mutableStateOf("9.99") }
         var adminProductStock by remember { mutableStateOf("10") }
         var adminProductFeatured by remember { mutableStateOf(false) }
+        var editingProductId by remember { mutableStateOf<String?>(null) }
         var cart by remember { mutableStateOf<CartDto?>(null) }
         var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
         var userLabel by remember { mutableStateOf(tokens.sessionEmail()) }
@@ -599,6 +601,8 @@ fun App() {
 
                 AppScreen.Admin -> {
                     AdminScreen(
+                        products = products,
+                        editingProductId = editingProductId,
                         productName = adminProductName,
                         productSlug = adminProductSlug,
                         productPrice = adminProductPrice,
@@ -641,8 +645,68 @@ fun App() {
                                 adminProductPrice = "9.99"
                                 adminProductStock = "10"
                                 adminProductFeatured = false
-                                loadCatalog(navigate = true)
+                                editingProductId = null
+                                loadCatalog(navigate = false)
+                                screen = AppScreen.Admin
                             }
+                        },
+                        onUpdate = {
+                            val id = editingProductId
+                            if (id != null) {
+                                runApi {
+                                    val updated =
+                                        api.updateProduct(
+                                            id,
+                                            UpdateProductRequestDto(
+                                                name = adminProductName.trim(),
+                                                slug = adminProductSlug.trim(),
+                                                price = adminProductPrice.trim(),
+                                                stockQuantity = adminProductStock.toIntOrNull() ?: 0,
+                                                featured = adminProductFeatured,
+                                            ),
+                                        )
+                                    statusMessage = "Updated ${updated.name}"
+                                    editingProductId = null
+                                    adminProductName = ""
+                                    adminProductSlug = ""
+                                    adminProductPrice = "9.99"
+                                    adminProductStock = "10"
+                                    adminProductFeatured = false
+                                    loadCatalog(navigate = false)
+                                    screen = AppScreen.Admin
+                                }
+                            }
+                        },
+                        onDelete = { product ->
+                            runApi {
+                                api.deleteProduct(product.id)
+                                statusMessage = "Deleted ${product.name}"
+                                if (editingProductId == product.id) {
+                                    editingProductId = null
+                                    adminProductName = ""
+                                    adminProductSlug = ""
+                                }
+                                loadCatalog(navigate = false)
+                                screen = AppScreen.Admin
+                            }
+                        },
+                        onEdit = { product ->
+                            editingProductId = product.id
+                            adminProductName = product.name
+                            adminProductSlug = product.slug
+                            adminProductPrice = product.price
+                            adminProductStock = product.stockQuantity.toString()
+                            adminProductFeatured = product.featured
+                            error = null
+                            statusMessage = null
+                        },
+                        onClearEdit = {
+                            editingProductId = null
+                            adminProductName = ""
+                            adminProductSlug = ""
+                            adminProductPrice = "9.99"
+                            adminProductStock = "10"
+                            adminProductFeatured = false
                         },
                         onCart = { loadCart() },
                         onOrders = { loadOrders() },

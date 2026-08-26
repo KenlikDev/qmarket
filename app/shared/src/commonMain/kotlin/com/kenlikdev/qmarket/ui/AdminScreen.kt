@@ -1,12 +1,14 @@
 package com.kenlikdev.qmarket.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -15,12 +17,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.kenlikdev.qmarket.api.ProductDto
 
 /**
- * Minimal admin catalog form: create product (ROLE_ADMIN / ROLE_MANAGER on server).
+ * Admin catalog: create / update / delete products (server enforces ROLE_ADMIN / MANAGER).
  */
 @Composable
 fun AdminScreen(
+    products: List<ProductDto>,
+    editingProductId: String?,
     productName: String,
     productSlug: String,
     productPrice: String,
@@ -39,6 +44,10 @@ fun AdminScreen(
     onStockChange: (String) -> Unit,
     onToggleFeatured: () -> Unit,
     onCreate: () -> Unit,
+    onUpdate: () -> Unit,
+    onDelete: (ProductDto) -> Unit,
+    onEdit: (ProductDto) -> Unit,
+    onClearEdit: () -> Unit,
     onCart: () -> Unit,
     onOrders: () -> Unit,
     onAddresses: () -> Unit,
@@ -53,6 +62,7 @@ fun AdminScreen(
             productSlug.isNotBlank() &&
             priceOk &&
             stockOk
+    val editing = editingProductId != null
 
     Column(modifier = modifier.fillMaxSize()) {
         TopBar(
@@ -86,7 +96,7 @@ fun AdminScreen(
                 Text("← Catalog")
             }
             Text(
-                "Create product",
+                if (editing) "Edit product" else "Create product",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )
@@ -140,16 +150,78 @@ fun AdminScreen(
             ) {
                 Text(if (productFeatured) "Featured: yes" else "Featured: no")
             }
-            Button(
-                onClick = onCreate,
-                enabled = !loading && formOk,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                        .testTag("adminCreateProduct"),
-            ) {
-                Text("Create product")
+            if (editing) {
+                Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    Button(
+                        onClick = onUpdate,
+                        enabled = !loading && formOk,
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .testTag("adminUpdateProduct"),
+                    ) {
+                        Text("Save changes")
+                    }
+                    TextButton(
+                        onClick = onClearEdit,
+                        enabled = !loading,
+                        modifier = Modifier.testTag("adminClearEdit"),
+                    ) {
+                        Text("Cancel edit")
+                    }
+                }
+            } else {
+                Button(
+                    onClick = onCreate,
+                    enabled = !loading && formOk,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .testTag("adminCreateProduct"),
+                ) {
+                    Text("Create product")
+                }
+            }
+
+            Text(
+                "Catalog (${products.size})",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 24.dp),
+            )
+            products.forEach { product ->
+                Card(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .testTag("adminProductCard"),
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(product.name, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "${product.price} · stock ${product.stockQuantity}" +
+                                if (product.featured) " · featured" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Row {
+                            TextButton(
+                                onClick = { onEdit(product) },
+                                enabled = !loading,
+                                modifier = Modifier.testTag("adminEditProduct"),
+                            ) {
+                                Text("Edit")
+                            }
+                            TextButton(
+                                onClick = { onDelete(product) },
+                                enabled = !loading,
+                                modifier = Modifier.testTag("adminDeleteProduct"),
+                            ) {
+                                Text("Delete")
+                            }
+                        }
+                    }
+                }
             }
         }
     }

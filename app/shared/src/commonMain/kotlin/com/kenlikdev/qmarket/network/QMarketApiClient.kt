@@ -9,6 +9,7 @@ import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
 import com.kenlikdev.qmarket.api.CreateAddressRequestDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.CreateProductRequestDto
+import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.PageDto
@@ -111,6 +112,15 @@ class QMarketApiClient(
 
     suspend fun createProduct(request: CreateProductRequestDto): ProductDto =
         post("/api/v1/products", request)
+
+    suspend fun updateProduct(
+        id: String,
+        request: UpdateProductRequestDto,
+    ): ProductDto = put("/api/v1/products/$id", request)
+
+    suspend fun deleteProduct(id: String) {
+        deleteNoContent("/api/v1/products/$id")
+    }
 
     // --- Cart ---
 

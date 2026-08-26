@@ -65,3 +65,19 @@ data class CreateProductRequestDto(
     val categoryId: String? = null,
 )
 
+@Serializable
+data class UpdateProductRequestDto(
+    val name: String? = null,
+    val slug: String? = null,
+    val description: String? = null,
+    val shortDescription: String? = null,
+    val sku: String? = null,
+    val price: String? = null,
+    val compareAtPrice: String? = null,
+    val costPrice: String? = null,
+    val stockQuantity: Int? = null,
+    val active: Boolean? = null,
+    val featured: Boolean? = null,
+    val categoryId: String? = null,
+)
+

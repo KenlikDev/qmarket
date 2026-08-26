@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket.network
 
 import com.kenlikdev.qmarket.api.CreateProductRequestDto
+import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.QMarketJson
 import com.kenlikdev.qmarket.api.RefreshTokenRequestDto
@@ -258,6 +259,64 @@ class QMarketApiClientTest {
                     )
                 assertEquals("Widget", product.name)
                 assertEquals("12.50", product.price)
+            } finally {
+                client.close()
+            }
+        }
+
+
+    @Test
+    fun updateProductParsesResponse() =
+        runTest {
+            val engine =
+                MockEngine {
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                  "id": "33333333-3333-3333-3333-333333333333",
+                                  "name": "Widget Plus",
+                                  "slug": "widget-plus",
+                                  "price": "15.00",
+                                  "stockQuantity": 8,
+                                  "active": true,
+                                  "featured": true
+                                }
+                                """.trimIndent(),
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                val product =
+                    QMarketApiClient(client).updateProduct(
+                        "33333333-3333-3333-3333-333333333333",
+                        UpdateProductRequestDto(name = "Widget Plus", price = "15.00"),
+                    )
+                assertEquals("Widget Plus", product.name)
+                assertEquals("15.00", product.price)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun deleteProductAcceptsNoContent() =
+        runTest {
+            val engine =
+                MockEngine {
+                    respond(
+                        content = ByteReadChannel(""),
+                        status = HttpStatusCode.NoContent,
+                        headers = headersOf(),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                QMarketApiClient(client).deleteProduct("33333333-3333-3333-3333-333333333333")
             } finally {
                 client.close()
             }

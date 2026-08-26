@@ -4,19 +4,49 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.kenlikdev.qmarket.api.ProductDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class AdminScreenTest {
+    private fun sampleProduct() =
+        ProductDto(
+            id = "p1",
+            name = "Seed Widget",
+            slug = "seed-widget",
+            price = "5.00",
+            stockQuantity = 2,
+            featured = false,
+        )
+
+    private fun baseScreen(
+        editingProductId: String? = null,
+        productName: String = "Widget",
+        productSlug: String = "widget",
+        productPrice: String = "12.50",
+        productStock: String = "3",
+        productFeatured: Boolean = false,
+        products: List<ProductDto> = emptyList(),
+        onCreate: () -> Unit = {},
+        onUpdate: () -> Unit = {},
+        onDelete: (ProductDto) -> Unit = {},
+        onEdit: (ProductDto) -> Unit = {},
+    ) {
+        // helper not used as composable
+    }
+
     @Test
     fun createDisabledWhenPriceInvalid() =
         runComposeUiTest {
             setContent {
                 AdminScreen(
+                    products = emptyList(),
+                    editingProductId = null,
                     productName = "Widget",
                     productSlug = "widget",
                     productPrice = "abc",
@@ -35,6 +65,10 @@ class AdminScreenTest {
                     onStockChange = {},
                     onToggleFeatured = {},
                     onCreate = {},
+                    onUpdate = {},
+                    onDelete = {},
+                    onEdit = {},
+                    onClearEdit = {},
                     onCart = {},
                     onOrders = {},
                     onAddresses = {},
@@ -50,6 +84,8 @@ class AdminScreenTest {
         runComposeUiTest {
             setContent {
                 AdminScreen(
+                    products = emptyList(),
+                    editingProductId = null,
                     productName = "Widget",
                     productSlug = "widget",
                     productPrice = "12.50",
@@ -68,6 +104,10 @@ class AdminScreenTest {
                     onStockChange = {},
                     onToggleFeatured = {},
                     onCreate = {},
+                    onUpdate = {},
+                    onDelete = {},
+                    onEdit = {},
+                    onClearEdit = {},
                     onCart = {},
                     onOrders = {},
                     onAddresses = {},
@@ -79,15 +119,16 @@ class AdminScreenTest {
         }
 
     @Test
-    fun createClickInvokesCallback() =
+    fun editModeShowsSaveAndCancel() =
         runComposeUiTest {
-            var created = false
             setContent {
                 AdminScreen(
-                    productName = "Widget",
-                    productSlug = "widget",
-                    productPrice = "9.99",
-                    productStock = "1",
+                    products = listOf(sampleProduct()),
+                    editingProductId = "p1",
+                    productName = "Seed Widget",
+                    productSlug = "seed-widget",
+                    productPrice = "5.00",
+                    productStock = "2",
                     productFeatured = false,
                     loggedIn = true,
                     userLabel = "admin@qmarket.local",
@@ -101,7 +142,11 @@ class AdminScreenTest {
                     onPriceChange = {},
                     onStockChange = {},
                     onToggleFeatured = {},
-                    onCreate = { created = true },
+                    onCreate = {},
+                    onUpdate = {},
+                    onDelete = {},
+                    onEdit = {},
+                    onClearEdit = {},
                     onCart = {},
                     onOrders = {},
                     onAddresses = {},
@@ -109,8 +154,50 @@ class AdminScreenTest {
                     onLogout = {},
                 )
             }
-            onNodeWithTag("adminCreateProduct").performClick()
-            assertTrue(created)
+            onNodeWithTag("adminUpdateProduct").assertIsEnabled()
+            onNodeWithTag("adminClearEdit").assertExists()
+            onNodeWithText("Edit product").assertExists()
+        }
+
+    @Test
+    fun deleteClickInvokesCallback() =
+        runComposeUiTest {
+            var deleted: String? = null
+            setContent {
+                AdminScreen(
+                    products = listOf(sampleProduct()),
+                    editingProductId = null,
+                    productName = "",
+                    productSlug = "",
+                    productPrice = "9.99",
+                    productStock = "10",
+                    productFeatured = false,
+                    loggedIn = true,
+                    userLabel = "admin@qmarket.local",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onNameChange = {},
+                    onSlugChange = {},
+                    onPriceChange = {},
+                    onStockChange = {},
+                    onToggleFeatured = {},
+                    onCreate = {},
+                    onUpdate = {},
+                    onDelete = { deleted = it.id },
+                    onEdit = {},
+                    onClearEdit = {},
+                    onCart = {},
+                    onOrders = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+            onNodeWithTag("adminDeleteProduct").performClick()
+            assertEquals("p1", deleted)
         }
 
     @Test
