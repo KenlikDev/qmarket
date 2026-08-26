@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 
 @Component
-@ConditionalOnProperty(name = ["qmarket.seed.enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = ["qmarket.seed.enabled"], havingValue = "true", matchIfMissing = false)
 class DataInitializer(
     private val roleRepository: RoleRepository,
     private val userRepository: UserRepository,

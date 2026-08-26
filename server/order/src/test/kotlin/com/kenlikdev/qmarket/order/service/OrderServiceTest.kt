@@ -10,6 +10,7 @@ import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.domain.Address
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
+import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
@@ -219,5 +220,94 @@ class OrderServiceTest {
         assertThrows<BadRequestException> {
             orderService.createFromCart(userId, CreateOrderRequest())
         }
+    }
+
+    @Test
+    fun `admin cancel restocks inventory`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+            ).apply {
+                items.add(
+                    OrderItem(
+                        order = this,
+                        productId = productId,
+                        productName = "Headphones",
+                        productSlug = "headphones",
+                        unitPrice = BigDecimal("50.00"),
+                        quantity = 2,
+                        lineTotal = BigDecimal("100.00"),
+                    ),
+                )
+            }
+        every { orderRepository.findById(orderId) } returns Optional.of(order)
+        every { orderRepository.save(any()) } answers { firstArg() }
+        every { productCatalog.increaseStock(productId, 2) } returns Unit
+
+        val result =
+            orderService.updateStatus(
+                orderId,
+                UpdateOrderStatusRequest(OrderStatus.CANCELLED),
+            )
+
+        assertEquals(OrderStatus.CANCELLED, result.status)
+        verify(exactly = 1) { productCatalog.increaseStock(productId, 2) }
+    }
+
+    @Test
+    fun `admin cannot ship from pending`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+            )
+        every { orderRepository.findById(orderId) } returns Optional.of(order)
+
+        assertThrows<BadRequestException> {
+            orderService.updateStatus(
+                orderId,
+                UpdateOrderStatusRequest(OrderStatus.SHIPPED),
+            )
+        }
+        verify(exactly = 0) { productCatalog.increaseStock(any(), any()) }
+    }
+
+    @Test
+    fun `cancelMyOrder cancels then restocks`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+            ).apply {
+                items.add(
+                    OrderItem(
+                        order = this,
+                        productId = productId,
+                        productName = "Headphones",
+                        productSlug = "headphones",
+                        unitPrice = BigDecimal("50.00"),
+                        quantity = 1,
+                        lineTotal = BigDecimal("50.00"),
+                    ),
+                )
+            }
+        every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
+        every { productCatalog.increaseStock(productId, 1) } returns Unit
+
+        val result = orderService.cancelMyOrder(userId, orderId)
+
+        assertEquals(OrderStatus.CANCELLED, result.status)
+        verify(exactly = 1) { productCatalog.increaseStock(productId, 1) }
     }
 }

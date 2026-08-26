@@ -3,6 +3,13 @@ qmarket:
   seed:
     enabled: false
   security:
+    jwt:
+      # Required in production — app must not start with a known default secret
+      secret: ${JWT_SECRET}
     cors:
-      # Set real front-end origins via CORS_ORIGINS env
       allowed-origin-patterns: ${CORS_ORIGINS:https://qmarket.example}
+
+server:
+  error:
+    include-message: never
+    include-binding-errors: never

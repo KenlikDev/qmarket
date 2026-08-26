@@ -26,6 +26,18 @@ enum class OrderStatus {
     SHIPPED,
     DELIVERED,
     CANCELLED,
+    ;
+
+    fun canTransitionTo(target: OrderStatus): Boolean {
+        if (this == target) return true
+        return when (this) {
+            PENDING -> target == CONFIRMED || target == PAID || target == CANCELLED
+            CONFIRMED -> target == PAID || target == CANCELLED
+            PAID -> target == SHIPPED
+            SHIPPED -> target == DELIVERED
+            DELIVERED, CANCELLED -> false
+        }
+    }
 }
 
 /**
@@ -53,7 +65,7 @@ class Order(
         mappedBy = "order",
         cascade = [CascadeType.ALL],
         orphanRemoval = true,
-        fetch = FetchType.EAGER,
+        fetch = FetchType.LAZY,
     )
     var items: MutableList<OrderItem> = mutableListOf(),
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -66,11 +78,13 @@ class Order(
         updatedAt = Instant.now()
     }
 
-    fun cancel() {
+    /** Returns true if this transition restores inventory (PENDING/CONFIRMED → CANCELLED). */
+    fun cancel(): Boolean {
         if (status != OrderStatus.PENDING && status != OrderStatus.CONFIRMED) {
             throw BadRequestException("Only PENDING or CONFIRMED orders can be cancelled")
         }
         status = OrderStatus.CANCELLED
+        return true
     }
 
     fun markPaid() {
@@ -83,14 +97,22 @@ class Order(
         }
     }
 
-    fun applyAdminStatus(newStatus: OrderStatus) {
-        if (status == OrderStatus.CANCELLED && newStatus != OrderStatus.CANCELLED) {
-            throw BadRequestException("Cannot change status of a cancelled order")
+    /**
+     * Admin status change with strict lifecycle.
+     * @return true when inventory must be restored (transition into CANCELLED from PENDING/CONFIRMED)
+     */
+    fun applyAdminStatus(newStatus: OrderStatus): Boolean {
+        if (status == newStatus) {
+            return false
         }
-        if (status == OrderStatus.DELIVERED) {
-            throw BadRequestException("Cannot change status of a delivered order")
+        if (!status.canTransitionTo(newStatus)) {
+            throw BadRequestException("Cannot transition order from $status to $newStatus")
         }
+        val restock =
+            newStatus == OrderStatus.CANCELLED &&
+                (status == OrderStatus.PENDING || status == OrderStatus.CONFIRMED)
         status = newStatus
+        return restock
     }
 }
 

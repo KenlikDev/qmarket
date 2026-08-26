@@ -2,6 +2,8 @@ package com.kenlikdev.qmarket.order.domain
 
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.UUID
@@ -12,7 +14,7 @@ class OrderTest {
     @Test
     fun `cancel from pending`() {
         val order = pending()
-        order.cancel()
+        assertTrue(order.cancel())
         assertEquals(OrderStatus.CANCELLED, order.status)
     }
 
@@ -35,5 +37,42 @@ class OrderTest {
         assertThrows<BadRequestException> {
             order.applyAdminStatus(OrderStatus.CONFIRMED)
         }
+    }
+
+    @Test
+    fun `admin cannot skip to shipped from pending`() {
+        val order = pending()
+        assertThrows<BadRequestException> {
+            order.applyAdminStatus(OrderStatus.SHIPPED)
+        }
+    }
+
+    @Test
+    fun `admin cancel from pending requests restock`() {
+        val order = pending()
+        assertTrue(order.applyAdminStatus(OrderStatus.CANCELLED))
+        assertEquals(OrderStatus.CANCELLED, order.status)
+    }
+
+    @Test
+    fun `admin paid to shipped allowed without restock`() {
+        val order = pending().apply { status = OrderStatus.PAID }
+        assertFalse(order.applyAdminStatus(OrderStatus.SHIPPED))
+        assertEquals(OrderStatus.SHIPPED, order.status)
+    }
+
+    @Test
+    fun `transition matrix happy path`() {
+        assertTrue(OrderStatus.PENDING.canTransitionTo(OrderStatus.CONFIRMED))
+        assertTrue(OrderStatus.PENDING.canTransitionTo(OrderStatus.PAID))
+        assertTrue(OrderStatus.PENDING.canTransitionTo(OrderStatus.CANCELLED))
+        assertFalse(OrderStatus.PENDING.canTransitionTo(OrderStatus.SHIPPED))
+        assertTrue(OrderStatus.CONFIRMED.canTransitionTo(OrderStatus.PAID))
+        assertTrue(OrderStatus.CONFIRMED.canTransitionTo(OrderStatus.CANCELLED))
+        assertFalse(OrderStatus.CONFIRMED.canTransitionTo(OrderStatus.DELIVERED))
+        assertTrue(OrderStatus.PAID.canTransitionTo(OrderStatus.SHIPPED))
+        assertFalse(OrderStatus.PAID.canTransitionTo(OrderStatus.CANCELLED))
+        assertTrue(OrderStatus.SHIPPED.canTransitionTo(OrderStatus.DELIVERED))
+        assertFalse(OrderStatus.DELIVERED.canTransitionTo(OrderStatus.CANCELLED))
     }
 }

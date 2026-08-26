@@ -44,6 +44,14 @@
 - [x] Compose UI tests (`runComposeUiTest` on Login/Register/Catalog/Cart/Profile/Orders/Addresses; JVM)
 - [x] Login rate limit (sliding window per email; 429 TOO_MANY_REQUESTS)
 
+### Hardening (from architecture review)
+
+- [x] Admin cancel restocks stock; cancel before restock
+- [x] Strict order status state machine
+- [x] Seed default off; prod JWT secret required
+- [ ] Checkout idempotency key
+- [ ] Refresh token rotation / revocation
+
 ### v0.2 started
 
 - [x] Admin: create / update / delete product UI (shared client, ROLE_ADMIN)

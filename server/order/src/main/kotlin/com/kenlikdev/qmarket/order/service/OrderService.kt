@@ -156,7 +156,14 @@ class OrderService(
                 .findById(orderId)
                 .orElseThrow { NotFoundException("Order not found") }
 
-        order.applyAdminStatus(request.status)
+        // Snapshot items while session is open (LAZY collection)
+        val lines = order.items.map { it.productId to it.quantity }
+        val needsRestock = order.applyAdminStatus(request.status)
+        if (needsRestock) {
+            for ((productId, quantity) in lines) {
+                productCatalog.increaseStock(productId, quantity)
+            }
+        }
         return toResponse(orderRepository.save(order))
     }
 
@@ -169,11 +176,11 @@ class OrderService(
             orderRepository
                 .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
 
-        // restore stock before status change
+        // Status transition first (fails fast if already cancelled / paid)
+        order.cancel()
         for (item in order.items) {
             productCatalog.increaseStock(item.productId, item.quantity)
         }
-        order.cancel()
         return toResponse(orderRepository.save(order))
     }
 

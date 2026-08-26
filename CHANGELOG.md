@@ -1,3 +1,9 @@
+### Fixed
+- Order lifecycle: strict status transitions; admin CANCELLED restocks inventory
+- cancelMyOrder: status transition before restock (fail-fast, no double-restock path)
+- Order.items fetch LAZY (access within @Transactional)
+- Seed off by default (`QMARKET_SEED_ENABLED=true` for local); prod JWT secret required
+
 ### Added
 - Admin product update/delete UI + `UpdateProductRequestDto` / client methods
 

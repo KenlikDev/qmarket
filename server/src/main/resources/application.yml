@@ -60,8 +60,8 @@ logging:
 
 qmarket:
   seed:
-    # Dev/local seed (admin + demo catalog). Disable in production.
-    enabled: ${QMARKET_SEED_ENABLED:true}
+    # Off by default (safe for accidental prod). Enable locally: QMARKET_SEED_ENABLED=true
+    enabled: ${QMARKET_SEED_ENABLED:false}
   auth:
     # Failed login sliding window (per email). Successful login clears the counter.
     login-max-attempts: ${QMARKET_LOGIN_MAX_ATTEMPTS:5}
