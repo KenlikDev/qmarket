@@ -91,7 +91,8 @@ fun ProfileScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp),
+                            .padding(top = 8.dp)
+                            .testTag("profileFirstName"),
                 )
                 OutlinedTextField(
                     value = lastName,
@@ -101,7 +102,8 @@ fun ProfileScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp),
+                            .padding(top = 8.dp)
+                            .testTag("profileLastName"),
                 )
                 OutlinedTextField(
                     value = phone,
@@ -184,7 +186,8 @@ fun ProfileScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(top = 12.dp),
+                            .padding(top = 12.dp)
+                            .testTag("profileChangePassword"),
                 ) {
                     Text("Update password")
                 }

@@ -153,7 +153,7 @@ fun AddressesScreen(
                 onValueChange = onPhoneChange,
                 label = { Text("Phone (optional)") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp).testTag("addressPhone"),
             )
             if (addrPhone.isNotEmpty() && !ClientInputValidation.isValidPhoneInput(addrPhone)) {
                 Text(

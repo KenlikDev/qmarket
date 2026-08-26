@@ -24,6 +24,7 @@ class AuthService(
     private val passwordEncoder: PasswordEncoder,
     private val jwtService: JwtService,
     private val jwtProperties: JwtProperties,
+    private val loginRateLimiter: LoginRateLimiter,
 ) {
     @Transactional
     fun register(request: RegisterRequest): AuthResponse {
@@ -56,19 +57,28 @@ class AuthService(
     }
 
     fun login(request: LoginRequest): AuthResponse {
+        val email = request.email.lowercase().trim()
+        loginRateLimiter.assertAllowed(email)
+
         val user =
             userRepository
-                .findByEmail(request.email.lowercase().trim())
-                ?: throw UnauthorizedException("Invalid email or password")
+                .findByEmail(email)
+                ?: run {
+                    loginRateLimiter.recordFailure(email)
+                    throw UnauthorizedException("Invalid email or password")
+                }
 
         if (!user.enabled) {
+            loginRateLimiter.recordFailure(email)
             throw UnauthorizedException("Account is disabled")
         }
 
         if (!passwordEncoder.matches(request.password, user.passwordHash)) {
+            loginRateLimiter.recordFailure(email)
             throw UnauthorizedException("Invalid email or password")
         }
 
+        loginRateLimiter.clear(email)
         return buildAuthResponse(user)
     }
 

@@ -7,7 +7,7 @@
 | Версия | Фокус | Статус |
 |--------|--------|--------|
 | **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **WIP** (scope почти закрыт) |
-| **v0.2 Catalog & Auth polish** | OAuth optional, admin catalog UX, rate limit login | pending |
+| **v0.2 Catalog & Auth polish** | OAuth optional, admin catalog UX | pending (rate limit login → done early) |
 | **v0.3** | (merged into v0.1 client) reserved / skip | done via shared UI |
 | **v1.0 MVP** | Payments (1 провайдер), notifications, admin UI, search | pending |
 | **v1.1 Growth** | Recommendations, reviews, promos, delivery integrations | pending |
@@ -41,7 +41,8 @@
 - [x] JWT Bearer + refresh on 401
 - [x] UI split: `ui/` screens + `App.kt` composition root
 - [x] Persistent session store (Android prefs / JVM file / iOS defaults / JS localStorage)
-- [x] Compose UI tests (`runComposeUiTest` on Login/Register/Catalog/Cart; JVM)
+- [x] Compose UI tests (`runComposeUiTest` on Login/Register/Catalog/Cart/Profile/Orders/Addresses; JVM)
+- [x] Login rate limit (sliding window per email; 429 TOO_MANY_REQUESTS)
 
 ## v1.0 MVP (из плана)
 

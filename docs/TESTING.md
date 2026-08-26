@@ -16,7 +16,8 @@
 | Client validation | `ClientInputValidationTest` | Form rules match server intent |
 | Catalog/checkout rules | `CatalogFilterParamsTest`, `CheckoutSelectionTest` | Same objects the UI calls |
 | Session store | `MutableTokenProviderTest`, `InMemorySessionStoreTest` | Persist + reload tokens |
-| Compose UI | `ui/*ScreenTest` + `runComposeUiTest` (JVM) | testTags, enabled state, click callbacks |
+| Compose UI | `Login/Register/Catalog/Cart/Profile/Orders/Addresses*ScreenTest` | testTags, enabled state, pay/cancel, validation |
+| Login rate limit | `LoginRateLimiterTest` | lock after N failures; clear on success |
 
 ## API correctness
 

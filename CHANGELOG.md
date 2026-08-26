@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- Compose UI tests: Profile, Orders, Addresses (JVM `runComposeUiTest` v2)
+- Login rate limiting: sliding window per email (`qmarket.auth.login-max-attempts` / `login-window-seconds`), HTTP 429
+
+
+### Added
 - Compose UI tests: `runComposeUiTest` for Login, Register, Catalog, Cart (JVM via `compose-ui-test`)
 - testTags on login email/password fields
 - Persistent JWT session: `SessionStore` + platform actuals (Android SharedPreferences, JVM `~/.qmarket/session.properties`, iOS NSUserDefaults, JS localStorage)

@@ -49,6 +49,7 @@ class AuthServiceTest {
                 passwordEncoder,
                 jwtService,
                 jwtProperties,
+                LoginRateLimiter(maxAttempts = 100, windowSeconds = 300),
             )
     }
 

@@ -28,3 +28,7 @@ class UnauthorizedException(
 class ForbiddenException(
     message: String = "Forbidden",
 ) : ApiException(HttpStatus.FORBIDDEN, message, "FORBIDDEN")
+
+class TooManyRequestsException(
+    message: String = "Too many requests. Try again later.",
+) : ApiException(HttpStatus.TOO_MANY_REQUESTS, message, "TOO_MANY_REQUESTS")

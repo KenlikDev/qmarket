@@ -62,6 +62,10 @@ qmarket:
   seed:
     # Dev/local seed (admin + demo catalog). Disable in production.
     enabled: ${QMARKET_SEED_ENABLED:true}
+  auth:
+    # Failed login sliding window (per email). Successful login clears the counter.
+    login-max-attempts: ${QMARKET_LOGIN_MAX_ATTEMPTS:5}
+    login-window-seconds: ${QMARKET_LOGIN_WINDOW_SECONDS:300}
   security:
     jwt:
       secret: ${JWT_SECRET:change-me-to-a-very-long-and-secure-secret-key-at-least-256-bits}
