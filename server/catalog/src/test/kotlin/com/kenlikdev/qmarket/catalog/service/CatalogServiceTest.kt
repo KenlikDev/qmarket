@@ -128,11 +128,33 @@ class CatalogServiceTest {
     @Test
     fun `deleteProduct not found throws NotFoundException`() {
         val id = UUID.randomUUID()
-        every { productRepository.existsById(id) } returns false
+        every { productRepository.findById(id) } returns java.util.Optional.empty()
 
         assertThrows<NotFoundException> {
             catalogService.deleteProduct(id)
         }
+    }
+
+    @Test
+    fun `deleteProduct soft-deletes active product`() {
+        val id = UUID.randomUUID()
+        val product =
+            com.kenlikdev.qmarket.catalog.domain.Product(
+                id = id,
+                name = "To Delete",
+                slug = "to-delete",
+                price = java.math.BigDecimal("10.00"),
+                stockQuantity = 5,
+                active = true,
+            )
+        every { productRepository.findById(id) } returns java.util.Optional.of(product)
+        every { productRepository.save(any()) } answers { firstArg() }
+
+        catalogService.deleteProduct(id)
+
+        assertEquals(false, product.active)
+        verify(exactly = 1) { productRepository.save(product) }
+        verify(exactly = 0) { productRepository.deleteById(any()) }
     }
 
     @Test

@@ -59,11 +59,12 @@ class OrderService(
                 },
             ) { "Checkout transaction returned no result" }
         } catch (ex: DataIntegrityViolationException) {
-            // Lost UNIQUE(user_id, idem_key) race — winner's order is the result.
-            if (normalizedKey != null) {
+            // Only treat UNIQUE(user_id, idem_key) as an idempotency race; rethrow other DB errors.
+            if (normalizedKey != null && isIdempotencyKeyConstraint(ex)) {
                 loadIdempotentOrder(userId, normalizedKey)?.let { return it }
+                throw BadRequestException("Concurrent checkout conflict — retry with the same Idempotency-Key")
             }
-            throw BadRequestException("Concurrent checkout conflict — retry with the same Idempotency-Key")
+            throw ex
         }
     }
 
@@ -155,6 +156,16 @@ class OrderService(
     ): UUID? {
         val key = normalizeIdempotencyKey(rawKey) ?: return null
         return idempotencyKeyRepository.findByUserIdAndKey(userId, key)?.orderId
+    }
+
+    private fun isIdempotencyKeyConstraint(ex: DataIntegrityViolationException): Boolean {
+        val msg =
+            buildString {
+                append(ex.message.orEmpty())
+                append(' ')
+                append(ex.mostSpecificCause.message.orEmpty())
+            }.lowercase()
+        return "uq_order_idempotency" in msg || "order_idempotency_keys" in msg
     }
 
     private fun normalizeIdempotencyKey(raw: String?): String? {

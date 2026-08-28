@@ -31,4 +31,14 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, UUID> {
         @Param("familyId") familyId: UUID,
         @Param("at") at: Instant,
     ): Int
+
+    /** Revoke every active refresh token for a user (password change, account disable). */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        "UPDATE RefreshToken t SET t.revokedAt = :at WHERE t.userId = :userId AND t.revokedAt IS NULL",
+    )
+    fun revokeAllForUser(
+        @Param("userId") userId: UUID,
+        @Param("at") at: Instant,
+    ): Int
 }

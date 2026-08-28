@@ -51,7 +51,11 @@
 - [x] Seed default off; prod JWT secret required
 - [x] Checkout idempotency key (+ concurrent UNIQUE race → re-read winner)
 - [x] Refresh atomic consume (`revokeIfActive`)
-- [x] JWT secret required (no placeholder default) (`Idempotency-Key` header on POST /orders)
+- [x] JWT secret required (no placeholder default)
+- [x] Product soft-delete (active=false)
+- [x] Password change revokes refresh sessions
+- [x] Concurrent refresh: no false family revoke
+- [x] Concurrent checkout same Idempotency-Key integration test (`Idempotency-Key` header on POST /orders)
 - [x] Refresh token rotation / revocation (V7, logout, reuse detection)
 
 ### v0.2 started

@@ -8,16 +8,19 @@ import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.dto.ChangePasswordRequest
 import com.kenlikdev.qmarket.identity.dto.ProfileResponse
 import com.kenlikdev.qmarket.identity.dto.UpdateProfileRequest
+import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
 import java.util.UUID
 
 @Service
 class ProfileService(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
+    private val refreshTokenRepository: RefreshTokenRepository,
 ) {
     @Transactional(readOnly = true)
     fun getMyProfile(userId: UUID): ProfileResponse {
@@ -73,6 +76,9 @@ class ProfileService(
                 ?: throw IllegalStateException("Password encoding returned null")
         user.passwordHash = encoded
         userRepository.save(user)
+        // Invalidate all sessions so a stolen refresh token cannot outlive a password change
+        val userId = requireNotNull(user.id) { "User id must not be null" }
+        refreshTokenRepository.revokeAllForUser(userId, Instant.now())
     }
 
     private fun toResponse(user: User): ProfileResponse =

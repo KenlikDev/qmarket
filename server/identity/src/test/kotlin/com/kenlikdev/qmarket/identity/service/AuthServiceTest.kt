@@ -255,4 +255,35 @@ class AuthServiceTest {
         assertTrue(stored.isRevoked)
         verify(exactly = 1) { refreshTokenRepository.save(stored) }
     }
+
+    @Test
+    fun `concurrent refresh loser does not revoke family`() {
+        val userId = UUID.randomUUID()
+        val jti = UUID.randomUUID()
+        val familyId = UUID.randomUUID()
+        val user =
+            User(
+                id = userId,
+                email = "user@test.com",
+                passwordHash = "hash",
+            ).apply { roles.add(userRole) }
+        val stored =
+            RefreshToken(
+                userId = userId,
+                jti = jti,
+                familyId = familyId,
+                expiresAt = Instant.now().plusSeconds(3600),
+            )
+        every { jwtService.parseClaims(any()) } returns mockk(relaxed = true)
+        every { jwtService.isRefreshToken(any()) } returns true
+        every { jwtService.getUserId(any()) } returns userId
+        every { jwtService.getJti(any()) } returns jti
+        every { refreshTokenRepository.findByJti(jti) } returns stored
+        every { refreshTokenRepository.revokeIfActive(jti, any()) } returns 0
+
+        assertThrows<UnauthorizedException> {
+            authService.refresh(RefreshTokenRequest(refreshToken = "old-refresh"))
+        }
+        verify(exactly = 0) { refreshTokenRepository.revokeFamily(any(), any()) }
+    }
 }

@@ -7,6 +7,7 @@ import com.kenlikdev.qmarket.identity.domain.Role
 import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.dto.ChangePasswordRequest
 import com.kenlikdev.qmarket.identity.dto.UpdateProfileRequest
+import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import io.mockk.every
 import io.mockk.mockk
@@ -22,6 +23,7 @@ import java.util.UUID
 class ProfileServiceTest {
     private lateinit var userRepository: UserRepository
     private lateinit var passwordEncoder: PasswordEncoder
+    private lateinit var refreshTokenRepository: RefreshTokenRepository
     private lateinit var profileService: ProfileService
 
     private val userId = UUID.randomUUID()
@@ -31,7 +33,9 @@ class ProfileServiceTest {
     fun setUp() {
         userRepository = mockk()
         passwordEncoder = mockk()
-        profileService = ProfileService(userRepository, passwordEncoder)
+        refreshTokenRepository = mockk(relaxed = true)
+        every { refreshTokenRepository.revokeAllForUser(any(), any()) } returns 1
+        profileService = ProfileService(userRepository, passwordEncoder, refreshTokenRepository)
     }
 
     @Test
@@ -111,6 +115,7 @@ class ProfileServiceTest {
         )
 
         verify { userRepository.save(match { it.passwordHash == "new-hash" }) }
+        verify(exactly = 1) { refreshTokenRepository.revokeAllForUser(userId, any()) }
     }
 
     @Test

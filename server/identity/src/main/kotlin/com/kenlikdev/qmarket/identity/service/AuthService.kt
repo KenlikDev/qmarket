@@ -115,10 +115,11 @@ class AuthService(
             }
 
             // Atomic consume: only one concurrent refresh may win (updated rows == 1).
+            // If we lose the race, do NOT revoke the family — the winner legitimately issued R2.
+            // Family revoke is reserved for true reuse: presenting an already-revoked jti (above).
             val consumed = refreshTokenRepository.revokeIfActive(stored.jti, Instant.now())
             if (consumed != 1) {
-                refreshTokenRepository.revokeFamily(stored.familyId, Instant.now())
-                throw UnauthorizedException("Refresh token reuse detected")
+                throw UnauthorizedException("Refresh token already used")
             }
 
             val user =

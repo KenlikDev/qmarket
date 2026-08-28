@@ -254,12 +254,20 @@ class CatalogService(
         return productRepository.save(product).toResponse()
     }
 
+    /**
+     * Soft-delete: marks product inactive so historical order_items can still restock
+     * and snapshots remain consistent. Physical DELETE would break cancel/restock.
+     */
     @Transactional
     fun deleteProduct(id: UUID) {
-        if (!productRepository.existsById(id)) {
-            throw NotFoundException("Product $id not found")
+        val product =
+            productRepository
+                .findById(id)
+                .orElseThrow { NotFoundException("Product $id not found") }
+        if (product.active) {
+            product.active = false
+            productRepository.save(product)
         }
-        productRepository.deleteById(id)
     }
 
     private fun Category.toResponse() =

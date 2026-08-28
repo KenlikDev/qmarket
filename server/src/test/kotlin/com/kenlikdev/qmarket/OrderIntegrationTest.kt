@@ -2,6 +2,8 @@ package com.kenlikdev.qmarket
 
 import com.kenlikdev.qmarket.support.TestJson
 import org.hamcrest.Matchers.greaterThan
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -16,6 +18,11 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Full-stack checkout path: auth → cart → order → list/cancel/pay.
@@ -214,5 +221,61 @@ class OrderIntegrationTest {
                     .header("Authorization", "Bearer $token"),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.status").value("PAID"))
+    }
+
+    @Test
+    fun `concurrent checkout same Idempotency-Key returns one order`() {
+        mockMvc
+            .perform(
+                post("/api/v1/cart/items")
+                    .header("Authorization", "Bearer $token")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"productId":"$productId","quantity":1}"""),
+            ).andExpect(status().isOk)
+
+        val threads = 8
+        val start = CountDownLatch(1)
+        val done = CountDownLatch(threads)
+        val successes = AtomicInteger(0)
+        val orderIds = ConcurrentHashMap.newKeySet<String>()
+        val otherErrors = AtomicInteger(0)
+        val idemKey = "concurrent-checkout-" + System.nanoTime()
+        val pool = Executors.newFixedThreadPool(threads)
+        repeat(threads) {
+            pool.submit {
+                try {
+                    start.await()
+                    val result =
+                        mockMvc
+                            .perform(
+                                post("/api/v1/orders")
+                                    .header("Authorization", "Bearer $token")
+                                    .header("Idempotency-Key", idemKey)
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content("""{"shippingAddress":"Concurrent Test Street"}"""),
+                            ).andReturn()
+                    val status = result.response.status
+                    if (status == 201 || status == 200) {
+                        successes.incrementAndGet()
+                        orderIds.add(TestJson.id(result.response.contentAsString))
+                    } else {
+                        otherErrors.incrementAndGet()
+                        System.err.println("unexpected status=$status body=${result.response.contentAsString}")
+                    }
+                } catch (e: Exception) {
+                    otherErrors.incrementAndGet()
+                    e.printStackTrace()
+                } finally {
+                    done.countDown()
+                }
+            }
+        }
+        start.countDown()
+        assertTrue(done.await(60, TimeUnit.SECONDS), "workers timed out")
+        pool.shutdown()
+
+        assertEquals(0, otherErrors.get(), "unexpected exceptions/status codes")
+        assertEquals(threads, successes.get(), "all requests should succeed with the same order")
+        assertEquals(1, orderIds.size, "exactly one order id for the same Idempotency-Key")
     }
 }

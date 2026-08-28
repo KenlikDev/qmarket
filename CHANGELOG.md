@@ -12,6 +12,12 @@
 ## Unreleased
 
 ### Fixed
+- Product DELETE is soft-delete (active=false) so cancel can still restock
+- Password change revokes all refresh-token sessions
+- Concurrent refresh loser no longer revokes the winner family
+- Idempotency race only handles UNIQUE(user_id,idem_key), not all DataIntegrity violations
+
+### Fixed
 - Session switch: clear Ktor Bearer token cache on login/register/logout (previously requests kept the previous user JWT)
 - Clear user-scoped UI state (orders, profile fields, cart, addresses) on account switch
 
