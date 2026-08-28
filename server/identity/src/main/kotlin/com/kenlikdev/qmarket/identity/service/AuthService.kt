@@ -114,8 +114,12 @@ class AuthService(
                 throw UnauthorizedException("Refresh token reuse detected")
             }
 
-            stored.revoke()
-            refreshTokenRepository.save(stored)
+            // Atomic consume: only one concurrent refresh may win (updated rows == 1).
+            val consumed = refreshTokenRepository.revokeIfActive(stored.jti, Instant.now())
+            if (consumed != 1) {
+                refreshTokenRepository.revokeFamily(stored.familyId, Instant.now())
+                throw UnauthorizedException("Refresh token reuse detected")
+            }
 
             val user =
                 userRepository

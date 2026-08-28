@@ -1,0 +1,12 @@
+# Shell / Gradle wrapper must use LF (CI Linux)
+*.sh text eol=lf
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+
+*.kt text
+*.kts text
+*.md text
+*.yml text
+*.yaml text
+*.toml text
+*.sql text

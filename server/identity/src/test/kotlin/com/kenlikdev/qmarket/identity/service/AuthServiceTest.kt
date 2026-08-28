@@ -57,6 +57,7 @@ class AuthServiceTest {
         every { refreshTokenRepository.save(any()) } returnsArgument 0
         every { refreshTokenRepository.findByJti(any()) } returns null
         every { refreshTokenRepository.revokeFamily(any(), any()) } returns 0
+        every { refreshTokenRepository.revokeIfActive(any(), any()) } returns 1
 
         every { passwordEncoder.encode(any()) } returns "hashed"
         every { passwordEncoder.matches(any(), any()) } returns true
@@ -196,8 +197,7 @@ class AuthServiceTest {
 
         assertEquals("access", result.accessToken)
         assertEquals("refresh", result.refreshToken)
-        assertTrue(stored.isRevoked)
-        verify(atLeast = 1) { refreshTokenRepository.save(any()) }
+        verify(exactly = 1) { refreshTokenRepository.revokeIfActive(jti, any()) }
     }
 
     @Test

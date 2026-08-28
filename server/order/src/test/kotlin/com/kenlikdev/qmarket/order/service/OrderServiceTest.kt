@@ -17,7 +17,9 @@ import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -25,6 +27,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionStatus
 import java.math.BigDecimal
 import java.util.Optional
 import java.util.UUID
@@ -57,6 +61,11 @@ class OrderServiceTest {
         productCatalog = mockk()
         addressRepository = mockk()
         idempotencyKeyRepository = mockk(relaxed = true)
+        val transactionManager = mockk<PlatformTransactionManager>()
+        val txStatus = mockk<TransactionStatus>(relaxed = true)
+        every { transactionManager.getTransaction(any()) } returns txStatus
+        every { transactionManager.commit(any()) } just Runs
+        every { transactionManager.rollback(any()) } just Runs
         orderService =
             OrderService(
                 orderRepository,
@@ -64,6 +73,7 @@ class OrderServiceTest {
                 productCatalog,
                 addressRepository,
                 idempotencyKeyRepository,
+                transactionManager,
             )
     }
 

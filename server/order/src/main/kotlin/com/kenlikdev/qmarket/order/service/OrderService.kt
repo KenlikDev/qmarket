@@ -16,10 +16,13 @@ import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
+import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
 import java.util.UUID
 
@@ -30,8 +33,15 @@ class OrderService(
     private val productCatalog: ProductCatalog,
     private val addressRepository: AddressRepository,
     private val idempotencyKeyRepository: OrderIdempotencyKeyRepository,
+    transactionManager: PlatformTransactionManager,
 ) {
-    @Transactional
+    private val transactionTemplate = TransactionTemplate(transactionManager)
+
+    /**
+     * Checkout with optional Idempotency-Key.
+     * Concurrent duplicate keys: one TX commits the order+key; the other hits UNIQUE(user_id,idem_key),
+     * rolls back (stock restored), and this method re-reads the winner's order (not a 500).
+     */
     fun createFromCart(
         userId: UUID,
         request: CreateOrderRequest,
@@ -39,14 +49,43 @@ class OrderService(
     ): OrderResponse {
         val normalizedKey = normalizeIdempotencyKey(idempotencyKey)
         if (normalizedKey != null) {
-            val existing = idempotencyKeyRepository.findByUserIdAndKey(userId, normalizedKey)
-            if (existing != null) {
-                val order =
-                    orderRepository.findById(existing.orderId).orElseThrow {
-                        NotFoundException("Order not found for idempotency key")
-                    }
-                return toResponse(order)
+            loadIdempotentOrder(userId, normalizedKey)?.let { return it }
+        }
+
+        return try {
+            requireNotNull(
+                transactionTemplate.execute {
+                    createFromCartInTransaction(userId, request, normalizedKey)
+                },
+            ) { "Checkout transaction returned no result" }
+        } catch (ex: DataIntegrityViolationException) {
+            // Lost UNIQUE(user_id, idem_key) race — winner's order is the result.
+            if (normalizedKey != null) {
+                loadIdempotentOrder(userId, normalizedKey)?.let { return it }
             }
+            throw BadRequestException("Concurrent checkout conflict — retry with the same Idempotency-Key")
+        }
+    }
+
+    private fun loadIdempotentOrder(
+        userId: UUID,
+        normalizedKey: String,
+    ): OrderResponse? {
+        val existing = idempotencyKeyRepository.findByUserIdAndKey(userId, normalizedKey) ?: return null
+        val order =
+            orderRepository.findById(existing.orderId).orElseThrow {
+                NotFoundException("Order not found for idempotency key")
+            }
+        return toResponse(order)
+    }
+
+    private fun createFromCartInTransaction(
+        userId: UUID,
+        request: CreateOrderRequest,
+        normalizedKey: String?,
+    ): OrderResponse {
+        if (normalizedKey != null) {
+            loadIdempotentOrder(userId, normalizedKey)?.let { return it }
         }
 
         val cart =

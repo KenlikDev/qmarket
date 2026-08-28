@@ -5,6 +5,10 @@
 qmarket:
   seed:
     enabled: true
+  security:
+    jwt:
+      # Local-only secret (never use in production)
+      secret: dev-only-qmarket-jwt-secret-key-32chars-min
 
 logging:
   level:

@@ -2,8 +2,10 @@
 .kotlin
 .gradle
 **/build/
+**/bin/
 xcuserdata
 !src/**/build/
+**/bin/
 local.properties
 .idea
 .DS_Store

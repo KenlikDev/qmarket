@@ -49,7 +49,9 @@
 - [x] Admin cancel restocks stock; cancel before restock
 - [x] Strict order status state machine
 - [x] Seed default off; prod JWT secret required
-- [x] Checkout idempotency key (`Idempotency-Key` header on POST /orders)
+- [x] Checkout idempotency key (+ concurrent UNIQUE race → re-read winner)
+- [x] Refresh atomic consume (`revokeIfActive`)
+- [x] JWT secret required (no placeholder default) (`Idempotency-Key` header on POST /orders)
 - [x] Refresh token rotation / revocation (V7, logout, reuse detection)
 
 ### v0.2 started

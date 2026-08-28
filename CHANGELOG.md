@@ -72,7 +72,7 @@
 ### Known limitations
 - Real PSP payments (mock only)
 - Admin product CRUD UI (create/update/delete); categories UI still open
-- Refresh tokens are not revocable (stateless JWT)
+- Refresh tokens are DB-backed with rotation, family reuse detection, and logout revoke
 - Compose UI tests cover key screens on JVM; Android instrumented / iOS UI tests not wired yet
 - Session storage is app-private but not hardware-backed (no EncryptedSharedPreferences / Keychain yet)
 - wasmJs session remains in-memory

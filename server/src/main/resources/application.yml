@@ -68,7 +68,8 @@ qmarket:
     login-window-seconds: ${QMARKET_LOGIN_WINDOW_SECONDS:300}
   security:
     jwt:
-      secret: ${JWT_SECRET:change-me-to-a-very-long-and-secure-secret-key-at-least-256-bits}
+      # No default — set JWT_SECRET or activate profile dev/test (see application-dev.yml)
+      secret: ${JWT_SECRET:}
       access-token-expiration-ms: 900000
       refresh-token-expiration-ms: 604800000
     cors:
