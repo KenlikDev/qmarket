@@ -66,6 +66,11 @@ class OrderServiceTest {
         every { transactionManager.getTransaction(any()) } returns txStatus
         every { transactionManager.commit(any()) } just Runs
         every { transactionManager.rollback(any()) } just Runs
+        val entityManager = mockk<jakarta.persistence.EntityManager>(relaxed = true)
+        val nativeQuery = mockk<jakarta.persistence.Query>(relaxed = true)
+        every { entityManager.createNativeQuery(any<String>()) } returns nativeQuery
+        every { nativeQuery.setParameter(any<String>(), any()) } returns nativeQuery
+        every { nativeQuery.singleResult } returns 1
         orderService =
             OrderService(
                 orderRepository,
@@ -73,6 +78,7 @@ class OrderServiceTest {
                 productCatalog,
                 addressRepository,
                 idempotencyKeyRepository,
+                entityManager,
                 transactionManager,
             )
     }

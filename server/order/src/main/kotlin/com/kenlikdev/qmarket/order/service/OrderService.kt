@@ -16,6 +16,7 @@ import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
+import jakarta.persistence.EntityManager
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -33,14 +34,17 @@ class OrderService(
     private val productCatalog: ProductCatalog,
     private val addressRepository: AddressRepository,
     private val idempotencyKeyRepository: OrderIdempotencyKeyRepository,
+    private val entityManager: EntityManager,
     transactionManager: PlatformTransactionManager,
 ) {
     private val transactionTemplate = TransactionTemplate(transactionManager)
 
     /**
-     * Checkout with optional Idempotency-Key.
-     * Concurrent duplicate keys: one TX commits the order+key; the other hits UNIQUE(user_id,idem_key),
-     * rolls back (stock restored), and this method re-reads the winner's order (not a 500).
+     * Checkout with optional Idempotency-Key (Stripe-style).
+     *
+     * Concurrent same-key callers are serialized with PostgreSQL `pg_advisory_xact_lock`
+     * (transaction-scoped via EntityManager native query). Losers re-read the
+     * winner order instead of double-charging stock or failing with "Cart is empty".
      */
     fun createFromCart(
         userId: UUID,
@@ -55,11 +59,14 @@ class OrderService(
         return try {
             requireNotNull(
                 transactionTemplate.execute {
+                    if (normalizedKey != null) {
+                        acquireIdempotencyLock(userId, normalizedKey)
+                        loadIdempotentOrder(userId, normalizedKey)?.let { return@execute it }
+                    }
                     createFromCartInTransaction(userId, request, normalizedKey)
                 },
             ) { "Checkout transaction returned no result" }
         } catch (ex: DataIntegrityViolationException) {
-            // Only treat UNIQUE(user_id, idem_key) as an idempotency race; rethrow other DB errors.
             if (normalizedKey != null && isIdempotencyKeyConstraint(ex)) {
                 loadIdempotentOrder(userId, normalizedKey)?.let { return it }
                 throw BadRequestException("Concurrent checkout conflict — retry with the same Idempotency-Key")
@@ -68,16 +75,40 @@ class OrderService(
         }
     }
 
+    private fun acquireIdempotencyLock(
+        userId: UUID,
+        normalizedKey: String,
+    ) {
+        val lockId = idempotencyLockId(userId, normalizedKey)
+        entityManager
+            .createNativeQuery("SELECT pg_advisory_xact_lock(:lockId)")
+            .setParameter("lockId", lockId)
+            .singleResult
+    }
+
+    private fun idempotencyLockId(
+        userId: UUID,
+        normalizedKey: String,
+    ): Long {
+        val a = userId.mostSignificantBits xor userId.leastSignificantBits
+        val b = normalizedKey.hashCode().toLong()
+        return a xor (b shl 32) xor (b ushr 16)
+    }
+
     private fun loadIdempotentOrder(
         userId: UUID,
         normalizedKey: String,
     ): OrderResponse? {
         val existing = idempotencyKeyRepository.findByUserIdAndKey(userId, normalizedKey) ?: return null
-        val order =
-            orderRepository.findById(existing.orderId).orElseThrow {
-                NotFoundException("Order not found for idempotency key")
-            }
-        return toResponse(order)
+        // Short TX so LAZY order.items can be initialized for toResponse.
+        return transactionTemplate.execute {
+            val order =
+                orderRepository.findById(existing.orderId).orElseThrow {
+                    NotFoundException("Order not found for idempotency key")
+                }
+            order.items.size
+            toResponse(order)
+        }
     }
 
     private fun createFromCartInTransaction(

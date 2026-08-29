@@ -52,7 +52,7 @@ interface ProductRepository : JpaRepository<Product, UUID> {
         pageable: Pageable,
     ): Page<Product>
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(flushAutomatically = true)
     @Query(
         value = """
             UPDATE products
@@ -68,7 +68,7 @@ interface ProductRepository : JpaRepository<Product, UUID> {
         @Param("quantity") quantity: Int,
     ): Int
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(flushAutomatically = true)
     @Query(
         value = """
             UPDATE products

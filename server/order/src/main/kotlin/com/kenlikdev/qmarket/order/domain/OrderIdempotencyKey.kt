@@ -22,11 +22,11 @@ class OrderIdempotencyKey(
     @GeneratedValue(strategy = GenerationType.UUID)
     var id: UUID? = null,
     @Column(name = "user_id", nullable = false)
-    var userId: UUID,
+    var userId: UUID = UUID(0, 0),
     @Column(name = "idem_key", nullable = false, length = 128)
-    var key: String,
+    var key: String = "",
     @Column(name = "order_id", nullable = false)
-    var orderId: UUID,
+    var orderId: UUID = UUID(0, 0),
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now(),
 )

@@ -37,20 +37,14 @@ class OrderController(
         @RequestHeader(value = "Idempotency-Key", required = false) idempotencyKey: String?,
     ): ResponseEntity<OrderResponse> {
         val userId = currentUserId(authentication)
-        val before =
-            if (idempotencyKey != null) {
-                orderService.findIdempotentOrderId(userId, idempotencyKey)
-            } else {
-                null
+        // Explicit replay: key already maps to an order → 200 without re-checkout.
+        if (idempotencyKey != null) {
+            orderService.findIdempotentOrderId(userId, idempotencyKey)?.let { existingId ->
+                return ResponseEntity.ok(orderService.getMyOrder(userId, existingId))
             }
+        }
         val response = orderService.createFromCart(userId, request, idempotencyKey)
-        val status =
-            if (before != null && before == response.id) {
-                HttpStatus.OK
-            } else {
-                HttpStatus.CREATED
-            }
-        return ResponseEntity.status(status).body(response)
+        return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 
     /**

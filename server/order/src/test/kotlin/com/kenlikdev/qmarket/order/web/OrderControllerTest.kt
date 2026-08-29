@@ -103,7 +103,7 @@ class OrderControllerTest {
     @Test
     fun `POST create with known Idempotency-Key returns 200 on replay`() {
         every { orderService.findIdempotentOrderId(userId, "replay-key") } returns orderId
-        every { orderService.createFromCart(userId, any(), any()) } returns sampleOrder
+        every { orderService.getMyOrder(userId, orderId) } returns sampleOrder
 
         mockMvc
             .perform(
@@ -114,6 +114,8 @@ class OrderControllerTest {
                     .content("""{"shippingAddress":"Test Street 1"}"""),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.id").value(orderId.toString()))
+
+        verify(exactly = 0) { orderService.createFromCart(any(), any(), any()) }
     }
 
     @Test
