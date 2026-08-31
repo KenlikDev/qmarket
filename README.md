@@ -109,6 +109,9 @@ Android emulator API host: `10.0.2.2:8080`
 
 ### Production notes
 
+- Android release: no cleartext HTTP; tokens in EncryptedSharedPreferences
+- Android debug: cleartext allowed for emulator (`10.0.2.2` / localhost) via network security debug-overrides
+
 - Seed: `qmarket.seed.enabled=false` by default; profile `prod` keeps it off
 - Local demo data: Spring profile `dev` (`server/.../application-dev.yml` sets seed on)
   ```bash

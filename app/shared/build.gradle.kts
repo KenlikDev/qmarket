@@ -86,6 +86,7 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.androidx.security.crypto)
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)

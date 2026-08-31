@@ -3,6 +3,7 @@ agp = "9.1.1"
 android-compileSdk = "37"
 android-minSdk = "24"
 android-targetSdk = "37"
+androidx-security-crypto = "1.0.0"
 androidx-activity = "1.13.0"
 androidx-appcompat = "1.7.1"
 androidx-core = "1.19.0"
@@ -40,6 +41,7 @@ mockk = "1.14.11"
 archunit = "1.4.1"
 
 [libraries]
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "androidx-security-crypto" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
