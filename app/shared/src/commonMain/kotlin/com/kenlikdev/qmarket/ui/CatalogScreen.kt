@@ -51,6 +51,8 @@ fun CatalogScreen(
     onAddresses: () -> Unit,
     onProfile: () -> Unit,
     onAdmin: (() -> Unit)? = null,
+    onNotifications: (() -> Unit)? = null,
+    notificationsUnread: Long = 0L,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -65,6 +67,8 @@ fun CatalogScreen(
             onAddresses = onAddresses,
             onProfile = onProfile,
             onAdmin = onAdmin,
+            onNotifications = onNotifications,
+            notificationsUnread = notificationsUnread,
             onLogout = onLogout,
         )
         ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))

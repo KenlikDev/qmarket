@@ -78,6 +78,8 @@ fun AdminScreen(
     onOrders: () -> Unit,
     onAddresses: () -> Unit,
     onProfile: () -> Unit,
+    onNotifications: (() -> Unit)? = null,
+    notificationsUnread: Long = 0L,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -122,6 +124,8 @@ fun AdminScreen(
             onAddresses = onAddresses,
             onProfile = onProfile,
             onAdmin = null,
+            onNotifications = onNotifications,
+            notificationsUnread = notificationsUnread,
             onLogout = onLogout,
         )
         Column(

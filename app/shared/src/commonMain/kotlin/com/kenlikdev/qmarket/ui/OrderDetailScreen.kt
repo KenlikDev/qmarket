@@ -35,6 +35,8 @@ fun OrderDetailScreen(
     onCart: () -> Unit,
     onAddresses: () -> Unit,
     onProfile: () -> Unit,
+    onNotifications: (() -> Unit)? = null,
+    notificationsUnread: Long = 0L,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -48,6 +50,8 @@ fun OrderDetailScreen(
             onOrders = onBackToOrders,
             onAddresses = onAddresses,
             onProfile = onProfile,
+            onNotifications = onNotifications,
+            notificationsUnread = notificationsUnread,
             onLogout = onLogout,
         )
         TextButton(

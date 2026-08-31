@@ -15,6 +15,11 @@
 ## Unreleased
 
 ### Added
+- Admin order status transitions emit customer in-app notifications
+- TopBar **Alerts** entry with unread badge; catalog load refreshes count
+
+
+### Added
 - In-app notifications: Flyway V9, order lifecycle events, REST API, shared UI (Profile → Notifications)
 
 

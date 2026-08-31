@@ -74,6 +74,7 @@
 ### v1.0 started
 
 - [x] In-app notifications (order placed/paid/cancelled → `user_notifications`, API + client UI)
+- [x] Admin status change notifies customer; TopBar Alerts badge (unread count)
 
 ## v1.0 MVP (из плана)
 

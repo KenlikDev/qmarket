@@ -41,6 +41,7 @@ class OrderServiceTest {
     private lateinit var addressRepository: AddressRepository
     private lateinit var idempotencyKeyRepository: OrderIdempotencyKeyRepository
     private lateinit var orderService: OrderService
+    private lateinit var notificationService: NotificationService
 
     private val userId = UUID.randomUUID()
     private val productId = UUID.randomUUID()
@@ -62,7 +63,7 @@ class OrderServiceTest {
         productCatalog = mockk()
         addressRepository = mockk()
         idempotencyKeyRepository = mockk(relaxed = true)
-        val notificationService = mockk<NotificationService>(relaxed = true)
+        notificationService = mockk(relaxed = true)
         val transactionManager = mockk<PlatformTransactionManager>()
         val txStatus = mockk<TransactionStatus>(relaxed = true)
         every { transactionManager.getTransaction(any()) } returns txStatus
@@ -427,5 +428,31 @@ class OrderServiceTest {
             )
         }
         verify(exactly = 0) { cartRepository.findByUserId(any()) }
+    }
+
+    @Test
+    fun `updateStatus notifies on transition`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PAID,
+                totalAmount = java.math.BigDecimal("10.00"),
+            )
+        every { orderRepository.findById(orderId) } returns java.util.Optional.of(order)
+        every { orderRepository.save(any()) } answers { firstArg() }
+
+        orderService.updateStatus(orderId, UpdateOrderStatusRequest(status = OrderStatus.SHIPPED))
+
+        verify {
+            notificationService.notifyOrderEvent(
+                userId = userId,
+                type = "ORDER_STATUS_SHIPPED",
+                title = any(),
+                body = any(),
+                orderId = orderId,
+            )
+        }
     }
 }

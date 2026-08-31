@@ -339,6 +339,8 @@ fun App() {
                                 val page = api.listProducts(size = 50)
                                 products = page.content
                                 cart = runCatching { api.getCart() }.getOrNull()
+                                notificationsUnread =
+                                    runCatching { api.notificationsUnreadCount().unread }.getOrDefault(0L)
                                 screen = AppScreen.Catalog
                             }
                         },
@@ -462,6 +464,8 @@ fun App() {
                         } else {
                             null
                         },
+                        onNotifications = { loadNotifications() },
+                        notificationsUnread = notificationsUnread,
                         onLogout = { logout() },
                         modifier = screenModifier,
                     )
@@ -511,6 +515,8 @@ fun App() {
                         } else {
                             null
                         },
+                        onNotifications = { loadNotifications() },
+                        notificationsUnread = notificationsUnread,
                         onLogout = { logout() },
                         modifier = screenModifier,
                     )
@@ -606,6 +612,8 @@ fun App() {
                         onOrders = { loadOrders() },
                         onAddresses = { loadAddresses() },
                         onProfile = { loadProfile() },
+                                                onNotifications = { loadNotifications() },
+                        notificationsUnread = notificationsUnread,
                         onLogout = { logout() },
                         modifier = screenModifier,
                     )
@@ -676,6 +684,8 @@ fun App() {
                         onCart = { loadCart() },
                         onOrders = { loadOrders() },
                         onProfile = { loadProfile() },
+                                                onNotifications = { loadNotifications() },
+                        notificationsUnread = notificationsUnread,
                         onLogout = { logout() },
                         modifier = screenModifier,
                     )
@@ -716,6 +726,8 @@ fun App() {
                         onOrders = { loadOrders() },
                         onAddresses = { loadAddresses() },
                         onProfile = { loadProfile() },
+                                                onNotifications = { loadNotifications() },
+                        notificationsUnread = notificationsUnread,
                         onLogout = { logout() },
                         modifier = screenModifier,
                     )
@@ -819,6 +831,8 @@ fun App() {
                         onCart = { loadCart() },
                         onAddresses = { loadAddresses() },
                         onProfile = { loadProfile() },
+                                                onNotifications = { loadNotifications() },
+                        notificationsUnread = notificationsUnread,
                         onLogout = { logout() },
                         modifier = screenModifier,
                     )
@@ -857,6 +871,8 @@ fun App() {
                         onCart = { loadCart() },
                         onAddresses = { loadAddresses() },
                         onProfile = { loadProfile() },
+                        onNotifications = { loadNotifications() },
+                        notificationsUnread = notificationsUnread,
                         onLogout = { logout() },
                         modifier = screenModifier,
                     )
@@ -1056,6 +1072,8 @@ fun App() {
                         onOrders = { loadOrders() },
                         onAddresses = { loadAddresses() },
                         onProfile = { loadProfile() },
+                        onNotifications = { loadNotifications() },
+                        notificationsUnread = notificationsUnread,
                         onLogout = { logout() },
                     )
 

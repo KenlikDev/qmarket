@@ -44,6 +44,8 @@ fun AddressesScreen(
     onCart: () -> Unit,
     onOrders: () -> Unit,
     onProfile: () -> Unit,
+    onNotifications: (() -> Unit)? = null,
+    notificationsUnread: Long = 0L,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -57,6 +59,8 @@ fun AddressesScreen(
             onOrders = onOrders,
             onAddresses = null,
             onProfile = onProfile,
+            onNotifications = onNotifications,
+            notificationsUnread = notificationsUnread,
             onLogout = onLogout,
         )
         TextButton(onClick = onBackToCatalog) {

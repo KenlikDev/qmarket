@@ -46,6 +46,8 @@ fun CartScreen(
     onOrders: () -> Unit,
     onAddresses: () -> Unit,
     onProfile: () -> Unit,
+    onNotifications: (() -> Unit)? = null,
+    notificationsUnread: Long = 0L,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -59,6 +61,8 @@ fun CartScreen(
             onOrders = onOrders,
             onAddresses = onAddresses,
             onProfile = onProfile,
+            onNotifications = onNotifications,
+            notificationsUnread = notificationsUnread,
             onLogout = onLogout,
         )
         TextButton(onClick = onBackToCatalog) {

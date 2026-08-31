@@ -26,6 +26,8 @@ fun TopBar(
     onAddresses: (() -> Unit)?,
     onProfile: (() -> Unit)?,
     onAdmin: (() -> Unit)? = null,
+    onNotifications: (() -> Unit)? = null,
+    notificationsUnread: Long = 0L,
     onLogout: () -> Unit,
 ) {
     Row(
@@ -44,6 +46,17 @@ fun TopBar(
             if (loggedIn && onAddresses != null) {
                 TextButton(onClick = onAddresses) {
                     Text("Addresses")
+                }
+            }
+            if (loggedIn && onNotifications != null) {
+                TextButton(onClick = onNotifications) {
+                    Text(
+                        if (notificationsUnread > 0) {
+                            "Alerts ($notificationsUnread)"
+                        } else {
+                            "Alerts"
+                        },
+                    )
                 }
             }
             if (loggedIn && onProfile != null) {

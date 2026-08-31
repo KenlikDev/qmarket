@@ -334,13 +334,24 @@ class OrderService(
 
         // Snapshot items while session is open (LAZY collection)
         val lines = order.items.map { it.productId to it.quantity }
+        val previous = order.status
         val needsRestock = order.applyAdminStatus(request.status)
         if (needsRestock) {
             for ((productId, quantity) in lines) {
                 productCatalog.increaseStock(productId, quantity)
             }
         }
-        return toResponse(orderRepository.save(order))
+        val saved = orderRepository.save(order)
+        if (previous != saved.status) {
+            notificationService.notifyOrderEvent(
+                userId = saved.userId,
+                type = "ORDER_STATUS_${saved.status.name}",
+                title = "Order status updated",
+                body = "Order ${saved.id} is now ${saved.status.name}.",
+                orderId = saved.id,
+            )
+        }
+        return toResponse(saved)
     }
 
     @Transactional
