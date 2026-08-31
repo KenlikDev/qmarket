@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.ProductDto
@@ -353,5 +354,128 @@ class AdminScreenTest {
                 .performScrollTo()
                 .performClick()
             assertEquals(OrderStatusDto.CONFIRMED, updated)
+        }
+
+    @Test
+    fun editCategoryModeShowsSaveAndCancel() =
+        runComposeUiTest {
+            val category =
+                CategoryDto(
+                    id = "c1",
+                    name = "Electronics",
+                    slug = "electronics",
+                    active = true,
+                )
+            var editClicked = false
+            setContent {
+                AdminScreen(
+                    categories = listOf(category),
+                    categoryName = "Electronics",
+                    categorySlug = "electronics",
+                    editingCategoryId = "c1",
+                    adminOrders = emptyList(),
+                    products = emptyList(),
+                    editingProductId = null,
+                    productName = "",
+                    productSlug = "",
+                    productPrice = "9.99",
+                    productStock = "10",
+                    productFeatured = false,
+                    loggedIn = true,
+                    userLabel = "admin@qmarket.local",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
+                    onEditCategory = { editClicked = true },
+                    onUpdateCategory = {},
+                    onClearCategoryEdit = {},
+                    onUpdateOrderStatus = { _, _ -> },
+                    onNameChange = {},
+                    onSlugChange = {},
+                    onPriceChange = {},
+                    onStockChange = {},
+                    onToggleFeatured = {},
+                    onCreate = {},
+                    onUpdate = {},
+                    onDelete = {},
+                    onEdit = {},
+                    onClearEdit = {},
+                    onCart = {},
+                    onOrders = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+            onNodeWithText("Edit category").assertExists()
+            onNodeWithTag("adminUpdateCategory").assertIsEnabled()
+            onNodeWithTag("adminClearCategoryEdit").assertExists()
+            onNodeWithTag("adminEditCategory").assertExists()
+        }
+
+    @Test
+    fun editCategoryClickInvokesCallback() =
+        runComposeUiTest {
+            val category =
+                CategoryDto(
+                    id = "c1",
+                    name = "Electronics",
+                    slug = "electronics",
+                    active = true,
+                )
+            var editedId: String? = null
+            setContent {
+                AdminScreen(
+                    categories = listOf(category),
+                    categoryName = "",
+                    categorySlug = "",
+                    adminOrders = emptyList(),
+                    products = emptyList(),
+                    editingProductId = null,
+                    productName = "",
+                    productSlug = "",
+                    productPrice = "9.99",
+                    productStock = "10",
+                    productFeatured = false,
+                    loggedIn = true,
+                    userLabel = "admin@qmarket.local",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
+                    onEditCategory = { editedId = it.id },
+                    onUpdateCategory = {},
+                    onClearCategoryEdit = {},
+                    onUpdateOrderStatus = { _, _ -> },
+                    onNameChange = {},
+                    onSlugChange = {},
+                    onPriceChange = {},
+                    onStockChange = {},
+                    onToggleFeatured = {},
+                    onCreate = {},
+                    onUpdate = {},
+                    onDelete = {},
+                    onEdit = {},
+                    onClearEdit = {},
+                    onCart = {},
+                    onOrders = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+            onNodeWithTag("adminEditCategory").performClick()
+            assertEquals("c1", editedId)
         }
 }

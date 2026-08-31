@@ -49,6 +49,10 @@ fun AdminScreen(
     onCategorySlugChange: (String) -> Unit,
     onCreateCategory: () -> Unit,
     onDeleteCategory: (CategoryDto) -> Unit,
+    editingCategoryId: String? = null,
+    onEditCategory: (CategoryDto) -> Unit = {},
+    onUpdateCategory: () -> Unit = {},
+    onClearCategoryEdit: () -> Unit = {},
     onUpdateOrderStatus: (OrderDto, OrderStatusDto) -> Unit = { _, _ -> },
     onNameChange: (String) -> Unit,
     onSlugChange: (String) -> Unit,
@@ -75,6 +79,7 @@ fun AdminScreen(
             priceOk &&
             stockOk
     val categoryFormOk = categoryName.isNotBlank() && categorySlug.isNotBlank()
+    val editingCategory = editingCategoryId != null
     val editing = editingProductId != null
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -111,7 +116,10 @@ fun AdminScreen(
                 Text(statusMessage, color = MaterialTheme.colorScheme.primary)
             }
 
-            Text("Categories", style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (editingCategory) "Edit category" else "Categories",
+                style = MaterialTheme.typography.titleMedium,
+            )
             OutlinedTextField(
                 value = categoryName,
                 onValueChange = onCategoryNameChange,
@@ -135,15 +143,27 @@ fun AdminScreen(
                         .testTag("adminCategorySlug"),
             )
             Button(
-                onClick = onCreateCategory,
+                onClick = if (editingCategory) onUpdateCategory else onCreateCategory,
                 enabled = !loading && categoryFormOk,
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
-                        .testTag("adminCreateCategory"),
+                        .testTag(if (editingCategory) "adminUpdateCategory" else "adminCreateCategory"),
             ) {
-                Text("Create category")
+                Text(if (editingCategory) "Save category" else "Create category")
+            }
+            if (editingCategory) {
+                TextButton(
+                    onClick = onClearCategoryEdit,
+                    enabled = !loading,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .testTag("adminClearCategoryEdit"),
+                ) {
+                    Text("Cancel category edit")
+                }
             }
             categories.forEach { category ->
                 Card(
@@ -159,12 +179,21 @@ fun AdminScreen(
                             "${category.slug} · " + if (category.active) "active" else "inactive",
                             style = MaterialTheme.typography.bodySmall,
                         )
-                        TextButton(
-                            onClick = { onDeleteCategory(category) },
-                            enabled = !loading,
-                            modifier = Modifier.testTag("adminDeleteCategory"),
-                        ) {
-                            Text("Delete")
+                        Row {
+                            TextButton(
+                                onClick = { onEditCategory(category) },
+                                enabled = !loading,
+                                modifier = Modifier.testTag("adminEditCategory"),
+                            ) {
+                                Text("Edit")
+                            }
+                            TextButton(
+                                onClick = { onDeleteCategory(category) },
+                                enabled = !loading,
+                                modifier = Modifier.testTag("adminDeleteCategory"),
+                            ) {
+                                Text("Delete")
+                            }
                         }
                     }
                 }

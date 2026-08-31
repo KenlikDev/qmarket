@@ -1,13 +1,11 @@
 ### Fixed
-- Checkout concurrent Idempotency-Key: `pg_advisory_xact_lock` on EntityManager connection; explicit controller replay → 200
-- MockMvc concurrent test removed (not thread-safe); service-level `OrderCheckoutConcurrencyTest` + sequential HTTP replay
-- Stock `@Modifying`: drop `clearAutomatically` to avoid clearing persistence context mid-checkout
 - Order lifecycle: strict status transitions; admin CANCELLED restocks inventory
 - cancelMyOrder: status transition before restock (fail-fast, no double-restock path)
 - Order.items fetch LAZY (access within @Transactional)
 - Seed off by default (`QMARKET_SEED_ENABLED=true` for local); prod JWT secret required
 
 ### Added
+- Admin: edit category (name/slug) in shared Admin UI
 - Admin product update/delete UI + `UpdateProductRequestDto` / client methods
 
 # Changelog

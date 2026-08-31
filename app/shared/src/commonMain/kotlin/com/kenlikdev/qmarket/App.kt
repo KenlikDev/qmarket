@@ -17,6 +17,7 @@ import com.kenlikdev.qmarket.api.AddressDto
 import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.CreateCategoryRequestDto
+import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
 import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
 import com.kenlikdev.qmarket.api.CreateAddressRequestDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
@@ -97,6 +98,7 @@ fun App() {
         var adminProductStock by remember { mutableStateOf("10") }
         var adminProductFeatured by remember { mutableStateOf(false) }
         var editingProductId by remember { mutableStateOf<String?>(null) }
+        var editingCategoryId by remember { mutableStateOf<String?>(null) }
         var categories by remember { mutableStateOf<List<CategoryDto>>(emptyList()) }
         var adminCategoryName by remember { mutableStateOf("") }
         var adminCategorySlug by remember { mutableStateOf("") }
@@ -142,6 +144,7 @@ fun App() {
             newPassword = ""
             cart = null
             editingProductId = null
+            editingCategoryId = null
             statusMessage = null
         }
 
@@ -653,6 +656,7 @@ fun App() {
                         categories = categories,
                         categoryName = adminCategoryName,
                         categorySlug = adminCategorySlug,
+                        editingCategoryId = editingCategoryId,
                         adminOrders = adminOrders,
                         products = products,
                         editingProductId = editingProductId,
@@ -687,6 +691,7 @@ fun App() {
                                 categories = api.listCategories(activeOnly = false)
                                 adminCategoryName = ""
                                 adminCategorySlug = ""
+                                editingCategoryId = null
                                 statusMessage = "Category created"
                             }
                         },
@@ -694,8 +699,44 @@ fun App() {
                             runApi {
                                 api.deleteCategory(category.id)
                                 categories = api.listCategories(activeOnly = false)
+                                if (editingCategoryId == category.id) {
+                                    editingCategoryId = null
+                                    adminCategoryName = ""
+                                    adminCategorySlug = ""
+                                }
                                 statusMessage = "Category deleted"
                             }
+                        },
+                        onEditCategory = { category ->
+                            editingCategoryId = category.id
+                            adminCategoryName = category.name
+                            adminCategorySlug = category.slug
+                            error = null
+                            statusMessage = null
+                        },
+                        onUpdateCategory = {
+                            val id = editingCategoryId
+                            if (id != null) {
+                                runApi {
+                                    api.updateCategory(
+                                        id,
+                                        UpdateCategoryRequestDto(
+                                            name = adminCategoryName.trim(),
+                                            slug = adminCategorySlug.trim(),
+                                        ),
+                                    )
+                                    categories = api.listCategories(activeOnly = false)
+                                    editingCategoryId = null
+                                    adminCategoryName = ""
+                                    adminCategorySlug = ""
+                                    statusMessage = "Category updated"
+                                }
+                            }
+                        },
+                        onClearCategoryEdit = {
+                            editingCategoryId = null
+                            adminCategoryName = ""
+                            adminCategorySlug = ""
                         },
                         onUpdateOrderStatus = { order, status ->
                             runApi {

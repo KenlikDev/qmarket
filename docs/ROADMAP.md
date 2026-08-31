@@ -55,13 +55,13 @@
 - [x] Product soft-delete (active=false)
 - [x] Password change revokes refresh sessions
 - [x] Concurrent refresh: no false family revoke
-- [x] Concurrent checkout same Idempotency-Key (`pg_advisory_xact_lock` + `OrderCheckoutConcurrencyTest`; sequential HTTP replay)
+- [x] Concurrent checkout same Idempotency-Key integration test (`Idempotency-Key` header on POST /orders)
 - [x] Refresh token rotation / revocation (V7, logout, reuse detection)
 
 ### v0.2 started
 
 - [x] Admin: create / update / delete product UI (shared client, ROLE_ADMIN)
-- [x] Admin: categories UI (list/create/delete in Admin screen)
+- [x] Admin: categories UI (list/create/edit/delete in Admin screen)
 - [x] Admin: orders list + status transitions UI
 - [ ] OAuth (optional)
 
