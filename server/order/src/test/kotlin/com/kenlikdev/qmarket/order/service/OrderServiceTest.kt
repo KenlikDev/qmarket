@@ -6,6 +6,7 @@ import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.catalog.api.ProductInfo
 import com.kenlikdev.qmarket.common.exception.BadRequestException
+import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.domain.Address
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
@@ -350,7 +351,7 @@ class OrderServiceTest {
                 shippingAddress = "Moscow",
             )
         every { idempotencyKeyRepository.findByUserIdAndKey(userId, "key-1") } returns
-            OrderIdempotencyKey(userId = userId, key = "key-1", orderId = orderId)
+            OrderIdempotencyKey(userId = userId, key = "key-1", orderId = orderId, requestHash = "")
         every { orderRepository.findById(orderId) } returns Optional.of(existing)
 
         val result =
@@ -399,5 +400,30 @@ class OrderServiceTest {
                 idempotencyKey = "k".repeat(129),
             )
         }
+    }
+
+    @Test
+    fun `createFromCart same key different body returns conflict`() {
+        val orderId = UUID.randomUUID()
+        val hash =
+            orderService.requestFingerprint(
+                CreateOrderRequest(shippingAddress = "Original Street"),
+            )
+        every { idempotencyKeyRepository.findByUserIdAndKey(userId, "key-dup") } returns
+            OrderIdempotencyKey(
+                userId = userId,
+                key = "key-dup",
+                orderId = orderId,
+                requestHash = hash,
+            )
+
+        assertThrows<ConflictException> {
+            orderService.createFromCart(
+                userId,
+                CreateOrderRequest(shippingAddress = "Different Street"),
+                idempotencyKey = "key-dup",
+            )
+        }
+        verify(exactly = 0) { cartRepository.findByUserId(any()) }
     }
 }

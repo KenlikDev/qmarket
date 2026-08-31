@@ -27,6 +27,9 @@ class OrderIdempotencyKey(
     var key: String = "",
     @Column(name = "order_id", nullable = false)
     var orderId: UUID = UUID(0, 0),
+    /** SHA-256 hex of normalized request; blank for pre-V8 rows. */
+    @Column(name = "request_hash", nullable = false, length = 64)
+    var requestHash: String = "",
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now(),
 )

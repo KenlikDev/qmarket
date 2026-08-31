@@ -77,7 +77,7 @@ class OrderControllerTest {
     @Test
     fun `POST create returns 201`() {
         every { orderService.createFromCart(userId, any(), any()) } returns sampleOrder
-        every { orderService.findIdempotentOrderId(userId, any()) } returns null
+        every { orderService.findIdempotentReplay(userId, any(), any()) } returns null
 
         mockMvc
             .perform(
@@ -102,8 +102,7 @@ class OrderControllerTest {
 
     @Test
     fun `POST create with known Idempotency-Key returns 200 on replay`() {
-        every { orderService.findIdempotentOrderId(userId, "replay-key") } returns orderId
-        every { orderService.getMyOrder(userId, orderId) } returns sampleOrder
+        every { orderService.findIdempotentReplay(userId, any(), "replay-key") } returns sampleOrder
 
         mockMvc
             .perform(

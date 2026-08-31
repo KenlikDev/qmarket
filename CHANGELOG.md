@@ -5,7 +5,6 @@
 - Seed off by default (`QMARKET_SEED_ENABLED=true` for local); prod JWT secret required
 
 ### Added
-- Admin: edit category (name/slug) in shared Admin UI
 - Admin product update/delete UI + `UpdateProductRequestDto` / client methods
 
 # Changelog
