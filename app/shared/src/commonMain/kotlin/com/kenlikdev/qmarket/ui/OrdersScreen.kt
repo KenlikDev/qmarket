@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,6 +30,7 @@ fun OrdersScreen(
     statusMessage: String?,
     loading: Boolean,
     onBackToCatalog: () -> Unit,
+    onOpenOrder: (OrderDto) -> Unit = {},
     onPay: (OrderDto) -> Unit,
     onCancel: (OrderDto) -> Unit,
     onCart: () -> Unit,
@@ -67,7 +69,13 @@ fun OrdersScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(orders, key = { it.id }) { order ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !loading) { onOpenOrder(order) }
+                                .testTag("orderCard_${order.id}"),
+                    ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 order.status.name,
@@ -83,6 +91,12 @@ fun OrdersScreen(
                             Text(
                                 "Id: ${order.id}",
                                 style = MaterialTheme.typography.bodySmall,
+                            )
+                            Text(
+                                "Details →",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 4.dp),
                             )
                             Row {
                                 if (order.status.name == "PENDING") {

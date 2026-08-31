@@ -15,6 +15,10 @@
 ## Unreleased
 
 ### Added
+- Order detail screen: line items, shipping, pay/cancel/refresh via `getOrder`
+
+
+### Added
 - Shopper catalog category filter wired to `listProducts(categoryId)`
 - Product detail quantity selector (−/+) up to stock
 

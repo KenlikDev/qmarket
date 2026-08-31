@@ -10,6 +10,7 @@ import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
 class OrdersScreenTest {
@@ -102,5 +103,32 @@ class OrdersScreenTest {
             }
             onNodeWithTag("orderPay").performClick()
             assertEquals("order-42", paidId)
+        }
+
+    @Test
+    fun openOrderClickInvokesCallback() =
+        runComposeUiTest {
+            var opened: String? = null
+            setContent {
+                OrdersScreen(
+                    orders = listOf(order(id = "o99")),
+                    loggedIn = true,
+                    userLabel = "user@test.com",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onOpenOrder = { opened = it.id },
+                    onPay = {},
+                    onCancel = {},
+                    onCart = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+            onNodeWithTag("orderCard_o99").performClick()
+            assertEquals("o99", opened)
         }
 }

@@ -15,6 +15,8 @@ sealed interface AppScreen {
 
     data object Orders : AppScreen
 
+    data object OrderDetail : AppScreen
+
     data object Profile : AppScreen
 
     data object Addresses : AppScreen

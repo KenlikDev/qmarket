@@ -48,6 +48,7 @@ import com.kenlikdev.qmarket.ui.CatalogScreen
 import com.kenlikdev.qmarket.ui.ProductDetailScreen
 import com.kenlikdev.qmarket.ui.LoginScreen
 import com.kenlikdev.qmarket.ui.OrderDoneScreen
+import com.kenlikdev.qmarket.ui.OrderDetailScreen
 import com.kenlikdev.qmarket.ui.OrdersScreen
 import com.kenlikdev.qmarket.ui.ProfileScreen
 import com.kenlikdev.qmarket.ui.RegisterScreen
@@ -111,6 +112,7 @@ fun App() {
         var adminOrders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
         var cart by remember { mutableStateOf<CartDto?>(null) }
         var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
+        var detailOrder by remember { mutableStateOf<OrderDto?>(null) }
         var userLabel by remember { mutableStateOf(tokens.sessionEmail()) }
         var loggedIn by remember { mutableStateOf(restoredSession) }
         var addresses by remember { mutableStateOf<List<AddressDto>>(emptyList()) }
@@ -150,6 +152,7 @@ fun App() {
             newPassword = ""
             cart = null
             detailProduct = null
+            detailOrder = null
             detailQuantity = 1
             editingProductId = null
             editingCategoryId = null
@@ -225,6 +228,14 @@ fun App() {
                         ?: addresses.firstOrNull()?.id
                 }
                 screen = AppScreen.Cart
+            }
+        }
+
+        fun openOrder(order: OrderDto) {
+            detailOrder = order
+            screen = AppScreen.OrderDetail
+            runApi {
+                detailOrder = api.getOrder(order.id)
             }
         }
 
@@ -691,6 +702,52 @@ fun App() {
                     )
                 }
 
+                AppScreen.OrderDetail -> {
+                    OrderDetailScreen(
+                        order = detailOrder,
+                        loggedIn = loggedIn,
+                        userLabel = userLabel,
+                        cartCount = cart?.totalItems,
+                        error = error,
+                        statusMessage = statusMessage,
+                        loading = loading,
+                        onBackToOrders = { loadOrders() },
+                        onPay = {
+                            val o = detailOrder
+                            if (o != null) {
+                                runApi {
+                                    detailOrder = api.payOrder(o.id)
+                                    statusMessage = "Payment recorded"
+                                    orders = api.listMyOrders(size = 50).content
+                                }
+                            }
+                        },
+                        onCancel = {
+                            val o = detailOrder
+                            if (o != null) {
+                                runApi {
+                                    detailOrder = api.cancelOrder(o.id)
+                                    statusMessage = "Order cancelled"
+                                    orders = api.listMyOrders(size = 50).content
+                                }
+                            }
+                        },
+                        onRefresh = {
+                            val o = detailOrder
+                            if (o != null) {
+                                runApi {
+                                    detailOrder = api.getOrder(o.id)
+                                }
+                            }
+                        },
+                        onCart = { loadCart() },
+                        onAddresses = { loadAddresses() },
+                        onProfile = { loadProfile() },
+                        onLogout = { logout() },
+                        modifier = screenModifier,
+                    )
+                }
+
                 AppScreen.Orders -> {
                     OrdersScreen(
                         orders = orders,
@@ -701,6 +758,7 @@ fun App() {
                         statusMessage = statusMessage,
                         loading = loading,
                         onBackToCatalog = { loadCatalog() },
+                        onOpenOrder = { order -> openOrder(order) },
                         onPay = { order ->
                             runApi {
                                 val paid = api.payOrder(order.id)

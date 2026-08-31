@@ -359,4 +359,48 @@ class QMarketApiClientTest {
             }
         }
 
+
+    @Test
+    fun getOrderParsesBody() =
+        runTest {
+            val engine =
+                MockEngine {
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                  "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                                  "userId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                                  "status": "PENDING",
+                                  "totalAmount": "99.00",
+                                  "shippingAddress": "Moscow",
+                                  "items": [
+                                    {
+                                      "productId": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+                                      "productName": "Phone",
+                                      "productSlug": "phone",
+                                      "unitPrice": "99.00",
+                                      "quantity": 1,
+                                      "lineTotal": "99.00"
+                                    }
+                                  ]
+                                }
+                                """.trimIndent(),
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                val order = QMarketApiClient(client).getOrder("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+                assertEquals("PENDING", order.status.name)
+                assertEquals(1, order.items.size)
+                assertEquals("Phone", order.items[0].productName)
+            } finally {
+                client.close()
+            }
+        }
+
 }
