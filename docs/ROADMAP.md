@@ -55,7 +55,7 @@
 - [x] Product soft-delete (active=false)
 - [x] Password change revokes refresh sessions
 - [x] Concurrent refresh: no false family revoke
-- [x] Concurrent checkout same Idempotency-Key integration test (`Idempotency-Key` header on POST /orders)
+- [x] Concurrent checkout same Idempotency-Key (`pg_advisory_xact_lock` + `OrderCheckoutConcurrencyTest`; sequential HTTP replay)
 - [x] Refresh token rotation / revocation (V7, logout, reuse detection)
 
 ### v0.2 started
