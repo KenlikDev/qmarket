@@ -44,6 +44,7 @@ import com.kenlikdev.qmarket.ui.slugifyProductName
 import com.kenlikdev.qmarket.ui.AppScreen
 import com.kenlikdev.qmarket.ui.CartScreen
 import com.kenlikdev.qmarket.ui.CatalogFilterParams
+import com.kenlikdev.qmarket.ui.CheckoutIdempotency
 import com.kenlikdev.qmarket.ui.CatalogScreen
 import com.kenlikdev.qmarket.ui.ProductDetailScreen
 import com.kenlikdev.qmarket.ui.LoginScreen
@@ -117,6 +118,8 @@ fun App() {
         var loggedIn by remember { mutableStateOf(restoredSession) }
         var addresses by remember { mutableStateOf<List<AddressDto>>(emptyList()) }
         var selectedAddressId by remember { mutableStateOf<String?>(null) }
+        var pendingCheckoutKey by remember { mutableStateOf<String?>(null) }
+        var checkoutLocked by remember { mutableStateOf(false) }
         var addrRecipient by remember { mutableStateOf("") }
         var addrCity by remember { mutableStateOf("") }
         var addrStreet by remember { mutableStateOf("") }
@@ -153,6 +156,8 @@ fun App() {
             cart = null
             detailProduct = null
             detailOrder = null
+            pendingCheckoutKey = null
+            checkoutLocked = false
             detailQuantity = 1
             editingProductId = null
             editingCategoryId = null
@@ -510,6 +515,7 @@ fun App() {
                         onBackToCatalog = { loadCatalog() },
                         onDecreaseQty = { item ->
                             runApi {
+                                pendingCheckoutKey = null
                                 cart =
                                     if (item.quantity <= 1) {
                                         api.removeCartItem(item.productId)
@@ -523,6 +529,7 @@ fun App() {
                         },
                         onIncreaseQty = { item ->
                             runApi {
+                                pendingCheckoutKey = null
                                 cart =
                                     api.updateCartItem(
                                         item.productId,
@@ -531,42 +538,56 @@ fun App() {
                             }
                         },
                         onRemoveItem = { item ->
-                            runApi { cart = api.removeCartItem(item.productId) }
+                            runApi {
+                                pendingCheckoutKey = null
+                                cart = api.removeCartItem(item.productId)
+                            }
                         },
-                        onSelectAddress = { selectedAddressId = it },
+                        onSelectAddress = {
+                            selectedAddressId = it
+                            pendingCheckoutKey = null
+                        },
                         onManageAddresses = { loadAddresses() },
                         onShippingChange = {
                             shippingAddress = it
                             if (it.isNotBlank()) selectedAddressId = null
+                            pendingCheckoutKey = null
                         },
                         onCheckout = {
+                            if (checkoutLocked || loading) return@CartScreen
+                            checkoutLocked = true
                             runApi {
-                                val checkoutKey =
-                                    buildString {
-                                        repeat(32) {
-                                            append("0123456789abcdef"[kotlin.random.Random.nextInt(16)])
-                                        }
-                                    }
-                                val order =
-                                    api.createOrder(
-                                        request =
-                                            CreateOrderRequestDto(
-                                                addressId = selectedAddressId,
-                                                shippingAddress =
-                                                    if (selectedAddressId == null) {
-                                                        shippingAddress.trim().ifBlank { null }
-                                                    } else {
-                                                        null
-                                                    },
-                                            ),
-                                        idempotencyKey = checkoutKey,
-                                    )
-                                cart = api.getCart()
-                                screen = AppScreen.OrderDone(order)
+                                try {
+                                    val checkoutKey =
+                                        pendingCheckoutKey
+                                            ?: CheckoutIdempotency.newKey().also { pendingCheckoutKey = it }
+                                    val order =
+                                        api.createOrder(
+                                            request =
+                                                CreateOrderRequestDto(
+                                                    addressId = selectedAddressId,
+                                                    shippingAddress =
+                                                        if (selectedAddressId == null) {
+                                                            shippingAddress.trim().ifBlank { null }
+                                                        } else {
+                                                            null
+                                                        },
+                                                ),
+                                            idempotencyKey = checkoutKey,
+                                        )
+                                    pendingCheckoutKey = null
+                                    cart = api.getCart()
+                                    screen = AppScreen.OrderDone(order)
+                                } finally {
+                                    checkoutLocked = false
+                                }
                             }
                         },
                         onClearCart = {
-                            runApi { cart = api.clearCart() }
+                            runApi {
+                                pendingCheckoutKey = null
+                                cart = api.clearCart()
+                            }
                         },
                         onOrders = { loadOrders() },
                         onAddresses = { loadAddresses() },

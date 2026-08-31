@@ -14,6 +14,10 @@
 
 ## Unreleased
 
+### Fixed
+- Checkout double-submit: reuse pending Idempotency-Key until success; lock concurrent taps; invalidate key when cart/address changes
+
+
 ### Added
 - Order detail screen: line items, shipping, pay/cancel/refresh via `getOrder`
 

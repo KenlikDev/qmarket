@@ -41,6 +41,7 @@
 - [x] Catalog category filter (shopper chips → `categoryId`)
 - [x] Product detail screen (GET product by id)
 - [x] Cart quantity +/−, checkout, orders list, mock pay/cancel
+- [x] Client checkout: stable Idempotency-Key + double-submit lock
 - [x] Order detail screen (line items, pay/cancel/refresh)
 - [x] JWT Bearer + refresh on 401
 - [x] UI split: `ui/` screens + `App.kt` composition root
