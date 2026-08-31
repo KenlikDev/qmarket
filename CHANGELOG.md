@@ -1,3 +1,9 @@
+### Fixed / hardened (ChatGPT review P1)
+- Cart get-or-create: UNIQUE(user_id) conflict → re-read (no double cart)
+- Login rate limiter: optional client IP key, bounded map, injectable Clock
+- Actuator metrics/prometheus require ADMIN/MANAGER (health/info public)
+- Concurrent cancel↔pay / double-cancel integration tests (optimistic lock)
+
 ### Security / correctness (P0 from review)
 - Public `ProductResponse` does not expose `costPrice` (write-only on create/update)
 - OpenAPI description no longer embeds seed admin password; seed log omits password

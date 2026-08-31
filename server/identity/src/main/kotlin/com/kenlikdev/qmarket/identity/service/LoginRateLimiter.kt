@@ -8,64 +8,109 @@ import java.util.ArrayDeque
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Sliding-window limiter for failed login attempts, keyed by normalized email.
- * Successful login clears the window for that key.
+ * In-process sliding-window limiter for failed logins.
+ *
+ * Optional [clientKey] (typically client IP) is mixed into the map key so operators
+ * can correlate abuse; email-only keys still work for unit tests and legacy callers.
+ *
+ * Not a substitute for edge rate limiting / Redis when running multiple instances.
  */
 @Component
 class LoginRateLimiter(
     @Value("\${qmarket.auth.login-max-attempts:5}") private val maxAttempts: Int,
     @Value("\${qmarket.auth.login-window-seconds:300}") private val windowSeconds: Long,
+    @Value("\${qmarket.auth.login-rate-max-keys:10000}") private val maxKeys: Int = 10_000,
 ) {
-    /** Overridable in unit tests; production uses UTC system clock. */
-    @Volatile
+    /** Overridable in tests for deterministic windows. */
     var clock: Clock = Clock.systemUTC()
 
     private val failures = ConcurrentHashMap<String, ArrayDeque<Long>>()
 
-    fun assertAllowed(email: String) {
-        val key = normalize(email)
-        pruneAndCount(key)
-        val count = failures[key]?.size ?: 0
-        if (count >= maxAttempts) {
-            throw TooManyRequestsException(
-                "Too many failed login attempts. Try again in a few minutes.",
-            )
+    fun assertAllowed(
+        email: String,
+        clientKey: String? = null,
+    ) {
+        val key = compositeKey(email, clientKey)
+        pruneKey(key)
+        val q = failures[key] ?: return
+        synchronized(q) {
+            if (q.size >= maxAttempts) {
+                throw TooManyRequestsException(
+                    "Too many failed login attempts; try again later",
+                )
+            }
         }
     }
 
-    fun recordFailure(email: String) {
-        val key = normalize(email)
+    fun recordFailure(
+        email: String,
+        clientKey: String? = null,
+    ) {
+        val key = compositeKey(email, clientKey)
         val now = clock.millis()
         val q = failures.computeIfAbsent(key) { ArrayDeque() }
         synchronized(q) {
-            pruneLocked(q, now)
+            pruneDeque(q, now)
             q.addLast(now)
         }
+        boundMapSize()
     }
 
-    fun clear(email: String) {
-        failures.remove(normalize(email))
+    fun clear(
+        email: String,
+        clientKey: String? = null,
+    ) {
+        failures.remove(compositeKey(email, clientKey))
+        failures.remove(email.trim().lowercase())
     }
 
-    private fun pruneAndCount(key: String) {
+    private fun compositeKey(
+        email: String,
+        clientKey: String?,
+    ): String {
+        val e = email.trim().lowercase()
+        val c = clientKey?.trim().orEmpty()
+        return if (c.isEmpty()) e else "$e|$c"
+    }
+
+    private fun pruneKey(key: String) {
         val q = failures[key] ?: return
+        val now = clock.millis()
         synchronized(q) {
-            pruneLocked(q, clock.millis())
+            pruneDeque(q, now)
             if (q.isEmpty()) {
                 failures.remove(key, q)
             }
         }
     }
 
-    private fun pruneLocked(
+    private fun pruneDeque(
         q: ArrayDeque<Long>,
-        nowMs: Long,
+        now: Long,
     ) {
-        val cutoff = nowMs - windowSeconds * 1000
-        while (q.isNotEmpty() && q.peekFirst() < cutoff) {
+        val cutoff = now - windowSeconds * 1000
+        while (q.isNotEmpty() && q.first() < cutoff) {
             q.removeFirst()
         }
     }
 
-    private fun normalize(email: String): String = email.trim().lowercase()
+    private fun boundMapSize() {
+        if (failures.size <= maxKeys) return
+        val now = clock.millis()
+        val iter = failures.entries.iterator()
+        while (iter.hasNext() && failures.size > maxKeys) {
+            val e = iter.next()
+            val q = e.value
+            synchronized(q) {
+                pruneDeque(q, now)
+                if (q.isEmpty()) {
+                    iter.remove()
+                }
+            }
+        }
+        while (failures.size > maxKeys) {
+            val key = failures.keys.firstOrNull() ?: break
+            failures.remove(key)
+        }
+    }
 }

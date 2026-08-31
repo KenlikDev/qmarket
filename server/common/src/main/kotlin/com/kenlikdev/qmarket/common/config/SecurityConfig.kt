@@ -50,6 +50,8 @@ open class SecurityConfig(
                         "/api-docs/**",
                         "/v3/api-docs/**",
                     ).permitAll()
+                    .requestMatchers("/actuator/**")
+                    .hasAnyRole("ADMIN", "MANAGER")
                     .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**")
                     .permitAll()
                     .anyRequest()

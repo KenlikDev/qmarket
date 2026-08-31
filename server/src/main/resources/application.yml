@@ -66,6 +66,7 @@ qmarket:
     # Failed login sliding window (per email). Successful login clears the counter.
     login-max-attempts: ${QMARKET_LOGIN_MAX_ATTEMPTS:5}
     login-window-seconds: ${QMARKET_LOGIN_WINDOW_SECONDS:300}
+    login-rate-max-keys: ${QMARKET_LOGIN_RATE_MAX_KEYS:10000}
   security:
     jwt:
       # No default — set JWT_SECRET or activate profile dev/test (see application-dev.yml)

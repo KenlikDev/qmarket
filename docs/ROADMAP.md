@@ -76,6 +76,7 @@
 - [x] In-app notifications (order placed/paid/cancelled → `user_notifications`, API + client UI)
 - [x] Admin status change notifies customer; TopBar Alerts badge (unread count)
 - [x] P0 review hardening: no public costPrice, no seed password in OpenAPI/logs, order/product @Version, bulk markAllRead
+- [x] P1: cart get-or-create race, rate-limit bounds+IP, actuator lockdown, cancel/pay concurrency tests
 
 ## v1.0 MVP (из плана)
 

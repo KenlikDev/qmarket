@@ -61,28 +61,31 @@ class AuthService(
     }
 
     @Transactional
-    fun login(request: LoginRequest): AuthResponse {
+    fun login(
+        request: LoginRequest,
+        clientKey: String? = null,
+    ): AuthResponse {
         val email = request.email.lowercase().trim()
-        loginRateLimiter.assertAllowed(email)
+        loginRateLimiter.assertAllowed(email, clientKey)
 
         val user =
             userRepository.findByEmail(email)
                 ?: run {
-                    loginRateLimiter.recordFailure(email)
+                    loginRateLimiter.recordFailure(email, clientKey)
                     throw UnauthorizedException("Invalid email or password")
                 }
 
         if (!user.enabled) {
-            loginRateLimiter.recordFailure(email)
+            loginRateLimiter.recordFailure(email, clientKey)
             throw UnauthorizedException("Account is disabled")
         }
 
         if (!passwordEncoder.matches(request.password, user.passwordHash)) {
-            loginRateLimiter.recordFailure(email)
+            loginRateLimiter.recordFailure(email, clientKey)
             throw UnauthorizedException("Invalid email or password")
         }
 
-        loginRateLimiter.clear(email)
+        loginRateLimiter.clear(email, clientKey)
         return issueTokens(user, familyId = UUID.randomUUID())
     }
 

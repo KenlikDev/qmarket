@@ -5,6 +5,7 @@ import com.kenlikdev.qmarket.identity.dto.LoginRequest
 import com.kenlikdev.qmarket.identity.dto.RefreshTokenRequest
 import com.kenlikdev.qmarket.identity.dto.RegisterRequest
 import com.kenlikdev.qmarket.identity.service.AuthService
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.PostMapping
@@ -27,7 +28,18 @@ class AuthController(
     @PostMapping("/login")
     fun login(
         @Valid @RequestBody request: LoginRequest,
-    ): AuthResponse = authService.login(request)
+        httpRequest: HttpServletRequest,
+    ): AuthResponse = authService.login(request, clientKey = clientKey(httpRequest))
+
+    private fun clientKey(httpRequest: HttpServletRequest): String {
+        val forwarded =
+            httpRequest
+                .getHeader("X-Forwarded-For")
+                ?.split(",")
+                ?.firstOrNull()
+                ?.trim()
+        return forwarded?.takeIf { it.isNotEmpty() } ?: (httpRequest.remoteAddr ?: "unknown")
+    }
 
     @PostMapping("/refresh")
     fun refresh(

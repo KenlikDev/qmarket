@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.dao.DataIntegrityViolationException
 import java.math.BigDecimal
 import java.util.UUID
 
@@ -126,5 +127,39 @@ class CartServiceTest {
         assertThrows<NotFoundException> {
             cartService.removeItem(userId, productId)
         }
+    }
+
+    @Test
+    fun `addItem recovers when concurrent cart insert hits unique constraint`() {
+        val raceProductId = UUID.randomUUID()
+        val raceProduct =
+            ProductInfo(
+                id = raceProductId,
+                name = "Widget",
+                slug = "widget",
+                price = BigDecimal("9.99"),
+                stockQuantity = 10,
+                active = true,
+            )
+        val existing = Cart(id = UUID.randomUUID(), userId = userId)
+        every { productCatalog.requireActive(raceProductId) } returns raceProduct
+        every { productCatalog.findByIds(any()) } returns mapOf(raceProductId to raceProduct)
+        // 1st find: miss → insert attempt; 2nd find: winner row after UNIQUE conflict
+        every { cartRepository.findByUserId(userId) } returnsMany listOf(null, existing)
+        every { cartRepository.save(any()) } answers {
+            val cart = firstArg<Cart>()
+            if (cart.id == null) {
+                throw DataIntegrityViolationException("duplicate user_id")
+            }
+            cart
+        }
+
+        val response =
+            cartService.addItem(
+                userId,
+                AddCartItemRequest(productId = raceProductId, quantity = 1),
+            )
+        assertEquals(1, response.items.size)
+        assertEquals(raceProductId, response.items[0].productId)
     }
 }

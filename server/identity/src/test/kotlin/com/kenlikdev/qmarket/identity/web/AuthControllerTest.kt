@@ -98,7 +98,7 @@ class AuthControllerTest {
 
     @Test
     fun `POST login returns 200 and tokens`() {
-        every { authService.login(any()) } returns sampleResponse
+        every { authService.login(any(), any()) } returns sampleResponse
 
         mockMvc
             .perform(
@@ -111,7 +111,7 @@ class AuthControllerTest {
 
     @Test
     fun `POST login with wrong password returns 401`() {
-        every { authService.login(any()) } throws UnauthorizedException("Invalid credentials")
+        every { authService.login(any(), any()) } throws UnauthorizedException("Invalid credentials")
 
         mockMvc
             .perform(

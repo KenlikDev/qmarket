@@ -8,6 +8,7 @@ import com.kenlikdev.qmarket.cart.dto.UpdateCartItemRequest
 import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -74,7 +75,18 @@ class CartService(
         return toResponse(cartRepository.save(cart))
     }
 
-    private fun findOrCreate(userId: UUID): Cart = cartRepository.findByUserId(userId) ?: cartRepository.save(Cart(userId = userId))
+    /**
+     * Concurrent first-touch is safe: UNIQUE(user_id) + re-read on conflict.
+     */
+    private fun findOrCreate(userId: UUID): Cart {
+        cartRepository.findByUserId(userId)?.let { return it }
+        return try {
+            cartRepository.save(Cart(userId = userId))
+        } catch (_: DataIntegrityViolationException) {
+            cartRepository.findByUserId(userId)
+                ?: throw IllegalStateException("Cart race: unique conflict but row missing for user $userId")
+        }
+    }
 
     private fun findOrEmpty(userId: UUID): Cart = cartRepository.findByUserId(userId) ?: Cart(userId = userId)
 
