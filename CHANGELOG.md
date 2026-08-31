@@ -1,10 +1,12 @@
 ### Fixed
+- Checkout Idempotency-Key: request fingerprint; same key + different body → 409 (V8)
 - Order lifecycle: strict status transitions; admin CANCELLED restocks inventory
 - cancelMyOrder: status transition before restock (fail-fast, no double-restock path)
 - Order.items fetch LAZY (access within @Transactional)
 - Seed off by default (`QMARKET_SEED_ENABLED=true` for local); prod JWT secret required
 
 ### Added
+- Admin category edit; OrderIntegrationTest for idempotency body mismatch (409)
 - Admin product update/delete UI + `UpdateProductRequestDto` / client methods
 
 # Changelog

@@ -26,7 +26,7 @@
 - [x] Profile + shipping addresses
 - [x] Unit + controller slice + integration tests (incl. stock concurrency)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize
-- [x] Flyway SoT V1–V5, app `ddl-auto=validate`
+- [x] Flyway SoT V1–V8, app `ddl-auto=validate`
 - [x] `ProductCatalog` port + ArchUnit boundaries
 - [x] Atomic stock `UPDATE … WHERE stock >= qty`
 
@@ -50,6 +50,7 @@
 - [x] Strict order status state machine
 - [x] Seed default off; prod JWT secret required
 - [x] Checkout idempotency key (+ concurrent UNIQUE race → re-read winner)
+- [x] Idempotency request fingerprint (Flyway V8; same key + different body → 409)
 - [x] Refresh atomic consume (`revokeIfActive`)
 - [x] JWT secret required (no placeholder default)
 - [x] Product soft-delete (active=false)
@@ -61,7 +62,7 @@
 ### v0.2 started
 
 - [x] Admin: create / update / delete product UI (shared client, ROLE_ADMIN)
-- [x] Admin: categories UI (list/create/delete in Admin screen)
+- [x] Admin: categories UI (list/create/edit/delete in Admin screen)
 - [x] Admin: orders list + status transitions UI
 - [ ] OAuth (optional)
 

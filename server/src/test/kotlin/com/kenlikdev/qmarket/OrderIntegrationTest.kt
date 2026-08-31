@@ -262,4 +262,46 @@ class OrderIntegrationTest {
         )
         assertEquals(orderId, TestJson.id(second.response.contentAsString))
     }
+
+    @Test
+    fun `same Idempotency-Key with different body returns 409`() {
+        mockMvc
+            .perform(
+                post("/api/v1/cart/items")
+                    .header("Authorization", "Bearer $token")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"productId":"$productId","quantity":1}"""),
+            ).andExpect(status().isOk)
+
+        val idemKey = "fingerprint-conflict-" + System.nanoTime()
+        val first =
+            mockMvc
+                .perform(
+                    post("/api/v1/orders")
+                        .header("Authorization", "Bearer $token")
+                        .header("Idempotency-Key", idemKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"shippingAddress":"Street A"}"""),
+                ).andReturn()
+        assertEquals(
+            201,
+            first.response.status,
+            "first checkout should be 201, body=${first.response.contentAsString}",
+        )
+
+        val second =
+            mockMvc
+                .perform(
+                    post("/api/v1/orders")
+                        .header("Authorization", "Bearer $token")
+                        .header("Idempotency-Key", idemKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"shippingAddress":"Street B different"}"""),
+                ).andReturn()
+        assertEquals(
+            409,
+            second.response.status,
+            "mismatched body should be 409, body=${second.response.contentAsString}",
+        )
+    }
 }
