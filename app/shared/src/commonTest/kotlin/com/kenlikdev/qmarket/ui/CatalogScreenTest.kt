@@ -6,8 +6,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.ProductDto
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -89,5 +91,44 @@ class CatalogScreenTest {
             }
             onNodeWithText("Demo Phone").assertExists()
             onNodeWithText("Add to cart").assertDoesNotExist()
+        }
+
+    @Test
+    fun categoryAllSelectInvokesCallback() =
+        runComposeUiTest {
+            var selected: String? = "c1"
+            setContent {
+                CatalogScreen(
+                    products = emptyList(),
+                    catalogQuery = "",
+                    catalogFeaturedOnly = false,
+                    catalogCategories =
+                        listOf(
+                            CategoryDto(id = "c1", name = "Electronics", slug = "electronics"),
+                        ),
+                    selectedCategoryId = "c1",
+                    onCategorySelect = { selected = it },
+                    loggedIn = false,
+                    userLabel = null,
+                    cartCount = null,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onQueryChange = {},
+                    onSortNewest = {},
+                    onSortPrice = {},
+                    onSortName = {},
+                    onToggleFeatured = {},
+                    onApplySearch = {},
+                    onAddToCart = {},
+                    onCart = {},
+                    onOrders = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+            onNodeWithTag("catalogCategoryAll").performClick()
+            assertEquals(null, selected)
         }
 }

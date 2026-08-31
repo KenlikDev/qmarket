@@ -37,6 +37,7 @@
 - [x] Login / register / profile / change password
 - [x] Addresses (list/add/delete/set default) + checkout `addressId`
 - [x] Catalog search/sort/featured
+- [x] Catalog category filter (shopper chips → `categoryId`)
 - [x] Cart quantity +/−, checkout, orders list, mock pay/cancel
 - [x] JWT Bearer + refresh on 401
 - [x] UI split: `ui/` screens + `App.kt` composition root

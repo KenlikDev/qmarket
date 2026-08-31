@@ -25,4 +25,11 @@ class CatalogFilterParamsTest {
         assertEquals("desc", CatalogFilterParams.sortDir("name"))
         assertEquals("desc", CatalogFilterParams.sortDir("createdAt"))
     }
+
+    @Test
+    fun categoryParamBlankBecomesNull() {
+        assertNull(CatalogFilterParams.categoryParam(null))
+        assertNull(CatalogFilterParams.categoryParam("  "))
+        assertEquals("c1", CatalogFilterParams.categoryParam(" c1 "))
+    }
 }

@@ -9,4 +9,7 @@ object CatalogFilterParams {
     fun featuredParam(featuredOnly: Boolean): Boolean? = if (featuredOnly) true else null
 
     fun sortDir(sortBy: String?): String = if (sortBy == "price") "asc" else "desc"
+
+    /** Blank / whitespace → no category filter (all products). */
+    fun categoryParam(categoryId: String?): String? = categoryId?.trim()?.ifBlank { null }
 }

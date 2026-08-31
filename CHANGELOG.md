@@ -1,3 +1,6 @@
+### Added
+- Shopper catalog category filter (chips; API `categoryId` via `CatalogFilterParams.categoryParam`)
+
 ### Fixed
 - Checkout Idempotency-Key: request fingerprint; same key + different body → 409 (V8)
 - Order lifecycle: strict status transitions; admin CANCELLED restocks inventory

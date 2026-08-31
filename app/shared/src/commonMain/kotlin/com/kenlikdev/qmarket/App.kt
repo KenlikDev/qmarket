@@ -91,6 +91,8 @@ fun App() {
         var catalogQuery by remember { mutableStateOf("") }
         var catalogSortBy by remember { mutableStateOf("createdAt") }
         var catalogFeaturedOnly by remember { mutableStateOf(false) }
+        var catalogCategoryId by remember { mutableStateOf<String?>(null) }
+        var catalogCategories by remember { mutableStateOf<List<CategoryDto>>(emptyList()) }
         var isAdmin by remember { mutableStateOf(false) }
         var adminProductName by remember { mutableStateOf("") }
         var adminProductSlug by remember { mutableStateOf("") }
@@ -183,6 +185,8 @@ fun App() {
 
         fun loadCatalog(navigate: Boolean = true) {
             runApi {
+                catalogCategories =
+                    runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
                 val page =
                     api.listProducts(
                         size = 50,
@@ -190,6 +194,7 @@ fun App() {
                         sortBy = catalogSortBy,
                         sortDir = CatalogFilterParams.sortDir(catalogSortBy),
                         featuredOnly = CatalogFilterParams.featuredParam(catalogFeaturedOnly),
+                        categoryId = CatalogFilterParams.categoryParam(catalogCategoryId),
                     )
                 products = page.content
                 if (navigate) screen = AppScreen.Catalog
@@ -354,6 +359,12 @@ fun App() {
                         products = products,
                         catalogQuery = catalogQuery,
                         catalogFeaturedOnly = catalogFeaturedOnly,
+                        catalogCategories = catalogCategories,
+                        selectedCategoryId = catalogCategoryId,
+                        onCategorySelect = { id ->
+                            catalogCategoryId = id
+                            loadCatalog(navigate = false)
+                        },
                         loggedIn = loggedIn,
                         userLabel = userLabel,
                         cartCount = cart?.totalItems,
