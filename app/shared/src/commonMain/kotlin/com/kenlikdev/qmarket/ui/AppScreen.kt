@@ -19,6 +19,8 @@ sealed interface AppScreen {
 
     data object Profile : AppScreen
 
+    data object Notifications : AppScreen
+
     data object Addresses : AppScreen
 
     data object Admin : AppScreen

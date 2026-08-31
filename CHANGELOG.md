@@ -14,6 +14,10 @@
 
 ## Unreleased
 
+### Added
+- In-app notifications: Flyway V9, order lifecycle events, REST API, shared UI (Profile → Notifications)
+
+
 ### Fixed
 - Checkout double-submit: reuse pending Idempotency-Key until success; lock concurrent taps; invalidate key when cart/address changes
 

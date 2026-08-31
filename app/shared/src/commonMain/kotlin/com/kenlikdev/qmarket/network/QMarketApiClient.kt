@@ -14,7 +14,9 @@ import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
+import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.UnreadCountDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.UpdateOrderStatusRequestDto
 import com.kenlikdev.qmarket.api.PageDto
@@ -219,6 +221,29 @@ class QMarketApiClient(
     }
 
     suspend fun getOrder(id: String): OrderDto = get("/api/v1/orders/$id")
+
+    // --- Notifications ---
+
+    suspend fun listNotifications(
+        page: Int = 0,
+        size: Int = 20,
+    ): PageDto<NotificationDto> {
+        val response =
+            http.get("/api/v1/notifications") {
+                parameter("page", page)
+                parameter("size", size)
+            }
+        return response.parseBody()
+    }
+
+    suspend fun notificationsUnreadCount(): UnreadCountDto = get("/api/v1/notifications/unread-count")
+
+    suspend fun markNotificationRead(id: String): NotificationDto =
+        postEmpty("/api/v1/notifications/$id/read")
+
+    suspend fun markAllNotificationsRead(): UnreadCountDto =
+        postEmpty("/api/v1/notifications/read-all")
+
 
     suspend fun cancelOrder(id: String): OrderDto = postEmpty("/api/v1/orders/$id/cancel")
 

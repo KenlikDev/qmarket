@@ -40,6 +40,7 @@ fun ProfileScreen(
     onCurrentPasswordChange: (String) -> Unit,
     onNewPasswordChange: (String) -> Unit,
     onUpdatePassword: () -> Unit,
+    onNotifications: (() -> Unit)? = null,
     onCart: () -> Unit,
     onOrders: () -> Unit,
     onAddresses: () -> Unit,
@@ -60,6 +61,15 @@ fun ProfileScreen(
         )
         TextButton(onClick = onBackToCatalog) {
             Text("← Back to catalog")
+        }
+        if (onNotifications != null) {
+            TextButton(
+                onClick = onNotifications,
+                enabled = !loading,
+                modifier = Modifier.testTag("profileNotifications"),
+            ) {
+                Text("Notifications")
+            }
         }
         ErrorText(error, modifier = Modifier.padding(horizontal = 16.dp))
         statusMessage?.let {

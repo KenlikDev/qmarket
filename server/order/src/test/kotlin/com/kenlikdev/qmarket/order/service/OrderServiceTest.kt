@@ -62,6 +62,7 @@ class OrderServiceTest {
         productCatalog = mockk()
         addressRepository = mockk()
         idempotencyKeyRepository = mockk(relaxed = true)
+        val notificationService = mockk<NotificationService>(relaxed = true)
         val transactionManager = mockk<PlatformTransactionManager>()
         val txStatus = mockk<TransactionStatus>(relaxed = true)
         every { transactionManager.getTransaction(any()) } returns txStatus
@@ -80,6 +81,7 @@ class OrderServiceTest {
                 addressRepository,
                 idempotencyKeyRepository,
                 entityManager,
+                notificationService,
                 transactionManager,
             )
     }

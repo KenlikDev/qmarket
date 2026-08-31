@@ -403,4 +403,45 @@ class QMarketApiClientTest {
             }
         }
 
+
+    @Test
+    fun listNotificationsParsesPage() =
+        runTest {
+            val engine =
+                MockEngine {
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                  "content": [
+                                    {
+                                      "id": "11111111-1111-1111-1111-111111111111",
+                                      "type": "ORDER_PLACED",
+                                      "title": "Order placed",
+                                      "body": "pending",
+                                      "read": false
+                                    }
+                                  ],
+                                  "page": 0,
+                                  "size": 20,
+                                  "totalElements": 1,
+                                  "totalPages": 1
+                                }
+                                """.trimIndent(),
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                val page = QMarketApiClient(client).listNotifications()
+                assertEquals(1, page.content.size)
+                assertEquals("ORDER_PLACED", page.content[0].type)
+            } finally {
+                client.close()
+            }
+        }
+
 }

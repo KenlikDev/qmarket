@@ -37,6 +37,7 @@ class OrderService(
     private val addressRepository: AddressRepository,
     private val idempotencyKeyRepository: OrderIdempotencyKeyRepository,
     private val entityManager: EntityManager,
+    private val notificationService: NotificationService,
     transactionManager: PlatformTransactionManager,
 ) {
     private val transactionTemplate = TransactionTemplate(transactionManager)
@@ -217,6 +218,14 @@ class OrderService(
         cart.items.clear()
         cartRepository.save(cart)
 
+        notificationService.notifyOrderEvent(
+            userId = userId,
+            type = "ORDER_PLACED",
+            title = "Order placed",
+            body = "Order ${saved.id} for ${saved.totalAmount} is pending payment.",
+            orderId = saved.id,
+        )
+
         return toResponse(saved)
     }
 
@@ -348,7 +357,15 @@ class OrderService(
         for (item in order.items) {
             productCatalog.increaseStock(item.productId, item.quantity)
         }
-        return toResponse(orderRepository.save(order))
+        val saved = orderRepository.save(order)
+        notificationService.notifyOrderEvent(
+            userId = userId,
+            type = "ORDER_CANCELLED",
+            title = "Order cancelled",
+            body = "Order ${saved.id} was cancelled. Stock restored where applicable.",
+            orderId = saved.id,
+        )
+        return toResponse(saved)
     }
 
     /**
@@ -366,7 +383,15 @@ class OrderService(
 
         order.markPaid()
 
-        return toResponse(orderRepository.save(order))
+        val saved = orderRepository.save(order)
+        notificationService.notifyOrderEvent(
+            userId = userId,
+            type = "ORDER_PAID",
+            title = "Payment received",
+            body = "Order ${saved.id} is paid. Total ${saved.totalAmount}.",
+            orderId = saved.id,
+        )
+        return toResponse(saved)
     }
 
     private fun resolveShippingAddress(

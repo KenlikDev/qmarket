@@ -24,6 +24,7 @@ import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
+import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.ProductDto
@@ -50,6 +51,7 @@ import com.kenlikdev.qmarket.ui.ProductDetailScreen
 import com.kenlikdev.qmarket.ui.LoginScreen
 import com.kenlikdev.qmarket.ui.OrderDoneScreen
 import com.kenlikdev.qmarket.ui.OrderDetailScreen
+import com.kenlikdev.qmarket.ui.NotificationsScreen
 import com.kenlikdev.qmarket.ui.OrdersScreen
 import com.kenlikdev.qmarket.ui.ProfileScreen
 import com.kenlikdev.qmarket.ui.RegisterScreen
@@ -114,6 +116,8 @@ fun App() {
         var cart by remember { mutableStateOf<CartDto?>(null) }
         var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
         var detailOrder by remember { mutableStateOf<OrderDto?>(null) }
+        var notifications by remember { mutableStateOf<List<NotificationDto>>(emptyList()) }
+        var notificationsUnread by remember { mutableStateOf(0L) }
         var userLabel by remember { mutableStateOf(tokens.sessionEmail()) }
         var loggedIn by remember { mutableStateOf(restoredSession) }
         var addresses by remember { mutableStateOf<List<AddressDto>>(emptyList()) }
@@ -156,6 +160,8 @@ fun App() {
             cart = null
             detailProduct = null
             detailOrder = null
+            notifications = emptyList()
+            notificationsUnread = 0L
             pendingCheckoutKey = null
             checkoutLocked = false
             detailQuantity = 1
@@ -241,6 +247,14 @@ fun App() {
             screen = AppScreen.OrderDetail
             runApi {
                 detailOrder = api.getOrder(order.id)
+            }
+        }
+
+        fun loadNotifications() {
+            runApi {
+                notifications = api.listNotifications(size = 50).content
+                notificationsUnread = api.notificationsUnreadCount().unread
+                screen = AppScreen.Notifications
             }
         }
 
@@ -667,6 +681,46 @@ fun App() {
                     )
                 }
 
+                AppScreen.Notifications -> {
+                    NotificationsScreen(
+                        notifications = notifications,
+                        unreadCount = notificationsUnread,
+                        loggedIn = loggedIn,
+                        userLabel = userLabel,
+                        cartCount = cart?.totalItems,
+                        error = error,
+                        statusMessage = statusMessage,
+                        loading = loading,
+                        onBackToCatalog = { loadCatalog() },
+                        onMarkRead = { n ->
+                            runApi {
+                                api.markNotificationRead(n.id)
+                                notifications = api.listNotifications(size = 50).content
+                                notificationsUnread = api.notificationsUnreadCount().unread
+                            }
+                        },
+                        onMarkAllRead = {
+                            runApi {
+                                notificationsUnread = api.markAllNotificationsRead().unread
+                                notifications = api.listNotifications(size = 50).content
+                                statusMessage = "All notifications marked read"
+                            }
+                        },
+                        onRefresh = {
+                            runApi {
+                                notifications = api.listNotifications(size = 50).content
+                                notificationsUnread = api.notificationsUnreadCount().unread
+                            }
+                        },
+                        onCart = { loadCart() },
+                        onOrders = { loadOrders() },
+                        onAddresses = { loadAddresses() },
+                        onProfile = { loadProfile() },
+                        onLogout = { logout() },
+                        modifier = screenModifier,
+                    )
+                }
+
                 AppScreen.Profile -> {
                     ProfileScreen(
                         profile = profile,
@@ -715,6 +769,7 @@ fun App() {
                                 statusMessage = "Password updated"
                             }
                         },
+                        onNotifications = { loadNotifications() },
                         onCart = { loadCart() },
                         onOrders = { loadOrders() },
                         onAddresses = { loadAddresses() },

@@ -71,6 +71,10 @@
 - [x] Admin: orders list + status transitions UI
 - [ ] OAuth (optional)
 
+### v1.0 started
+
+- [x] In-app notifications (order placed/paid/cancelled → `user_notifications`, API + client UI)
+
 ## v1.0 MVP (из плана)
 
 Покупатель: регистрация, каталог, корзина, заказ, оплата (мок + 1 провайдер), подтверждение.  
