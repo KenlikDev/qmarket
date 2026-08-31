@@ -28,7 +28,7 @@ class OpenApiConfig {
                         **Auth:** `POST /api/v1/auth/login` → скопировать `accessToken` →
                         кнопка **Authorize** (сверху справа) → вставить токен → Authorize.
 
-                        **Admin seed:** admin@qmarket.local / admin123
+                        **Dev seed:** enable with profile `dev` or `QMARKET_SEED_ENABLED=true` (see README)
                         """.trimIndent(),
                     ).version("0.1.0-WIP")
                     .contact(Contact().name("QMarket")),

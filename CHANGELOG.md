@@ -1,3 +1,14 @@
+### Security / correctness (P0 from review)
+- Public `ProductResponse` does not expose `costPrice` (write-only on create/update)
+- OpenAPI description no longer embeds seed admin password; seed log omits password
+- `markAllRead` uses bulk SQL UPDATE (not first 200 rows)
+- Optimistic locking: `orders.version` / `products.version` (Flyway V10); stock native updates bump version
+- Concurrent state conflicts map to HTTP 409
+- Public get product by id/slug hides inactive products (404)
+- Product create normalizes slug/SKU before uniqueness checks
+- `application-prod.yml`: required DB credentials, quieter logging, Flyway baseline-on-migrate false
+
+
 ### Fixed
 - Checkout Idempotency-Key: request fingerprint; same key + different body → 409 (V8)
 - Order lifecycle: strict status transitions; admin CANCELLED restocks inventory

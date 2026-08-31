@@ -48,8 +48,9 @@ class CatalogService(
 
     @Transactional
     fun createCategory(request: CreateCategoryRequest): CategoryResponse {
-        if (categoryRepository.existsBySlug(request.slug)) {
-            throw ConflictException("Category with slug '${request.slug}' already exists")
+        val slug = request.slug.trim().lowercase()
+        if (categoryRepository.existsBySlug(slug)) {
+            throw ConflictException("Category with slug '$slug' already exists")
         }
         val parent =
             request.parentId?.let {
@@ -58,7 +59,7 @@ class CatalogService(
         val category =
             Category(
                 name = request.name.trim(),
-                slug = request.slug.trim().lowercase(),
+                slug = slug,
                 description = request.description,
                 parent = parent,
                 sortOrder = request.sortOrder,
@@ -167,28 +168,44 @@ class CatalogService(
     }
 
     @Transactional(readOnly = true)
-    fun getProduct(id: UUID): ProductResponse =
-        productRepository
-            .findById(id)
-            .orElseThrow { NotFoundException("Product $id not found") }
-            .toResponse()
+    fun getProduct(
+        id: UUID,
+        requireActive: Boolean = true,
+    ): ProductResponse {
+        val product =
+            productRepository
+                .findById(id)
+                .orElseThrow { NotFoundException("Product $id not found") }
+        if (requireActive && !product.active) {
+            throw NotFoundException("Product $id not found")
+        }
+        return product.toResponse()
+    }
 
     @Transactional(readOnly = true)
-    fun getProductBySlug(slug: String): ProductResponse =
-        productRepository
-            .findBySlug(slug)
-            .orElseThrow { NotFoundException("Product with slug '$slug' not found") }
-            .toResponse()
+    fun getProductBySlug(
+        slug: String,
+        requireActive: Boolean = true,
+    ): ProductResponse {
+        val product =
+            productRepository
+                .findBySlug(slug)
+                .orElseThrow { NotFoundException("Product with slug '$slug' not found") }
+        if (requireActive && !product.active) {
+            throw NotFoundException("Product with slug '$slug' not found")
+        }
+        return product.toResponse()
+    }
 
     @Transactional
     fun createProduct(request: CreateProductRequest): ProductResponse {
-        if (productRepository.existsBySlug(request.slug)) {
-            throw ConflictException("Product with slug '${request.slug}' already exists")
+        val slug = request.slug.trim().lowercase()
+        val sku = request.sku?.trim()?.takeIf { it.isNotEmpty() }
+        if (productRepository.existsBySlug(slug)) {
+            throw ConflictException("Product with slug '$slug' already exists")
         }
-        request.sku?.let {
-            if (productRepository.existsBySku(it)) {
-                throw ConflictException("Product with SKU '$it' already exists")
-            }
+        if (sku != null && productRepository.existsBySku(sku)) {
+            throw ConflictException("Product with SKU '$sku' already exists")
         }
         val category =
             request.categoryId?.let {
@@ -197,10 +214,10 @@ class CatalogService(
         val product =
             Product(
                 name = request.name.trim(),
-                slug = request.slug.trim().lowercase(),
+                slug = slug,
                 description = request.description,
                 shortDescription = request.shortDescription,
-                sku = request.sku?.trim(),
+                sku = sku,
                 price = request.price,
                 compareAtPrice = request.compareAtPrice,
                 costPrice = request.costPrice,

@@ -77,7 +77,7 @@ class DataInitializer(
                 roles = mutableSetOf(adminRole, userRole),
             )
         userRepository.save(admin)
-        log.info("Seeded admin user: {} / admin123", adminEmail)
+        log.info("Seeded admin user: {} (password from seed config, not logged)", adminEmail)
     }
 
     private fun seedCatalog() {

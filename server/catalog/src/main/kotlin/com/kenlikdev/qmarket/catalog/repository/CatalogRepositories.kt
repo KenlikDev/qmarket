@@ -57,6 +57,7 @@ interface ProductRepository : JpaRepository<Product, UUID> {
         value = """
             UPDATE products
             SET stock_quantity = stock_quantity - :quantity,
+                version = version + 1,
                 updated_at = NOW()
             WHERE id = :id
               AND stock_quantity >= :quantity
@@ -73,6 +74,7 @@ interface ProductRepository : JpaRepository<Product, UUID> {
         value = """
             UPDATE products
             SET stock_quantity = stock_quantity + :quantity,
+                version = version + 1,
                 updated_at = NOW()
             WHERE id = :id
             """,

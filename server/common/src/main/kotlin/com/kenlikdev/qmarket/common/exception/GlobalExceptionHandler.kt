@@ -1,9 +1,11 @@
 package com.kenlikdev.qmarket.common.exception
 
+import jakarta.persistence.OptimisticLockException
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.core.AuthenticationException
@@ -95,6 +97,23 @@ open class GlobalExceptionHandler {
                 path = request.requestURI,
             ),
         )
+
+    @ExceptionHandler(OptimisticLockException::class, ObjectOptimisticLockingFailureException::class)
+    fun handleOptimisticLock(
+        ex: Exception,
+        request: HttpServletRequest,
+    ): ResponseEntity<ErrorResponse> {
+        log.warn("Optimistic lock conflict: {}", ex.message)
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+            ErrorResponse(
+                status = HttpStatus.CONFLICT.value(),
+                error = "Conflict",
+                code = "OPTIMISTIC_LOCK",
+                message = "Resource was modified concurrently; retry the operation",
+                path = request.requestURI,
+            ),
+        )
+    }
 
     @ExceptionHandler(Exception::class)
     fun handleGeneric(

@@ -69,11 +69,7 @@ class NotificationService(
 
     @Transactional
     fun markAllRead(userId: UUID): UnreadCountResponse {
-        val page = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 200))
-        page.content.filter { !it.read }.forEach {
-            it.read = true
-            notificationRepository.save(it)
-        }
+        notificationRepository.markAllReadForUser(userId)
         return unreadCount(userId)
     }
 

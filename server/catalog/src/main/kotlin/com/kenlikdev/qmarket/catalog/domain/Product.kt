@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.PreUpdate
 import jakarta.persistence.Table
+import jakarta.persistence.Version
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -79,6 +80,10 @@ class Product(
     var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now(),
+    /** Optimistic lock vs concurrent stock native updates and admin metadata saves. */
+    @Version
+    @Column(name = "version", nullable = false)
+    var version: Long = 0,
 ) {
     @PreUpdate
     fun onUpdate() {
