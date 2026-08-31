@@ -478,4 +478,61 @@ class AdminScreenTest {
             onNodeWithTag("adminEditCategory").performClick()
             assertEquals("c1", editedId)
         }
+
+    @Test
+    fun productCategoryNoneSelectInvokesCallback() =
+        runComposeUiTest {
+            var selected: String? = "keep"
+            setContent {
+                AdminScreen(
+                    categories =
+                        listOf(
+                            CategoryDto(id = "c1", name = "Electronics", slug = "electronics"),
+                        ),
+                    categoryName = "",
+                    categorySlug = "",
+                    products = emptyList(),
+                    editingProductId = null,
+                    productName = "Widget",
+                    productSlug = "widget",
+                    productPrice = "12.50",
+                    productStock = "3",
+                    productFeatured = false,
+                    productCategoryId = "c1",
+                    onProductCategoryChange = { selected = it },
+                    loggedIn = true,
+                    userLabel = "admin@qmarket.local",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
+                    onNameChange = {},
+                    onSlugChange = {},
+                    onPriceChange = {},
+                    onStockChange = {},
+                    onToggleFeatured = {},
+                    onCreate = {},
+                    onUpdate = {},
+                    onDelete = {},
+                    onEdit = {},
+                    onClearEdit = {},
+                    onCart = {},
+                    onOrders = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+            onNodeWithTag("adminProductCategoryNone")
+                .assertExists()
+                .performScrollTo()
+                .performClick()
+            waitForIdle()
+            assertEquals(null, selected)
+        }
 }

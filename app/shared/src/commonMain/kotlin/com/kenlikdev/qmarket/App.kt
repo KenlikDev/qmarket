@@ -97,6 +97,7 @@ fun App() {
         var adminProductPrice by remember { mutableStateOf("9.99") }
         var adminProductStock by remember { mutableStateOf("10") }
         var adminProductFeatured by remember { mutableStateOf(false) }
+        var adminProductCategoryId by remember { mutableStateOf<String?>(null) }
         var editingProductId by remember { mutableStateOf<String?>(null) }
         var editingCategoryId by remember { mutableStateOf<String?>(null) }
         var categories by remember { mutableStateOf<List<CategoryDto>>(emptyList()) }
@@ -665,6 +666,7 @@ fun App() {
                         productPrice = adminProductPrice,
                         productStock = adminProductStock,
                         productFeatured = adminProductFeatured,
+                        productCategoryId = adminProductCategoryId,
                         loggedIn = loggedIn,
                         userLabel = userLabel,
                         cartCount = cart?.totalItems,
@@ -756,6 +758,7 @@ fun App() {
                         onPriceChange = { adminProductPrice = it },
                         onStockChange = { adminProductStock = it.filter { ch -> ch.isDigit() } },
                         onToggleFeatured = { adminProductFeatured = !adminProductFeatured },
+                        onProductCategoryChange = { adminProductCategoryId = it },
                         onCreate = {
                             runApi {
                                 val created =
@@ -766,6 +769,7 @@ fun App() {
                                             price = adminProductPrice.trim(),
                                             stockQuantity = adminProductStock.toIntOrNull() ?: 0,
                                             featured = adminProductFeatured,
+                                            categoryId = adminProductCategoryId,
                                         ),
                                     )
                                 statusMessage = "Created ${created.name}"
@@ -774,6 +778,7 @@ fun App() {
                                 adminProductPrice = "9.99"
                                 adminProductStock = "10"
                                 adminProductFeatured = false
+                                adminProductCategoryId = null
                                 val page = api.listProducts(size = 50)
                                 products = page.content
                             }
@@ -790,6 +795,7 @@ fun App() {
                                             price = adminProductPrice.trim(),
                                             stockQuantity = adminProductStock.toIntOrNull() ?: 0,
                                             featured = adminProductFeatured,
+                                            categoryId = adminProductCategoryId,
                                         ),
                                     )
                                     statusMessage = "Updated product"
@@ -799,6 +805,7 @@ fun App() {
                                     adminProductPrice = "9.99"
                                     adminProductStock = "10"
                                     adminProductFeatured = false
+                                    adminProductCategoryId = null
                                     val page = api.listProducts(size = 50)
                                     products = page.content
                                 }
@@ -822,6 +829,7 @@ fun App() {
                             adminProductPrice = product.price
                             adminProductStock = product.stockQuantity.toString()
                             adminProductFeatured = product.featured
+                            adminProductCategoryId = product.categoryId
                             error = null
                             statusMessage = null
                         },
@@ -832,6 +840,7 @@ fun App() {
                             adminProductPrice = "9.99"
                             adminProductStock = "10"
                             adminProductFeatured = false
+                            adminProductCategoryId = null
                         },
                         onCart = { loadCart() },
                         onOrders = { loadOrders() },

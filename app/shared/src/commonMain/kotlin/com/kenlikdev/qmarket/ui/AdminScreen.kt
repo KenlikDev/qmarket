@@ -1,10 +1,13 @@
 package com.kenlikdev.qmarket.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -14,7 +17,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.CategoryDto
@@ -25,6 +32,7 @@ import com.kenlikdev.qmarket.api.ProductDto
 /**
  * Admin catalog: categories + create / update / delete products (ROLE_ADMIN / MANAGER on server).
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AdminScreen(
     categories: List<CategoryDto>,
@@ -38,6 +46,8 @@ fun AdminScreen(
     productPrice: String,
     productStock: String,
     productFeatured: Boolean,
+    productCategoryId: String? = null,
+    onProductCategoryChange: (String?) -> Unit = {},
     loggedIn: Boolean,
     userLabel: String?,
     cartCount: Int?,
@@ -81,6 +91,25 @@ fun AdminScreen(
     val categoryFormOk = categoryName.isNotBlank() && categorySlug.isNotBlank()
     val editingCategory = editingCategoryId != null
     val editing = editingProductId != null
+    val scrollState = rememberScrollState()
+    val categoryNameFocus = remember { FocusRequester() }
+    val productNameFocus = remember { FocusRequester() }
+    val categoryBringIntoView = remember { BringIntoViewRequester() }
+    val productBringIntoView = remember { BringIntoViewRequester() }
+
+    // After Edit: scroll form into view and focus the name field (keyboard / caret).
+    LaunchedEffect(editingCategoryId) {
+        if (editingCategoryId != null) {
+            categoryBringIntoView.bringIntoView()
+            categoryNameFocus.requestFocus()
+        }
+    }
+    LaunchedEffect(editingProductId) {
+        if (editingProductId != null) {
+            productBringIntoView.bringIntoView()
+            productNameFocus.requestFocus()
+        }
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         TopBar(
@@ -100,7 +129,7 @@ fun AdminScreen(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(16.dp),
         ) {
             TextButton(
@@ -129,6 +158,8 @@ fun AdminScreen(
                     Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
+                        .bringIntoViewRequester(categoryBringIntoView)
+                        .focusRequester(categoryNameFocus)
                         .testTag("adminCategoryName"),
             )
             OutlinedTextField(
@@ -213,6 +244,8 @@ fun AdminScreen(
                     Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
+                        .bringIntoViewRequester(productBringIntoView)
+                        .focusRequester(productNameFocus)
                         .testTag("adminProductName"),
             )
             OutlinedTextField(
@@ -248,6 +281,30 @@ fun AdminScreen(
                         .padding(top = 8.dp)
                         .testTag("adminProductStock"),
             )
+            Text(
+                "Category",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                TextButton(
+                    onClick = { onProductCategoryChange(null) },
+                    enabled = !loading,
+                    modifier = Modifier.testTag("adminProductCategoryNone"),
+                ) {
+                    Text(if (productCategoryId == null) "None ✓" else "None")
+                }
+            }
+            categories.forEach { category ->
+                TextButton(
+                    onClick = { onProductCategoryChange(category.id) },
+                    enabled = !loading,
+                    modifier = Modifier.testTag("adminProductCategory_${category.id}"),
+                ) {
+                    val mark = if (productCategoryId == category.id) " ✓" else ""
+                    Text(category.name + mark)
+                }
+            }
             TextButton(
                 onClick = onToggleFeatured,
                 enabled = !loading,
@@ -343,8 +400,16 @@ fun AdminScreen(
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(product.name, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "${product.price} · stock ${product.stockQuantity}" +
-                                if (product.featured) " · featured" else "",
+                            buildString {
+                                append(product.price)
+                                append(" · stock ")
+                                append(product.stockQuantity)
+                                if (product.featured) append(" · featured")
+                                product.categoryName?.let {
+                                    append(" · ")
+                                    append(it)
+                                }
+                            },
                             style = MaterialTheme.typography.bodySmall,
                         )
                         Row {

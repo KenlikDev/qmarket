@@ -6,6 +6,7 @@
 - Seed off by default (`QMARKET_SEED_ENABLED=true` for local); prod JWT secret required
 
 ### Added
+- Admin: assign product category on create/edit
 - Admin category edit; OrderIntegrationTest for idempotency body mismatch (409)
 - Admin product update/delete UI + `UpdateProductRequestDto` / client methods
 
