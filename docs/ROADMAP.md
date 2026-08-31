@@ -37,6 +37,8 @@
 - [x] Login / register / profile / change password
 - [x] Addresses (list/add/delete/set default) + checkout `addressId`
 - [x] Catalog search/sort/featured
+- [x] Product detail qty selector on add-to-cart
+- [x] Catalog category filter (shopper chips → `categoryId`)
 - [x] Product detail screen (GET product by id)
 - [x] Cart quantity +/−, checkout, orders list, mock pay/cancel
 - [x] JWT Bearer + refresh on 401

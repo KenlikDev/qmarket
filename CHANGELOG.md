@@ -15,6 +15,11 @@
 ## Unreleased
 
 ### Added
+- Shopper catalog category filter wired to `listProducts(categoryId)`
+- Product detail quantity selector (−/+) up to stock
+
+
+### Added
 - Product detail screen: open from catalog, `getProduct` / `getProductBySlug` on API client
 
 

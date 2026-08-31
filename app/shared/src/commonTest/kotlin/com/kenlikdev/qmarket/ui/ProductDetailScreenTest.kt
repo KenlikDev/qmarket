@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.kenlikdev.qmarket.api.ProductDto
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -34,6 +35,7 @@ class ProductDetailScreenTest {
             setContent {
                 ProductDetailScreen(
                     product = sample,
+                    quantity = 2,
                     loggedIn = true,
                     userLabel = "user@test.com",
                     cartCount = 0,
@@ -51,10 +53,39 @@ class ProductDetailScreenTest {
             }
             onNodeWithTag("productDetailName").assertExists()
             onNodeWithTag("productDetailPrice").assertExists()
+            onNodeWithTag("productDetailQty").assertExists()
             onNodeWithTag("productDetailAddToCart").assertIsEnabled()
             onNodeWithTag("productDetailAddToCart").performClick()
             assertTrue(added)
             onNodeWithText("Electronics").assertExists()
+        }
+
+    @Test
+    fun qtyPlusInvokesCallback() =
+        runComposeUiTest {
+            var qty = 1
+            setContent {
+                ProductDetailScreen(
+                    product = sample,
+                    quantity = qty,
+                    onQuantityChange = { qty = it },
+                    loggedIn = true,
+                    userLabel = "user@test.com",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onAddToCart = {},
+                    onCart = {},
+                    onOrders = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+            onNodeWithTag("productDetailQtyPlus").performClick()
+            assertEquals(2, qty)
         }
 
     @Test

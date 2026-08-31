@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -20,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.ProductDto
 
 @Composable
@@ -27,6 +29,9 @@ fun CatalogScreen(
     products: List<ProductDto>,
     catalogQuery: String,
     catalogFeaturedOnly: Boolean,
+    catalogCategories: List<CategoryDto> = emptyList(),
+    selectedCategoryId: String? = null,
+    onCategorySelect: (String?) -> Unit = {},
     loggedIn: Boolean,
     userLabel: String?,
     cartCount: Int?,
@@ -81,6 +86,33 @@ fun CatalogScreen(
                     .padding(horizontal = 16.dp)
                     .testTag("catalogSearch"),
         )
+        if (catalogCategories.isNotEmpty()) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.testTag("catalogCategoryRow"),
+            ) {
+                item {
+                    TextButton(
+                        onClick = { onCategorySelect(null) },
+                        enabled = !loading,
+                        modifier = Modifier.testTag("catalogCategoryAll"),
+                    ) {
+                        Text(if (selectedCategoryId == null) "All ✓" else "All")
+                    }
+                }
+                items(catalogCategories, key = { it.id }) { category ->
+                    TextButton(
+                        onClick = { onCategorySelect(category.id) },
+                        enabled = !loading,
+                        modifier = Modifier.testTag("catalogCategory_${category.id}"),
+                    ) {
+                        val mark = if (selectedCategoryId == category.id) " ✓" else ""
+                        Text(category.name + mark)
+                    }
+                }
+            }
+        }
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),

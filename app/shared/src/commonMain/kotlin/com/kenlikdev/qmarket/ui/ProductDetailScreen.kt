@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -19,6 +21,8 @@ import com.kenlikdev.qmarket.api.ProductDto
 @Composable
 fun ProductDetailScreen(
     product: ProductDto?,
+    quantity: Int = 1,
+    onQuantityChange: (Int) -> Unit = {},
     loggedIn: Boolean,
     userLabel: String?,
     cartCount: Int?,
@@ -35,6 +39,7 @@ fun ProductDetailScreen(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val maxQty = product?.stockQuantity?.coerceAtLeast(0) ?: 0
     Column(modifier = modifier.fillMaxSize()) {
         TopBar(
             title = product?.name ?: "Product",
@@ -133,18 +138,48 @@ fun ProductDetailScreen(
                             modifier = Modifier.padding(top = 8.dp).testTag("productDetailDescription"),
                         )
                     }
-                    if (loggedIn) {
+                    if (loggedIn && maxQty > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 20.dp).testTag("productDetailQtyRow"),
+                        ) {
+                            Text("Qty", style = MaterialTheme.typography.bodyMedium)
+                            TextButton(
+                                onClick = { onQuantityChange((quantity - 1).coerceAtLeast(1)) },
+                                enabled = !loading && quantity > 1,
+                                modifier = Modifier.testTag("productDetailQtyMinus"),
+                            ) {
+                                Text("−")
+                            }
+                            Text(
+                                "$quantity",
+                                modifier = Modifier.padding(horizontal = 8.dp).testTag("productDetailQty"),
+                            )
+                            TextButton(
+                                onClick = { onQuantityChange((quantity + 1).coerceAtMost(maxQty)) },
+                                enabled = !loading && quantity < maxQty,
+                                modifier = Modifier.testTag("productDetailQtyPlus"),
+                            ) {
+                                Text("+")
+                            }
+                        }
                         Button(
                             onClick = onAddToCart,
-                            enabled = !loading && product.stockQuantity > 0,
+                            enabled = !loading,
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 24.dp)
+                                    .padding(top = 12.dp)
                                     .testTag("productDetailAddToCart"),
                         ) {
-                            Text(if (product.stockQuantity > 0) "Add to cart" else "Out of stock")
+                            Text("Add to cart")
                         }
+                    } else if (loggedIn) {
+                        Text(
+                            "Out of stock",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(top = 24.dp).testTag("productDetailOutOfStock"),
+                        )
                     } else {
                         Text(
                             "Sign in to add to cart",

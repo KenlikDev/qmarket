@@ -90,9 +90,12 @@ fun App() {
         var loading by remember { mutableStateOf(false) }
         var products by remember { mutableStateOf<List<ProductDto>>(emptyList()) }
         var detailProduct by remember { mutableStateOf<ProductDto?>(null) }
+        var detailQuantity by remember { mutableStateOf(1) }
         var catalogQuery by remember { mutableStateOf("") }
         var catalogSortBy by remember { mutableStateOf("createdAt") }
         var catalogFeaturedOnly by remember { mutableStateOf(false) }
+        var catalogCategoryId by remember { mutableStateOf<String?>(null) }
+        var catalogCategories by remember { mutableStateOf<List<CategoryDto>>(emptyList()) }
         var isAdmin by remember { mutableStateOf(false) }
         var adminProductName by remember { mutableStateOf("") }
         var adminProductSlug by remember { mutableStateOf("") }
@@ -147,6 +150,7 @@ fun App() {
             newPassword = ""
             cart = null
             detailProduct = null
+            detailQuantity = 1
             editingProductId = null
             editingCategoryId = null
             statusMessage = null
@@ -186,6 +190,8 @@ fun App() {
 
         fun loadCatalog(navigate: Boolean = true) {
             runApi {
+                catalogCategories =
+                    runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
                 val page =
                     api.listProducts(
                         size = 50,
@@ -193,6 +199,7 @@ fun App() {
                         sortBy = catalogSortBy,
                         sortDir = CatalogFilterParams.sortDir(catalogSortBy),
                         featuredOnly = CatalogFilterParams.featuredParam(catalogFeaturedOnly),
+                        categoryId = CatalogFilterParams.categoryParam(catalogCategoryId),
                     )
                 products = page.content
                 if (navigate) screen = AppScreen.Catalog
@@ -201,9 +208,11 @@ fun App() {
 
         fun openProduct(product: ProductDto) {
             detailProduct = product
+            detailQuantity = 1
             screen = AppScreen.ProductDetail
             runApi {
                 detailProduct = api.getProduct(product.id)
+                detailQuantity = 1
             }
         }
 
@@ -365,6 +374,12 @@ fun App() {
                         products = products,
                         catalogQuery = catalogQuery,
                         catalogFeaturedOnly = catalogFeaturedOnly,
+                        catalogCategories = catalogCategories,
+                        selectedCategoryId = catalogCategoryId,
+                        onCategorySelect = { id ->
+                            catalogCategoryId = id
+                            loadCatalog(navigate = false)
+                        },
                         loggedIn = loggedIn,
                         userLabel = userLabel,
                         cartCount = cart?.totalItems,
@@ -425,6 +440,8 @@ fun App() {
                 AppScreen.ProductDetail -> {
                     ProductDetailScreen(
                         product = detailProduct,
+                        quantity = detailQuantity,
+                        onQuantityChange = { detailQuantity = it },
                         loggedIn = loggedIn,
                         userLabel = userLabel,
                         cartCount = cart?.totalItems,
@@ -440,11 +457,12 @@ fun App() {
                                         api.addCartItem(
                                             AddCartItemRequestDto(
                                                 productId = p.id,
-                                                quantity = 1,
+                                                quantity = detailQuantity,
                                             ),
                                         )
-                                    statusMessage = "Added ${p.name} to cart"
+                                    statusMessage = "Added ${p.name} ×$detailQuantity to cart"
                                     detailProduct = api.getProduct(p.id)
+                                    detailQuantity = 1
                                 }
                             }
                         },
