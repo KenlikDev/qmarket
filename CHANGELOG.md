@@ -1,6 +1,3 @@
-### Added
-- Shopper catalog category filter (chips; API `categoryId` via `CatalogFilterParams.categoryParam`)
-
 ### Fixed
 - Checkout Idempotency-Key: request fingerprint; same key + different body → 409 (V8)
 - Order lifecycle: strict status transitions; admin CANCELLED restocks inventory
@@ -16,6 +13,10 @@
 # Changelog
 
 ## Unreleased
+
+### Added
+- Product detail screen: open from catalog, `getProduct` / `getProductBySlug` on API client
+
 
 ### Fixed
 - Product DELETE is soft-delete (active=false) so cancel can still restock

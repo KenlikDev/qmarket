@@ -6,7 +6,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.v2.runComposeUiTest
-import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.ProductDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -94,20 +93,26 @@ class CatalogScreenTest {
         }
 
     @Test
-    fun categoryAllSelectInvokesCallback() =
+    fun openProductClickInvokesCallback() =
         runComposeUiTest {
-            var selected: String? = "c1"
+            var opened: String? = null
             setContent {
                 CatalogScreen(
-                    products = emptyList(),
+                    products =
+                        listOf(
+                            ProductDto(
+                                id = "p1",
+                                name = "Demo Phone",
+                                slug = "demo-phone",
+                                sku = "SKU-1",
+                                price = "99.00",
+                                stockQuantity = 5,
+                                active = true,
+                                featured = false,
+                            ),
+                        ),
                     catalogQuery = "",
                     catalogFeaturedOnly = false,
-                    catalogCategories =
-                        listOf(
-                            CategoryDto(id = "c1", name = "Electronics", slug = "electronics"),
-                        ),
-                    selectedCategoryId = "c1",
-                    onCategorySelect = { selected = it },
                     loggedIn = false,
                     userLabel = null,
                     cartCount = null,
@@ -120,6 +125,7 @@ class CatalogScreenTest {
                     onSortName = {},
                     onToggleFeatured = {},
                     onApplySearch = {},
+                    onOpenProduct = { opened = it.id },
                     onAddToCart = {},
                     onCart = {},
                     onOrders = {},
@@ -128,7 +134,7 @@ class CatalogScreenTest {
                     onLogout = {},
                 )
             }
-            onNodeWithTag("catalogCategoryAll").performClick()
-            assertEquals(null, selected)
+            onNodeWithTag("catalogProduct_p1").performClick()
+            assertEquals("p1", opened)
         }
 }

@@ -135,6 +135,11 @@ class QMarketApiClient(
         return response.parseBody()
     }
 
+    suspend fun getProduct(id: String): ProductDto = get("/api/v1/products/$id")
+
+    suspend fun getProductBySlug(slug: String): ProductDto =
+        get("/api/v1/products/slug/$slug")
+
     suspend fun createProduct(request: CreateProductRequestDto): ProductDto =
         post("/api/v1/products", request)
 

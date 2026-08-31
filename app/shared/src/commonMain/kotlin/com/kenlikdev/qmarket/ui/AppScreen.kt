@@ -9,6 +9,8 @@ sealed interface AppScreen {
 
     data object Catalog : AppScreen
 
+    data object ProductDetail : AppScreen
+
     data object Cart : AppScreen
 
     data object Orders : AppScreen

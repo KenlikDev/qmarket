@@ -322,4 +322,41 @@ class QMarketApiClientTest {
             }
         }
 
+
+    @Test
+    fun getProductParsesBody() =
+        runTest {
+            val engine =
+                MockEngine {
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                  "id": "11111111-1111-1111-1111-111111111111",
+                                  "name": "Phone",
+                                  "slug": "phone",
+                                  "price": "499.00",
+                                  "stockQuantity": 5,
+                                  "active": true,
+                                  "featured": false,
+                                  "description": "Nice phone"
+                                }
+                                """.trimIndent(),
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                val product = QMarketApiClient(client).getProduct("11111111-1111-1111-1111-111111111111")
+                assertEquals("Phone", product.name)
+                assertEquals("499.00", product.price)
+                assertEquals("Nice phone", product.description)
+            } finally {
+                client.close()
+            }
+        }
+
 }
