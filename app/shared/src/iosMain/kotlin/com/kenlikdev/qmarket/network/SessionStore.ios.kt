@@ -1,27 +1,32 @@
 package com.kenlikdev.qmarket.network
 
+import kotlinx.cinterop.BetaInteropApi
+import kotlinx.cinterop.ByteVar
+import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.UByteVar
+import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.convert
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
+import platform.CoreFoundation.CFDataCreate
+import platform.CoreFoundation.CFDataGetBytePtr
+import platform.CoreFoundation.CFDataGetLength
+import platform.CoreFoundation.CFDataRef
 import platform.CoreFoundation.CFDictionaryAddValue
 import platform.CoreFoundation.CFDictionaryCreateMutable
 import platform.CoreFoundation.CFDictionaryRef
+import platform.CoreFoundation.CFRelease
 import platform.CoreFoundation.CFStringCreateWithCString
 import platform.CoreFoundation.CFTypeRef
 import platform.CoreFoundation.CFTypeRefVar
 import platform.CoreFoundation.kCFAllocatorDefault
 import platform.CoreFoundation.kCFBooleanTrue
 import platform.CoreFoundation.kCFStringEncodingUTF8
-import platform.Foundation.CFBridgingRelease
-import platform.Foundation.CFBridgingRetain
-import platform.Foundation.NSData
-import platform.Foundation.NSString
-import platform.Foundation.NSUTF8StringEncoding
-import platform.Foundation.create
-import platform.Foundation.dataUsingEncoding
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
@@ -39,18 +44,15 @@ import platform.Security.kSecMatchLimit
 import platform.Security.kSecMatchLimitOne
 import platform.Security.kSecReturnData
 import platform.Security.kSecValueData
+import platform.posix.memcpy
 
 /**
  * iOS Keychain-backed [SessionStore].
  *
- * Stores access/refresh tokens and email as generic passwords under a fixed service.
- * Accessibility: [kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly] (device-bound).
- *
- * Compatible with Kotlin/Native 2.4.x: Security APIs require [CFDictionaryRef]
- * (`CPointer<__CFDictionary>?`). Dictionaries are built via
- * [CFDictionaryCreateMutable] + [CFDictionaryAddValue].
+ * CFDictionary for SecItem* (KN 2.4). Values as CFData via encodeToByteArray /
+ * CFDataCreate — no NSString casts.
  */
-@OptIn(ExperimentalForeignApi::class)
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 class IosKeychainSessionStore : SessionStore {
 
     override fun readAccessToken(): String? = read(KEY_ACCESS)
@@ -88,19 +90,50 @@ class IosKeychainSessionStore : SessionStore {
         if (status == errSecItemNotFound) return null
         if (status != errSecSuccess) return null
 
-        val data = CFBridgingRelease(result.value) as? NSData ?: return null
-        val nsString = NSString.create(data = data, encoding = NSUTF8StringEncoding)
-        return nsString?.toString()?.ifBlank { null }
+        val cfType = result.value ?: return null
+        val cfData: CFDataRef = cfType.reinterpret()
+        val length = CFDataGetLength(cfData).toInt()
+        if (length <= 0) {
+            CFRelease(cfData)
+            return null
+        }
+        val src = CFDataGetBytePtr(cfData) ?: run {
+            CFRelease(cfData)
+            return null
+        }
+        val bytes = ByteArray(length)
+        bytes.usePinned { pinned ->
+            memcpy(pinned.addressOf(0), src, length.convert())
+        }
+        CFRelease(cfData)
+        return bytes.decodeToString().ifBlank { null }
     }
 
     private fun write(account: String, value: String) {
-        val nsData = (value as NSString).dataUsingEncoding(NSUTF8StringEncoding) ?: return
-        val cfData = CFBridgingRetain(nsData) ?: return
+        val utf8 = value.encodeToByteArray()
+        if (utf8.isEmpty()) return
 
-        val query = createQuery(account, returnData = false) ?: return
+        val cfData: CFDataRef =
+            utf8.usePinned { pinned ->
+                val bytesPtr: CPointer<UByteVar> = pinned.addressOf(0).reinterpret()
+                CFDataCreate(
+                    kCFAllocatorDefault,
+                    bytesPtr,
+                    utf8.size.convert(),
+                )
+            } ?: return
+
+        val query = createQuery(account, returnData = false)
+        if (query == null) {
+            CFRelease(cfData)
+            return
+        }
 
         val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
-        if (attributes == null) return
+        if (attributes == null) {
+            CFRelease(cfData)
+            return
+        }
         CFDictionaryAddValue(attributes, kSecValueData, cfData)
 
         var status = SecItemUpdate(query, attributes)
@@ -120,9 +153,10 @@ class IosKeychainSessionStore : SessionStore {
             }
         }
 
-        // Best-effort; session store does not throw on Keychain errors
+        CFRelease(cfData)
+
         if (status != errSecSuccess && status != errSecDuplicateItem) {
-            // optionally log status
+            // best-effort
         }
     }
 

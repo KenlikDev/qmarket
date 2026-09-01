@@ -19,7 +19,9 @@ services:
 volumes:
   qmarket_pg_data:
 
-  # Uncomment to run API in Docker (build from repo root):
+  # Uncomment to run API in Docker (build from repo root).
+  # JWT_SECRET is required — generate e.g. `openssl rand -base64 48` and pass via env.
+  # Do not commit real secrets.
   # api:
   #   build:
   #     context: .
@@ -32,7 +34,10 @@ volumes:
   #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/qmarket
   #     SPRING_DATASOURCE_USERNAME: qmarket
   #     SPRING_DATASOURCE_PASSWORD: qmarket
-  #     JWT_SECRET: change-me-in-production-to-a-long-secret-key-256bits
-  #     CORS_ORIGINS: http://localhost:*,http://127.0.0.1:*
+  #     JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in the environment}
+  #     DB_USER: qmarket
+  #     DB_PASSWORD: qmarket
+  #     CORS_ORIGINS: https://your-frontend.example
   #   depends_on:
-  #     - postgres
+  #     postgres:
+  #       condition: service_healthy

@@ -76,3 +76,5 @@ qmarket:
     cors:
       # Comma-separated origin patterns (not * in production)
       allowed-origin-patterns: ${CORS_ORIGINS:http://localhost:*,http://127.0.0.1:*,http://10.0.2.2:*}
+    # When false, /swagger-ui and /api-docs require authentication (prod sets false)
+    api-docs-public: ${QMARKET_API_DOCS_PUBLIC:true}

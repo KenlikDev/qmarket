@@ -109,6 +109,9 @@ Android emulator API host: `10.0.2.2:8080`
 
 ### Production notes
 
+- Profile `prod`: Swagger/OpenAPI **disabled**; `qmarket.security.api-docs-public=false`
+- `JWT_SECRET` required (≥32 chars, not a known placeholder); generate: `openssl rand -base64 48`
+- Actuator in prod exposes only `health,info` (no prometheus/metrics by default)
 - Android release: no cleartext HTTP; tokens in EncryptedSharedPreferences
 - Android debug: cleartext allowed for emulator (`10.0.2.2` / localhost) via network security debug-overrides
 

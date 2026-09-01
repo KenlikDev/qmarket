@@ -8,6 +8,8 @@ qmarket:
       secret: ${JWT_SECRET}
     cors:
       allowed-origin-patterns: ${CORS_ORIGINS:https://qmarket.example}
+    # Swagger / OpenAPI must not be anonymous in production
+    api-docs-public: false
 
 server:
   error:
@@ -22,6 +24,22 @@ spring:
     baseline-on-migrate: false
   jpa:
     show-sql: false
+
+# Disable OpenAPI UI and docs in production (defense in depth with api-docs-public=false)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
 
 logging:
   level:

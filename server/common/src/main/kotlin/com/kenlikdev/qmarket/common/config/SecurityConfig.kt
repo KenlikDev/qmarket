@@ -29,6 +29,12 @@ open class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
     @Value("\${qmarket.security.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*,http://10.0.2.2:*}")
     private val corsOriginPatterns: String,
+    /**
+     * When false (prod), Swagger / OpenAPI paths are not anonymous.
+     * Local/dev keep true so Swagger UI works without JWT.
+     */
+    @Value("\${qmarket.security.api-docs-public:true}")
+    private val apiDocsPublic: Boolean,
 ) {
     @Bean
     fun securityFilterChain(
@@ -45,11 +51,17 @@ open class SecurityConfig(
                         "/api/v1/auth/**",
                         "/actuator/health",
                         "/actuator/info",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/api-docs/**",
-                        "/v3/api-docs/**",
                     ).permitAll()
+                if (apiDocsPublic) {
+                    auth
+                        .requestMatchers(
+                            "/swagger-ui/**",
+                            "/swagger-ui.html",
+                            "/api-docs/**",
+                            "/v3/api-docs/**",
+                        ).permitAll()
+                }
+                auth
                     .requestMatchers("/actuator/**")
                     .hasAnyRole("ADMIN", "MANAGER")
                     .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**")

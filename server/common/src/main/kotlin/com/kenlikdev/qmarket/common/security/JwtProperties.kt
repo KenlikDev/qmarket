@@ -22,6 +22,8 @@ data class JwtProperties(
             setOf(
                 "change-me-to-a-very-long-and-secure-secret-key-at-least-256-bits",
                 "change-me",
+                "change-me-in-production-to-a-long-secret-key-256bits",
+                "dev-only-qmarket-jwt-secret-key-32chars-min",
             )
         require(s !in weak) {
             "qmarket.security.jwt.secret must not use the known placeholder value. Set JWT_SECRET."

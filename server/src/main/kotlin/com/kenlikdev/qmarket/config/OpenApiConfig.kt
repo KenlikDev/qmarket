@@ -6,13 +6,17 @@ import io.swagger.v3.oas.models.info.Contact
 import io.swagger.v3.oas.models.info.Info
 import io.swagger.v3.oas.models.security.SecurityRequirement
 import io.swagger.v3.oas.models.security.SecurityScheme
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Swagger UI: кнопка Authorize → вставить accessToken (без слова Bearer).
+ * Swagger UI: Authorize → paste accessToken (without the word Bearer).
+ *
+ * Disabled in production via springdoc.*.enabled=false (application-prod.yml).
  */
 @Configuration
+@ConditionalOnProperty(name = ["springdoc.api-docs.enabled"], havingValue = "true", matchIfMissing = true)
 class OpenApiConfig {
     @Bean
     fun openAPI(): OpenAPI {
@@ -25,25 +29,21 @@ class OpenApiConfig {
                         """
                         WIP modular monolith API.
 
-                        **Auth:** `POST /api/v1/auth/login` → скопировать `accessToken` →
-                        кнопка **Authorize** (сверху справа) → вставить токен → Authorize.
-
-                        **Dev seed:** enable with profile `dev` or `QMARKET_SEED_ENABLED=true` (see README)
+                        **Auth:** `POST /api/v1/auth/login` → copy `accessToken` →
+                        **Authorize** in Swagger UI (raw token, no "Bearer " prefix).
                         """.trimIndent(),
                     ).version("0.1.0-WIP")
-                    .contact(Contact().name("QMarket")),
+                    .contact(Contact().name("KenlikDev").email("dev@qmarket.local")),
             ).addSecurityItem(SecurityRequirement().addList(bearer))
             .components(
-                Components()
-                    .addSecuritySchemes(
-                        bearer,
-                        SecurityScheme()
-                            .name(bearer)
-                            .type(SecurityScheme.Type.HTTP)
-                            .scheme("bearer")
-                            .bearerFormat("JWT")
-                            .description("JWT access token from /api/v1/auth/login or /register"),
-                    ),
+                Components().addSecuritySchemes(
+                    bearer,
+                    SecurityScheme()
+                        .name(bearer)
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT"),
+                ),
             )
     }
 }
