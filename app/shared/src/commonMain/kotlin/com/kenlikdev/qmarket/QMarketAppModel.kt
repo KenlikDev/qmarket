@@ -16,6 +16,18 @@ import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.ui.AppScreen
 import com.kenlikdev.qmarket.ui.CatalogFilterParams
 import com.kenlikdev.qmarket.ui.CheckoutIdempotency
+import com.kenlikdev.qmarket.api.UpdateOrderStatusRequestDto
+import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
+import com.kenlikdev.qmarket.api.UpdateProductRequestDto
+import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
+import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
+import com.kenlikdev.qmarket.api.UpdateAddressRequestDto
+import com.kenlikdev.qmarket.api.OrderStatusDto
+import com.kenlikdev.qmarket.api.CreateProductRequestDto
+import com.kenlikdev.qmarket.api.CreateCategoryRequestDto
+import com.kenlikdev.qmarket.api.CreateAddressRequestDto
+import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
+import com.kenlikdev.qmarket.api.AddCartItemRequestDto
 import com.kenlikdev.qmarket.api.RegisterRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
@@ -354,6 +366,332 @@ class QMarketAppModel(
         runApi {
             pendingCheckoutKey = null
             cart = api.clearCart()
+        }
+    }
+
+    fun openAdmin() {
+        runApi {
+            categories = api.listCategories(activeOnly = false)
+            adminOrders = api.listAdminOrders().content
+            screen = AppScreen.Admin
+        }
+    }
+
+    fun addToCartFromCatalog(product: ProductDto) {
+        runApi {
+            cart =
+                api.addCartItem(
+                    AddCartItemRequestDto(
+                        productId = product.id,
+                        quantity = 1,
+                    ),
+                )
+            statusMessage = "Added ${product.name} to cart"
+        }
+    }
+
+    fun addDetailToCart() {
+        val p = detailProduct ?: return
+        runApi {
+            cart =
+                api.addCartItem(
+                    AddCartItemRequestDto(
+                        productId = p.id,
+                        quantity = detailQuantity,
+                    ),
+                )
+            statusMessage = "Added ${p.name} ×$detailQuantity to cart"
+            detailProduct = api.getProduct(p.id)
+            detailQuantity = 1
+        }
+    }
+
+    fun updateCartQuantity(productId: String, quantity: Int) {
+        runApi {
+            pendingCheckoutKey = null
+            cart =
+                api.updateCartItem(
+                    productId,
+                    UpdateCartItemRequestDto(quantity = quantity),
+                )
+        }
+    }
+
+    fun removeCartItem(productId: String) {
+        runApi {
+            pendingCheckoutKey = null
+            cart = api.removeCartItem(productId)
+        }
+    }
+
+    fun payOrder(orderId: String) {
+        runApi {
+            val paid = api.payOrder(orderId)
+            if (screen is AppScreen.OrderDone) {
+                screen = AppScreen.OrderDone(paid)
+            }
+            detailOrder = paid
+            statusMessage = "Paid"
+            // refresh list if visible
+            orders = orders.map { if (it.id == paid.id) paid else it }
+        }
+    }
+
+    fun cancelOrder(orderId: String) {
+        runApi {
+            val cancelled = api.cancelOrder(orderId)
+            detailOrder = cancelled
+            statusMessage = "Cancelled"
+            orders = orders.map { if (it.id == cancelled.id) cancelled else it }
+            if (screen is AppScreen.OrderDone) {
+                screen = AppScreen.OrderDone(cancelled)
+            }
+        }
+    }
+
+    fun refreshOrder(orderId: String) {
+        runApi {
+            detailOrder = api.getOrder(orderId)
+        }
+    }
+
+    fun saveProfile() {
+        runApi {
+            profile =
+                api.updateProfile(
+                    UpdateProfileRequestDto(
+                        firstName = firstName.trim().ifBlank { null },
+                        lastName = lastName.trim().ifBlank { null },
+                        phone = phone.trim().ifBlank { null },
+                    ),
+                )
+            statusMessage = "Profile saved"
+        }
+    }
+
+    fun updatePassword() {
+        runApi {
+            api.changePassword(
+                ChangePasswordRequestDto(
+                    currentPassword = currentPassword,
+                    newPassword = newPassword,
+                ),
+            )
+            currentPassword = ""
+            newPassword = ""
+            statusMessage = "Password updated"
+        }
+    }
+
+    fun addAddress() {
+        runApi {
+            val created =
+                api.createAddress(
+                    CreateAddressRequestDto(
+                        recipientName = addrRecipient.trim(),
+                        city = addrCity.trim(),
+                        streetLine1 = addrStreet.trim(),
+                        phone = addrPhone.trim().ifBlank { null },
+                        default = addresses.isEmpty(),
+                    ),
+                )
+            addresses = api.listAddresses()
+            selectedAddressId = created.id
+            addrRecipient = ""
+            addrCity = ""
+            addrStreet = ""
+            addrPhone = ""
+            statusMessage = "Address saved"
+        }
+    }
+
+    fun deleteAddress(id: String) {
+        runApi {
+            api.deleteAddress(id)
+            addresses = api.listAddresses()
+            if (selectedAddressId == id) {
+                selectedAddressId = addresses.firstOrNull { it.default }?.id
+                    ?: addresses.firstOrNull()?.id
+            }
+            pendingCheckoutKey = null
+            statusMessage = "Address deleted"
+        }
+    }
+
+    fun setDefaultAddress(id: String) {
+        runApi {
+            api.updateAddress(id, UpdateAddressRequestDto(default = true))
+            addresses = api.listAddresses()
+            selectedAddressId = id
+            pendingCheckoutKey = null
+            statusMessage = "Default address updated"
+        }
+    }
+
+    fun markNotificationRead(id: String) {
+        runApi {
+            api.markNotificationRead(id)
+            notifications = api.listNotifications(size = 50).content
+            notificationsUnread = api.notificationsUnreadCount().unread
+        }
+    }
+
+    fun refreshNotifications() {
+        runApi {
+            notifications = api.listNotifications(size = 50).content
+            notificationsUnread = api.notificationsUnreadCount().unread
+        }
+    }
+
+    fun markAllNotificationsRead() {
+        runApi {
+            notificationsUnread = api.markAllNotificationsRead().unread
+            notifications = api.listNotifications(size = 50).content
+            statusMessage = "All notifications marked read"
+        }
+    }
+
+    fun createCategory() {
+        runApi {
+            api.createCategory(
+                CreateCategoryRequestDto(
+                    name = adminCategoryName.trim(),
+                    slug = adminCategorySlug.trim(),
+                ),
+            )
+            adminCategoryName = ""
+            adminCategorySlug = ""
+            categories = api.listCategories(activeOnly = false)
+            catalogCategories = runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+            statusMessage = "Category created"
+        }
+    }
+
+    fun updateCategory() {
+        val id = editingCategoryId ?: return
+        runApi {
+            api.updateCategory(
+                id,
+                UpdateCategoryRequestDto(
+                    name = adminCategoryName.trim().ifBlank { null },
+                    slug = adminCategorySlug.trim().ifBlank { null },
+                ),
+            )
+            editingCategoryId = null
+            adminCategoryName = ""
+            adminCategorySlug = ""
+            categories = api.listCategories(activeOnly = false)
+            catalogCategories = runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+            statusMessage = "Category updated"
+        }
+    }
+
+    fun deleteCategory(id: String) {
+        runApi {
+            api.deleteCategory(id)
+            if (editingCategoryId == id) {
+                editingCategoryId = null
+                adminCategoryName = ""
+                adminCategorySlug = ""
+            }
+            categories = api.listCategories(activeOnly = false)
+            catalogCategories = runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+            statusMessage = "Category deleted"
+        }
+    }
+
+    fun saveProduct() {
+        val editingId = editingProductId
+        runApi {
+            if (editingId == null) {
+                api.createProduct(
+                    CreateProductRequestDto(
+                        name = adminProductName.trim(),
+                        slug = adminProductSlug.trim(),
+                        price = adminProductPrice.trim(),
+                        stockQuantity = adminProductStock.trim().toIntOrNull() ?: 0,
+                        featured = adminProductFeatured,
+                        categoryId = adminProductCategoryId,
+                    ),
+                )
+                statusMessage = "Created product"
+            } else {
+                api.updateProduct(
+                    editingId,
+                    UpdateProductRequestDto(
+                        name = adminProductName.trim().ifBlank { null },
+                        slug = adminProductSlug.trim().ifBlank { null },
+                        price = adminProductPrice.trim().ifBlank { null },
+                        stockQuantity = adminProductStock.trim().toIntOrNull(),
+                        featured = adminProductFeatured,
+                        categoryId = adminProductCategoryId,
+                    ),
+                )
+                statusMessage = "Updated product"
+            }
+            editingProductId = null
+            adminProductName = ""
+            adminProductSlug = ""
+            adminProductPrice = "9.99"
+            adminProductStock = "10"
+            adminProductFeatured = false
+            adminProductCategoryId = null
+            products = api.listProducts(size = 50).content
+        }
+    }
+
+    fun deleteProduct(product: ProductDto) {
+        runApi {
+            api.deleteProduct(product.id)
+            statusMessage = "Deleted ${product.name}"
+            if (editingProductId == product.id) {
+                editingProductId = null
+            }
+            products = api.listProducts(size = 50).content
+        }
+    }
+
+    fun beginEditProduct(product: ProductDto) {
+        editingProductId = product.id
+        adminProductName = product.name
+        adminProductSlug = product.slug
+        adminProductPrice = product.price
+        adminProductStock = product.stockQuantity.toString()
+        adminProductFeatured = product.featured
+        adminProductCategoryId = product.categoryId
+        error = null
+        statusMessage = null
+    }
+
+    fun clearProductEdit() {
+        editingProductId = null
+        adminProductName = ""
+        adminProductSlug = ""
+        adminProductPrice = "9.99"
+        adminProductStock = "10"
+        adminProductFeatured = false
+        adminProductCategoryId = null
+    }
+
+    fun beginEditCategory(id: String, name: String, slug: String) {
+        editingCategoryId = id
+        adminCategoryName = name
+        adminCategorySlug = slug
+        error = null
+        statusMessage = null
+    }
+
+    fun clearCategoryEdit() {
+        editingCategoryId = null
+        adminCategoryName = ""
+        adminCategorySlug = ""
+    }
+
+    fun updateAdminOrderStatus(orderId: String, status: OrderStatusDto) {
+        runApi {
+            api.updateAdminOrderStatus(orderId, status)
+            adminOrders = api.listAdminOrders().content
+            statusMessage = "Order → ${status.name}"
         }
     }
 }
