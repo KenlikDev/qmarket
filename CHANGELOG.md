@@ -31,6 +31,11 @@
 
 ## Unreleased
 
+### Security
+- iOS session store: Keychain (`kSecClassGenericPassword`, AfterFirstUnlockThisDeviceOnly) with one-shot migration from NSUserDefaults
+- Android parity already in place (EncryptedSharedPreferences AES-256)
+
+
 ### Added
 - Admin order status transitions emit customer in-app notifications
 - TopBar **Alerts** entry with unread badge; catalog load refreshes count
@@ -126,5 +131,5 @@
 - Admin product CRUD UI (create/update/delete); categories UI still open
 - Refresh tokens are DB-backed with rotation, family reuse detection, and logout revoke
 - Compose UI tests cover key screens on JVM; Android instrumented / iOS UI tests not wired yet
-- Session storage is app-private but not hardware-backed (no EncryptedSharedPreferences / Keychain yet)
+- Session storage: Android EncryptedSharedPreferences + iOS Keychain; JVM file; wasmJs in-memory
 - wasmJs session remains in-memory

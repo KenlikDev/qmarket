@@ -78,6 +78,7 @@
 - [x] P0 review hardening: no public costPrice, no seed password in OpenAPI/logs, order/product @Version, bulk markAllRead
 - [x] P1: cart get-or-create race, rate-limit bounds+IP, actuator lockdown, cancel/pay concurrency tests
 - [x] Android secure session storage (EncryptedSharedPreferences) + cleartext only in debug
+- [x] iOS Keychain session storage (migrate from NSUserDefaults)
 
 ## v1.0 MVP (из плана)
 
