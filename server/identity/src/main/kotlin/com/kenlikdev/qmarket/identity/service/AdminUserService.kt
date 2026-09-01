@@ -28,7 +28,17 @@ class AdminUserService(
                 Sort.by(Sort.Direction.DESC, "createdAt"),
             )
         val query = q?.trim()?.takeIf { it.isNotEmpty() }
-        val result = userRepository.search(query, pageable)
+        val result =
+            if (query == null) {
+                userRepository.findAll(pageable)
+            } else {
+                userRepository.findByEmailContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
+                    query,
+                    query,
+                    query,
+                    pageable,
+                )
+            }
         return AdminUserPageResponse(
             content = result.content.map { it.toAdminResponse() },
             page = result.number,

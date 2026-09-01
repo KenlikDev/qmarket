@@ -74,6 +74,7 @@
 ### v1.0 started
 
 - [x] Admin users API: `GET /api/v1/admin/users` (+ `/{id}`, search `q`)
+- [x] Admin users integration tests (Testcontainers)
 - [ ] Admin users UI in shared client
 - [ ] Real PSP adapter (Stripe/YooKassa/…)
 

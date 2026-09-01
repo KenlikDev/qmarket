@@ -5,8 +5,6 @@ import com.kenlikdev.qmarket.identity.domain.User
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface UserRepository : JpaRepository<User, UUID> {
@@ -14,16 +12,14 @@ interface UserRepository : JpaRepository<User, UUID> {
 
     fun existsByEmail(email: String): Boolean
 
-    @Query(
-        """
-        SELECT u FROM User u
-        WHERE (:q IS NULL OR LOWER(u.email) LIKE LOWER(CONCAT('%', :q, '%'))
-           OR LOWER(COALESCE(u.firstName, '')) LIKE LOWER(CONCAT('%', :q, '%'))
-           OR LOWER(COALESCE(u.lastName, '')) LIKE LOWER(CONCAT('%', :q, '%')))
-        """,
-    )
-    fun search(
-        @Param("q") q: String?,
+    /**
+     * Case-insensitive search on email / first / last name.
+     * Derived query avoids JPQL CONCAT+LOWER issues on PostgreSQL (lower(bytea)).
+     */
+    fun findByEmailContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
+        email: String,
+        firstName: String,
+        lastName: String,
         pageable: Pageable,
     ): Page<User>
 }

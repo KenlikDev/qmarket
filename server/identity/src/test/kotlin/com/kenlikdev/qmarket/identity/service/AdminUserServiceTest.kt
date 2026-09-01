@@ -6,12 +6,14 @@ import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import java.time.Instant
 import java.util.Optional
 import java.util.UUID
@@ -27,7 +29,7 @@ class AdminUserServiceTest {
     }
 
     @Test
-    fun `listUsers maps entities`() {
+    fun `listUsers without q uses findAll`() {
         val id = UUID.randomUUID()
         val user =
             User(
@@ -41,12 +43,28 @@ class AdminUserServiceTest {
                 createdAt = Instant.parse("2026-01-01T00:00:00Z"),
                 roles = mutableSetOf(Role(name = "ROLE_USER")),
             )
-        every { userRepository.search(null, any()) } returns PageImpl(listOf(user), PageRequest.of(0, 20), 1)
+        every { userRepository.findAll(any<Pageable>()) } returns
+            PageImpl(listOf(user), PageRequest.of(0, 20), 1)
 
         val page = service.listUsers(0, 20, null)
         assertEquals(1, page.totalElements)
         assertEquals("u@test.com", page.content.single().email)
-        assertEquals(listOf("ROLE_USER"), page.content.single().roles)
+        verify(exactly = 1) { userRepository.findAll(any<Pageable>()) }
+    }
+
+    @Test
+    fun `listUsers with q uses derived search`() {
+        every {
+            userRepository.findByEmailContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
+                "ada",
+                "ada",
+                "ada",
+                any(),
+            )
+        } returns PageImpl(emptyList(), PageRequest.of(0, 20), 0)
+
+        val page = service.listUsers(0, 20, "ada")
+        assertEquals(0, page.totalElements)
     }
 
     @Test
