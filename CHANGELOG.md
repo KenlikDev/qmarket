@@ -31,6 +31,16 @@
 
 ## Unreleased
 
+### Refactor
+- Client composition root: extract `QMarketAppModel` (session, catalog/cart/orders, admin, checkout); `App.kt` is screen wiring only (~460 lines)
+
+### Security
+- Prod locks down OpenAPI (`qmarket.security.api-docs-public`, springdoc disabled) and narrows actuator exposure
+- `JwtProperties` rejects compose/dev placeholder secrets; docker-compose requires `JWT_SECRET` via env
+- iOS session store: Keychain (`kSecClassGenericPassword`, AfterFirstUnlockThisDeviceOnly) via CFDictionary/CFData (KN 2.4)
+
+
+
 ### Security
 - iOS session store: Keychain (`kSecClassGenericPassword`, AfterFirstUnlockThisDeviceOnly) with one-shot migration from NSUserDefaults
 - Android parity already in place (EncryptedSharedPreferences AES-256)

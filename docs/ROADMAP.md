@@ -6,7 +6,7 @@
 
 | Версия | Фокус | Статус |
 |--------|--------|--------|
-| **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **WIP** (scope почти закрыт) |
+| **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **Ready for release confirmation** |
 | **v0.2 Catalog & Auth polish** | OAuth optional, admin catalog UX | **WIP** (create product UI + rate limit done) |
 | **v0.3** | (merged into v0.1 client) reserved / skip | done via shared UI |
 | **v1.0 MVP** | Payments (1 провайдер), notifications, admin UI, search | pending |
@@ -44,7 +44,7 @@
 - [x] Client checkout: stable Idempotency-Key + double-submit lock
 - [x] Order detail screen (line items, pay/cancel/refresh)
 - [x] JWT Bearer + refresh on 401
-- [x] UI split: `ui/` screens + `App.kt` composition root
+- [x] UI split: `ui/` screens + `App.kt` + `QMarketAppModel` (state/loaders outside composition root)
 - [x] Persistent session store (Android prefs / JVM file / iOS defaults / JS localStorage)
 - [x] Compose UI tests (`runComposeUiTest` on Login/Register/Catalog/Cart/Profile/Orders/Addresses; JVM)
 - [x] Login rate limit (sliding window per email; 429 TOO_MANY_REQUESTS)
@@ -79,6 +79,9 @@
 - [x] P1: cart get-or-create race, rate-limit bounds+IP, actuator lockdown, cancel/pay concurrency tests
 - [x] Android secure session storage (EncryptedSharedPreferences) + cleartext only in debug
 - [x] iOS Keychain session storage (migrate from NSUserDefaults)
+- [x] Prod: Swagger/OpenAPI off (`api-docs-public=false`, springdoc disabled)
+- [x] Prod: actuator exposure limited to health/info
+- [x] JwtProperties rejects known placeholder/dev secrets
 
 ## v1.0 MVP (из плана)
 
@@ -86,7 +89,9 @@
 Админ: товары, заказы, пользователи.  
 Платформы: Android + Web (+ Desktop); iOS параллельно.
 
-Открыто для v1.0: реальный PSP, rate limit login, admin UI, отзыв refresh-токенов.
+Открыто для v1.0: реальный PSP (сейчас mock pay), OAuth (optional, v0.2), расширенный admin (пользователи), observability.
+
+Уже закрыто из прежнего списка: login rate limit, admin catalog/orders UI, refresh revoke/rotation, in-app notifications.
 
 ## Архитектура
 
@@ -94,7 +99,8 @@
 
 Контракты модулей — в `*.api` (как `catalog-api`), не в `common`.
 
-Клиент: экраны в `app/shared/.../ui/`, сеть в `network/`, валидация в `validation/`.
+Клиент: экраны в `app/shared/.../ui/`, состояние/API-сценарии в `QMarketAppModel`, сеть в `network/`, валидация в `validation/`.
+См. также `docs/CLIENT_ARCHITECTURE.md`.
 
 ## Правило релиза
 
