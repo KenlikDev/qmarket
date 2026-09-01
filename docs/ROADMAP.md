@@ -73,6 +73,10 @@
 
 ### v1.0 started
 
+- [x] Admin users API: `GET /api/v1/admin/users` (+ `/{id}`, search `q`)
+- [ ] Admin users UI in shared client
+- [ ] Real PSP adapter (Stripe/YooKassa/…)
+
 - [x] In-app notifications (order placed/paid/cancelled → `user_notifications`, API + client UI)
 - [x] Admin status change notifies customer; TopBar Alerts badge (unread count)
 - [x] P0 review hardening: no public costPrice, no seed password in OpenAPI/logs, order/product @Version, bulk markAllRead

@@ -15,6 +15,7 @@ import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.NotificationDto
+import com.kenlikdev.qmarket.api.AdminUserDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.UnreadCountDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
@@ -269,6 +270,23 @@ class QMarketApiClient(
             "/api/v1/orders/admin/$id/status",
             UpdateOrderStatusRequestDto(status = status),
         )
+
+
+    suspend fun listAdminUsers(
+        page: Int = 0,
+        size: Int = 50,
+        q: String? = null,
+    ): PageDto<AdminUserDto> {
+        val response =
+            http.get("/api/v1/admin/users") {
+                parameter("page", page)
+                parameter("size", size)
+                q?.let { parameter("q", it) }
+            }
+        return response.parseBody()
+    }
+
+    suspend fun getAdminUser(id: String): AdminUserDto = get("/api/v1/admin/users/$id")
 
     // --- HTTP helpers ---
 
