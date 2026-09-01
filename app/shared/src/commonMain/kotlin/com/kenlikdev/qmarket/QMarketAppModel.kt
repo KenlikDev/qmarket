@@ -15,6 +15,10 @@ import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.ui.AppScreen
 import com.kenlikdev.qmarket.ui.CatalogFilterParams
+import com.kenlikdev.qmarket.ui.CheckoutIdempotency
+import com.kenlikdev.qmarket.api.RegisterRequestDto
+import com.kenlikdev.qmarket.api.LoginRequestDto
+import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -260,5 +264,96 @@ class QMarketAppModel(
         userLabel = authEmail
         loggedIn = true
         isAdmin = tokens.isAdmin()
+    }
+
+    fun login() {
+        runApi {
+            val auth =
+                api.login(
+                    LoginRequestDto(
+                        email = email.trim(),
+                        password = password,
+                    ),
+                )
+            tokens.applyAuth(auth)
+            api.clearBearerTokenCache()
+            clearUserScopedUiState()
+            applySession(auth.user.email)
+            val page = api.listProducts(size = 50)
+            products = page.content
+            cart = runCatching { api.getCart() }.getOrNull()
+            notificationsUnread =
+                runCatching { api.notificationsUnreadCount().unread }.getOrDefault(0L)
+            screen = AppScreen.Catalog
+        }
+    }
+
+    fun register() {
+        runApi {
+            val auth =
+                api.register(
+                    RegisterRequestDto(
+                        email = email.trim(),
+                        password = password,
+                        firstName = firstName.trim().ifBlank { null },
+                        lastName = lastName.trim().ifBlank { null },
+                    ),
+                )
+            tokens.applyAuth(auth)
+            api.clearBearerTokenCache()
+            clearUserScopedUiState()
+            applySession(auth.user.email)
+            val page = api.listProducts(size = 50)
+            products = page.content
+            cart = runCatching { api.getCart() }.getOrNull()
+            screen = AppScreen.Catalog
+        }
+    }
+
+    fun browseAsGuest() {
+        tokens.clear()
+        api.clearBearerTokenCache()
+        clearUserScopedUiState()
+        loggedIn = false
+        userLabel = null
+        loadCatalog()
+    }
+
+    fun checkout() {
+        if (checkoutLocked || loading) return
+        checkoutLocked = true
+        runApi {
+            try {
+                val checkoutKey =
+                    pendingCheckoutKey
+                        ?: CheckoutIdempotency.newKey().also { pendingCheckoutKey = it }
+                val order =
+                    api.createOrder(
+                        request =
+                            CreateOrderRequestDto(
+                                addressId = selectedAddressId,
+                                shippingAddress =
+                                    if (selectedAddressId == null) {
+                                        shippingAddress.trim().ifBlank { null }
+                                    } else {
+                                        null
+                                    },
+                            ),
+                        idempotencyKey = checkoutKey,
+                    )
+                pendingCheckoutKey = null
+                cart = api.getCart()
+                screen = AppScreen.OrderDone(order)
+            } finally {
+                checkoutLocked = false
+            }
+        }
+    }
+
+    fun clearCart() {
+        runApi {
+            pendingCheckoutKey = null
+            cart = api.clearCart()
+        }
     }
 }

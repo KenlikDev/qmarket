@@ -99,39 +99,12 @@ fun App() {
                         loading = m.loading,
                         onEmailChange = { m.email = it },
                         onPasswordChange = { m.password = it },
-                        onLogin = {
-                            m.runApi {
-                                val auth =
-                                    api.login(
-                                        LoginRequestDto(
-                                            email = m.email.trim(),
-                                            password = m.password,
-                                        ),
-                                    )
-                                tokens.applyAuth(auth)
-                                api.clearBearerTokenCache()
-                                m.clearUserScopedUiState()
-                                m.applySession(auth.user.email)
-                                val page = api.listProducts(size = 50)
-                                m.products = page.content
-                                m.cart = runCatching { api.getCart() }.getOrNull()
-                                m.notificationsUnread =
-                                    runCatching { api.notificationsUnreadCount().unread }.getOrDefault(0L)
-                                m.screen = AppScreen.Catalog
-                            }
-                        },
+                        onLogin = { m.login() },
                         onCreateAccount = {
                             m.error = null
                             m.screen = AppScreen.Register
                         },
-                        onBrowseCatalog = {
-                            tokens.clear()
-                            api.clearBearerTokenCache()
-                            m.clearUserScopedUiState()
-                            m.loggedIn = false
-                            m.userLabel = null
-                            m.loadCatalog()
-                        },
+                        onBrowseCatalog = { m.browseAsGuest() },
                         modifier = screenModifier,
                     )
                 }
@@ -148,27 +121,7 @@ fun App() {
                         onPasswordChange = { m.password = it },
                         onFirstNameChange = { m.firstName = it },
                         onLastNameChange = { m.lastName = it },
-                        onRegister = {
-                            m.runApi {
-                                val auth =
-                                    api.register(
-                                        RegisterRequestDto(
-                                            email = m.email.trim(),
-                                            password = m.password,
-                                            firstName = m.firstName.trim().ifBlank { null },
-                                            lastName = m.lastName.trim().ifBlank { null },
-                                        ),
-                                    )
-                                tokens.applyAuth(auth)
-                                api.clearBearerTokenCache()
-                                m.clearUserScopedUiState()
-                                m.applySession(auth.user.email)
-                                val page = api.listProducts(size = 50)
-                                m.products = page.content
-                                m.cart = runCatching { api.getCart() }.getOrNull()
-                                m.screen = AppScreen.Catalog
-                            }
-                        },
+                        onRegister = { m.register() },
                         onBackToLogin = {
                             m.error = null
                             m.screen = AppScreen.Login
@@ -349,42 +302,8 @@ fun App() {
                             if (it.isNotBlank()) m.selectedAddressId = null
                             m.pendingCheckoutKey = null
                         },
-                        onCheckout = {
-                            if (m.checkoutLocked || m.loading) return@CartScreen
-                            m.checkoutLocked = true
-                            m.runApi {
-                                try {
-                                    val checkoutKey =
-                                        m.pendingCheckoutKey
-                                            ?: CheckoutIdempotency.newKey().also { m.pendingCheckoutKey = it }
-                                    val order =
-                                        api.createOrder(
-                                            request =
-                                                CreateOrderRequestDto(
-                                                    addressId = m.selectedAddressId,
-                                                    shippingAddress =
-                                                        if (m.selectedAddressId == null) {
-                                                            m.shippingAddress.trim().ifBlank { null }
-                                                        } else {
-                                                            null
-                                                        },
-                                                ),
-                                            idempotencyKey = checkoutKey,
-                                        )
-                                    m.pendingCheckoutKey = null
-                                    m.cart = api.getCart()
-                                    m.screen = AppScreen.OrderDone(order)
-                                } finally {
-                                    m.checkoutLocked = false
-                                }
-                            }
-                        },
-                        onClearCart = {
-                            m.runApi {
-                                m.pendingCheckoutKey = null
-                                m.cart = api.clearCart()
-                            }
-                        },
+                        onCheckout = { m.checkout() },
+                        onClearCart = { m.clearCart() },
                         onOrders = { m.loadOrders() },
                         onAddresses = { m.loadAddresses() },
                         onProfile = { m.loadProfile() },
