@@ -59,7 +59,6 @@ import com.kenlikdev.qmarket.validation.ClientInputValidation
 import kotlinx.coroutines.launch
 
 @Composable
-@Preview
 fun App() {
     MaterialTheme {
         val sessionStore = remember { createPlatformSessionStore() }
@@ -73,288 +72,65 @@ fun App() {
             }
         val api = remember(http) { QMarketApiClient(http) }
         val scope = rememberCoroutineScope()
-
         val restoredSession = tokens.hasSession()
-        var screen by remember {
-            mutableStateOf<AppScreen>(
-                if (restoredSession) AppScreen.Catalog else AppScreen.Login,
-            )
-        }
-        var email by remember { mutableStateOf(tokens.sessionEmail() ?: "admin@qmarket.local") }
-        var password by remember { mutableStateOf("admin123") }
-        var firstName by remember { mutableStateOf("") }
-        var lastName by remember { mutableStateOf("") }
-        var phone by remember { mutableStateOf("") }
-        var currentPassword by remember { mutableStateOf("") }
-        var newPassword by remember { mutableStateOf("") }
-        var profile by remember { mutableStateOf<ProfileDto?>(null) }
-        var shippingAddress by remember { mutableStateOf("Moscow, Tverskaya 1") }
-        var error by remember { mutableStateOf<String?>(null) }
-        var statusMessage by remember { mutableStateOf<String?>(null) }
-        var loading by remember { mutableStateOf(false) }
-        var products by remember { mutableStateOf<List<ProductDto>>(emptyList()) }
-        var detailProduct by remember { mutableStateOf<ProductDto?>(null) }
-        var detailQuantity by remember { mutableStateOf(1) }
-        var catalogQuery by remember { mutableStateOf("") }
-        var catalogSortBy by remember { mutableStateOf("createdAt") }
-        var catalogFeaturedOnly by remember { mutableStateOf(false) }
-        var catalogCategoryId by remember { mutableStateOf<String?>(null) }
-        var catalogCategories by remember { mutableStateOf<List<CategoryDto>>(emptyList()) }
-        var isAdmin by remember { mutableStateOf(false) }
-        var adminProductName by remember { mutableStateOf("") }
-        var adminProductSlug by remember { mutableStateOf("") }
-        var adminProductPrice by remember { mutableStateOf("9.99") }
-        var adminProductStock by remember { mutableStateOf("10") }
-        var adminProductFeatured by remember { mutableStateOf(false) }
-        var adminProductCategoryId by remember { mutableStateOf<String?>(null) }
-        var editingProductId by remember { mutableStateOf<String?>(null) }
-        var editingCategoryId by remember { mutableStateOf<String?>(null) }
-        var categories by remember { mutableStateOf<List<CategoryDto>>(emptyList()) }
-        var adminCategoryName by remember { mutableStateOf("") }
-        var adminCategorySlug by remember { mutableStateOf("") }
-        var adminOrders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
-        var cart by remember { mutableStateOf<CartDto?>(null) }
-        var orders by remember { mutableStateOf<List<OrderDto>>(emptyList()) }
-        var detailOrder by remember { mutableStateOf<OrderDto?>(null) }
-        var notifications by remember { mutableStateOf<List<NotificationDto>>(emptyList()) }
-        var notificationsUnread by remember { mutableStateOf(0L) }
-        var userLabel by remember { mutableStateOf(tokens.sessionEmail()) }
-        var loggedIn by remember { mutableStateOf(restoredSession) }
-        var addresses by remember { mutableStateOf<List<AddressDto>>(emptyList()) }
-        var selectedAddressId by remember { mutableStateOf<String?>(null) }
-        var pendingCheckoutKey by remember { mutableStateOf<String?>(null) }
-        var checkoutLocked by remember { mutableStateOf(false) }
-        var addrRecipient by remember { mutableStateOf("") }
-        var addrCity by remember { mutableStateOf("") }
-        var addrStreet by remember { mutableStateOf("") }
-        var addrPhone by remember { mutableStateOf("") }
-
-        fun runApi(block: suspend () -> Unit) {
-            scope.launch {
-                loading = true
-                error = null
-                statusMessage = null
-                try {
-                    block()
-                } catch (e: ApiException) {
-                    error = e.message
-                } catch (e: Exception) {
-                    error = e.message ?: e.toString()
-                } finally {
-                    loading = false
-                }
+        val m =
+            remember(api, tokens, scope) {
+                QMarketAppModel(
+                    api = api,
+                    tokens = tokens,
+                    scope = scope,
+                    restoredSession = restoredSession,
+                )
             }
-        }
 
-        fun clearUserScopedUiState() {
-            orders = emptyList()
-            adminOrders = emptyList()
-            addresses = emptyList()
-            selectedAddressId = null
-            profile = null
-            firstName = ""
-            lastName = ""
-            phone = ""
-            currentPassword = ""
-            newPassword = ""
-            cart = null
-            detailProduct = null
-            detailOrder = null
-            notifications = emptyList()
-            notificationsUnread = 0L
-            pendingCheckoutKey = null
-            checkoutLocked = false
-            detailQuantity = 1
-            editingProductId = null
-            editingCategoryId = null
-            statusMessage = null
-        }
-
-        // Restore session: load catalog (and cart) after process restart
         LaunchedEffect(restoredSession) {
-            if (!restoredSession) return@LaunchedEffect
-            loading = true
-            error = null
-            try {
-                val page = api.listProducts(size = 50)
-                products = page.content
-                cart = runCatching { api.getCart() }.getOrNull()
-                runCatching { api.getProfile() }.onSuccess { p ->
-                    tokens.applyRoles(p.roles)
-                    isAdmin = tokens.isAdmin()
-                }
-                loggedIn = true
-                userLabel = tokens.sessionEmail()
-                isAdmin = tokens.isAdmin()
-                screen = AppScreen.Catalog
-            } catch (e: Exception) {
-                tokens.clear()
-                api.clearBearerTokenCache()
-                clearUserScopedUiState()
-                loggedIn = false
-                isAdmin = false
-                userLabel = null
-                products = emptyList()
-                screen = AppScreen.Login
-                error = e.message ?: "Session expired — please sign in again"
-            } finally {
-                loading = false
-            }
-        }
-
-        fun loadCatalog(navigate: Boolean = true) {
-            runApi {
-                catalogCategories =
-                    runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
-                val page =
-                    api.listProducts(
-                        size = 50,
-                        q = CatalogFilterParams.queryParam(catalogQuery),
-                        sortBy = catalogSortBy,
-                        sortDir = CatalogFilterParams.sortDir(catalogSortBy),
-                        featuredOnly = CatalogFilterParams.featuredParam(catalogFeaturedOnly),
-                        categoryId = CatalogFilterParams.categoryParam(catalogCategoryId),
-                    )
-                products = page.content
-                if (navigate) screen = AppScreen.Catalog
-            }
-        }
-
-        fun openProduct(product: ProductDto) {
-            detailProduct = product
-            detailQuantity = 1
-            screen = AppScreen.ProductDetail
-            runApi {
-                detailProduct = api.getProduct(product.id)
-                detailQuantity = 1
-            }
-        }
-
-        fun loadCart() {
-            runApi {
-                cart = api.getCart()
-                addresses = runCatching { api.listAddresses() }.getOrElse { addresses }
-                if (selectedAddressId == null) {
-                    selectedAddressId = addresses.firstOrNull { it.default }?.id
-                        ?: addresses.firstOrNull()?.id
-                }
-                screen = AppScreen.Cart
-            }
-        }
-
-        fun openOrder(order: OrderDto) {
-            detailOrder = order
-            screen = AppScreen.OrderDetail
-            runApi {
-                detailOrder = api.getOrder(order.id)
-            }
-        }
-
-        fun loadNotifications() {
-            runApi {
-                notifications = api.listNotifications(size = 50).content
-                notificationsUnread = api.notificationsUnreadCount().unread
-                screen = AppScreen.Notifications
-            }
-        }
-
-        fun loadOrders() {
-            runApi {
-                val page = api.listMyOrders(size = 50)
-                orders = page.content
-                screen = AppScreen.Orders
-            }
-        }
-
-        fun loadProfile() {
-            runApi {
-                val p = api.getProfile()
-                profile = p
-                firstName = p.firstName.orEmpty()
-                lastName = p.lastName.orEmpty()
-                phone = p.phone.orEmpty()
-                screen = AppScreen.Profile
-            }
-        }
-
-        fun loadAddresses(navigate: Boolean = true) {
-            runApi {
-                addresses = api.listAddresses()
-                if (selectedAddressId == null) {
-                    selectedAddressId = addresses.firstOrNull { it.default }?.id
-                        ?: addresses.firstOrNull()?.id
-                }
-                if (navigate) screen = AppScreen.Addresses
-            }
-        }
-
-        fun logout() {
-            val refresh = tokens.refreshToken()
-            runApi {
-                if (!refresh.isNullOrBlank()) {
-                    api.logout(refresh)
-                }
-                isAdmin = false
-                tokens.clear()
-                api.clearBearerTokenCache()
-                clearUserScopedUiState()
-                loggedIn = false
-                userLabel = null
-                products = emptyList()
-                error = null
-                screen = AppScreen.Login
-            }
-        }
-
-        fun applySession(authEmail: String) {
-            userLabel = authEmail
-            loggedIn = true
-            isAdmin = tokens.isAdmin()
+            m.restoreSessionIfNeeded(restoredSession)
         }
 
         Scaffold { padding ->
+
             val screenModifier = Modifier.padding(padding)
-            when (val current = screen) {
+            when (val current = m.screen) {
                 AppScreen.Login -> {
                     LoginScreen(
-                        email = email,
-                        password = password,
-                        error = error,
-                        loading = loading,
-                        onEmailChange = { email = it },
-                        onPasswordChange = { password = it },
+                        email = m.email,
+                        password = m.password,
+                        error = m.error,
+                        loading = m.loading,
+                        onEmailChange = { m.email = it },
+                        onPasswordChange = { m.password = it },
                         onLogin = {
-                            runApi {
+                            m.runApi {
                                 val auth =
                                     api.login(
                                         LoginRequestDto(
-                                            email = email.trim(),
-                                            password = password,
+                                            email = m.email.trim(),
+                                            password = m.password,
                                         ),
                                     )
                                 tokens.applyAuth(auth)
                                 api.clearBearerTokenCache()
-                                clearUserScopedUiState()
-                                applySession(auth.user.email)
+                                m.clearUserScopedUiState()
+                                m.applySession(auth.user.email)
                                 val page = api.listProducts(size = 50)
-                                products = page.content
-                                cart = runCatching { api.getCart() }.getOrNull()
-                                notificationsUnread =
+                                m.products = page.content
+                                m.cart = runCatching { api.getCart() }.getOrNull()
+                                m.notificationsUnread =
                                     runCatching { api.notificationsUnreadCount().unread }.getOrDefault(0L)
-                                screen = AppScreen.Catalog
+                                m.screen = AppScreen.Catalog
                             }
                         },
                         onCreateAccount = {
-                            error = null
-                            screen = AppScreen.Register
+                            m.error = null
+                            m.screen = AppScreen.Register
                         },
                         onBrowseCatalog = {
                             tokens.clear()
                             api.clearBearerTokenCache()
-                            clearUserScopedUiState()
-                            loggedIn = false
-                            userLabel = null
-                            loadCatalog()
+                            m.clearUserScopedUiState()
+                            m.loggedIn = false
+                            m.userLabel = null
+                            m.loadCatalog()
                         },
                         modifier = screenModifier,
                     )
@@ -362,40 +138,40 @@ fun App() {
 
                 AppScreen.Register -> {
                     RegisterScreen(
-                        email = email,
-                        password = password,
-                        firstName = firstName,
-                        lastName = lastName,
-                        error = error,
-                        loading = loading,
-                        onEmailChange = { email = it },
-                        onPasswordChange = { password = it },
-                        onFirstNameChange = { firstName = it },
-                        onLastNameChange = { lastName = it },
+                        email = m.email,
+                        password = m.password,
+                        firstName = m.firstName,
+                        lastName = m.lastName,
+                        error = m.error,
+                        loading = m.loading,
+                        onEmailChange = { m.email = it },
+                        onPasswordChange = { m.password = it },
+                        onFirstNameChange = { m.firstName = it },
+                        onLastNameChange = { m.lastName = it },
                         onRegister = {
-                            runApi {
+                            m.runApi {
                                 val auth =
                                     api.register(
                                         RegisterRequestDto(
-                                            email = email.trim(),
-                                            password = password,
-                                            firstName = firstName.trim().ifBlank { null },
-                                            lastName = lastName.trim().ifBlank { null },
+                                            email = m.email.trim(),
+                                            password = m.password,
+                                            firstName = m.firstName.trim().ifBlank { null },
+                                            lastName = m.lastName.trim().ifBlank { null },
                                         ),
                                     )
                                 tokens.applyAuth(auth)
                                 api.clearBearerTokenCache()
-                                clearUserScopedUiState()
-                                applySession(auth.user.email)
+                                m.clearUserScopedUiState()
+                                m.applySession(auth.user.email)
                                 val page = api.listProducts(size = 50)
-                                products = page.content
-                                cart = runCatching { api.getCart() }.getOrNull()
-                                screen = AppScreen.Catalog
+                                m.products = page.content
+                                m.cart = runCatching { api.getCart() }.getOrNull()
+                                m.screen = AppScreen.Catalog
                             }
                         },
                         onBackToLogin = {
-                            error = null
-                            screen = AppScreen.Login
+                            m.error = null
+                            m.screen = AppScreen.Login
                         },
                         modifier = screenModifier,
                     )
@@ -403,140 +179,140 @@ fun App() {
 
                 AppScreen.Catalog -> {
                     CatalogScreen(
-                        products = products,
-                        catalogQuery = catalogQuery,
-                        catalogFeaturedOnly = catalogFeaturedOnly,
-                        catalogCategories = catalogCategories,
-                        selectedCategoryId = catalogCategoryId,
+                        products = m.products,
+                        catalogQuery = m.catalogQuery,
+                        catalogFeaturedOnly = m.catalogFeaturedOnly,
+                        catalogCategories = m.catalogCategories,
+                        selectedCategoryId = m.catalogCategoryId,
                         onCategorySelect = { id ->
-                            catalogCategoryId = id
-                            loadCatalog(navigate = false)
+                            m.catalogCategoryId = id
+                            m.loadCatalog(navigate = false)
                         },
-                        loggedIn = loggedIn,
-                        userLabel = userLabel,
-                        cartCount = cart?.totalItems,
-                        error = error,
-                        statusMessage = statusMessage,
-                        loading = loading,
-                        onQueryChange = { catalogQuery = it },
+                        loggedIn = m.loggedIn,
+                        userLabel = m.userLabel,
+                        cartCount = m.cart?.totalItems,
+                        error = m.error,
+                        statusMessage = m.statusMessage,
+                        loading = m.loading,
+                        onQueryChange = { m.catalogQuery = it },
                         onSortNewest = {
-                            catalogSortBy = "createdAt"
-                            loadCatalog(navigate = false)
+                            m.catalogSortBy = "createdAt"
+                            m.loadCatalog(navigate = false)
                         },
                         onSortPrice = {
-                            catalogSortBy = "price"
-                            loadCatalog(navigate = false)
+                            m.catalogSortBy = "price"
+                            m.loadCatalog(navigate = false)
                         },
                         onSortName = {
-                            catalogSortBy = "name"
-                            loadCatalog(navigate = false)
+                            m.catalogSortBy = "name"
+                            m.loadCatalog(navigate = false)
                         },
                         onToggleFeatured = {
-                            catalogFeaturedOnly = !catalogFeaturedOnly
-                            loadCatalog(navigate = false)
+                            m.catalogFeaturedOnly = !m.catalogFeaturedOnly
+                            m.loadCatalog(navigate = false)
                         },
-                        onApplySearch = { loadCatalog(navigate = false) },
-                        onOpenProduct = { product -> openProduct(product) },
+                        onApplySearch = { m.loadCatalog(navigate = false) },
+                        onOpenProduct = { product -> m.openProduct(product) },
                         onAddToCart = { product ->
-                            runApi {
-                                cart =
+                            m.runApi {
+                                m.cart =
                                     api.addCartItem(
                                         AddCartItemRequestDto(
                                             productId = product.id,
                                             quantity = 1,
                                         ),
                                     )
-                                statusMessage = "Added ${product.name} to cart"
+                                m.statusMessage = "Added ${product.name} to m.cart"
                             }
                         },
-                        onCart = { loadCart() },
-                        onOrders = { loadOrders() },
-                        onAddresses = { loadAddresses() },
-                        onProfile = { loadProfile() },
-                        onAdmin = if (isAdmin) {
+                        onCart = { m.loadCart() },
+                        onOrders = { m.loadOrders() },
+                        onAddresses = { m.loadAddresses() },
+                        onProfile = { m.loadProfile() },
+                        onAdmin = if (m.isAdmin) {
                             {
-                                runApi {
-                                    categories = api.listCategories(activeOnly = false)
-                                    adminOrders = api.listAdminOrders().content
-                                    screen = AppScreen.Admin
+                                m.runApi {
+                                    m.categories = api.listCategories(activeOnly = false)
+                                    m.adminOrders = api.listAdminOrders().content
+                                    m.screen = AppScreen.Admin
                                 }
                             }
                         } else {
                             null
                         },
-                        onNotifications = { loadNotifications() },
-                        notificationsUnread = notificationsUnread,
-                        onLogout = { logout() },
+                        onNotifications = { m.loadNotifications() },
+                        notificationsUnread = m.notificationsUnread,
+                        onLogout = { m.logout() },
                         modifier = screenModifier,
                     )
                 }
 
                 AppScreen.ProductDetail -> {
                     ProductDetailScreen(
-                        product = detailProduct,
-                        quantity = detailQuantity,
-                        onQuantityChange = { detailQuantity = it },
-                        loggedIn = loggedIn,
-                        userLabel = userLabel,
-                        cartCount = cart?.totalItems,
-                        error = error,
-                        statusMessage = statusMessage,
-                        loading = loading,
-                        onBackToCatalog = { loadCatalog() },
+                        product = m.detailProduct,
+                        quantity = m.detailQuantity,
+                        onQuantityChange = { m.detailQuantity = it },
+                        loggedIn = m.loggedIn,
+                        userLabel = m.userLabel,
+                        cartCount = m.cart?.totalItems,
+                        error = m.error,
+                        statusMessage = m.statusMessage,
+                        loading = m.loading,
+                        onBackToCatalog = { m.loadCatalog() },
                         onAddToCart = {
-                            val p = detailProduct
+                            val p = m.detailProduct
                             if (p != null) {
-                                runApi {
-                                    cart =
+                                m.runApi {
+                                    m.cart =
                                         api.addCartItem(
                                             AddCartItemRequestDto(
                                                 productId = p.id,
-                                                quantity = detailQuantity,
+                                                quantity = m.detailQuantity,
                                             ),
                                         )
-                                    statusMessage = "Added ${p.name} ×$detailQuantity to cart"
-                                    detailProduct = api.getProduct(p.id)
-                                    detailQuantity = 1
+                                    m.statusMessage = "Added ${p.name} ×$m.detailQuantity to m.cart"
+                                    m.detailProduct = api.getProduct(p.id)
+                                    m.detailQuantity = 1
                                 }
                             }
                         },
-                        onCart = { loadCart() },
-                        onOrders = { loadOrders() },
-                        onAddresses = { loadAddresses() },
-                        onProfile = { loadProfile() },
-                        onAdmin = if (isAdmin) {
+                        onCart = { m.loadCart() },
+                        onOrders = { m.loadOrders() },
+                        onAddresses = { m.loadAddresses() },
+                        onProfile = { m.loadProfile() },
+                        onAdmin = if (m.isAdmin) {
                             {
-                                runApi {
-                                    categories = api.listCategories(activeOnly = false)
-                                    adminOrders = api.listAdminOrders().content
-                                    screen = AppScreen.Admin
+                                m.runApi {
+                                    m.categories = api.listCategories(activeOnly = false)
+                                    m.adminOrders = api.listAdminOrders().content
+                                    m.screen = AppScreen.Admin
                                 }
                             }
                         } else {
                             null
                         },
-                        onNotifications = { loadNotifications() },
-                        notificationsUnread = notificationsUnread,
-                        onLogout = { logout() },
+                        onNotifications = { m.loadNotifications() },
+                        notificationsUnread = m.notificationsUnread,
+                        onLogout = { m.logout() },
                         modifier = screenModifier,
                     )
                 }
 
                 AppScreen.Cart -> {
                     CartScreen(
-                        cart = cart,
-                        addresses = addresses,
-                        selectedAddressId = selectedAddressId,
-                        shippingAddress = shippingAddress,
-                        loggedIn = loggedIn,
-                        userLabel = userLabel,
-                        error = error,
-                        loading = loading,
-                        onBackToCatalog = { loadCatalog() },
+                        cart = m.cart,
+                        addresses = m.addresses,
+                        selectedAddressId = m.selectedAddressId,
+                        shippingAddress = m.shippingAddress,
+                        loggedIn = m.loggedIn,
+                        userLabel = m.userLabel,
+                        error = m.error,
+                        loading = m.loading,
+                        onBackToCatalog = { m.loadCatalog() },
                         onDecreaseQty = { item ->
-                            runApi {
-                                pendingCheckoutKey = null
-                                cart =
+                            m.runApi {
+                                m.pendingCheckoutKey = null
+                                m.cart =
                                     if (item.quantity <= 1) {
                                         api.removeCartItem(item.productId)
                                     } else {
@@ -548,9 +324,9 @@ fun App() {
                             }
                         },
                         onIncreaseQty = { item ->
-                            runApi {
-                                pendingCheckoutKey = null
-                                cart =
+                            m.runApi {
+                                m.pendingCheckoutKey = null
+                                m.cart =
                                     api.updateCartItem(
                                         item.productId,
                                         UpdateCartItemRequestDto(quantity = item.quantity + 1),
@@ -558,523 +334,523 @@ fun App() {
                             }
                         },
                         onRemoveItem = { item ->
-                            runApi {
-                                pendingCheckoutKey = null
-                                cart = api.removeCartItem(item.productId)
+                            m.runApi {
+                                m.pendingCheckoutKey = null
+                                m.cart = api.removeCartItem(item.productId)
                             }
                         },
                         onSelectAddress = {
-                            selectedAddressId = it
-                            pendingCheckoutKey = null
+                            m.selectedAddressId = it
+                            m.pendingCheckoutKey = null
                         },
-                        onManageAddresses = { loadAddresses() },
+                        onManageAddresses = { m.loadAddresses() },
                         onShippingChange = {
-                            shippingAddress = it
-                            if (it.isNotBlank()) selectedAddressId = null
-                            pendingCheckoutKey = null
+                            m.shippingAddress = it
+                            if (it.isNotBlank()) m.selectedAddressId = null
+                            m.pendingCheckoutKey = null
                         },
                         onCheckout = {
-                            if (checkoutLocked || loading) return@CartScreen
-                            checkoutLocked = true
-                            runApi {
+                            if (m.checkoutLocked || m.loading) return@CartScreen
+                            m.checkoutLocked = true
+                            m.runApi {
                                 try {
                                     val checkoutKey =
-                                        pendingCheckoutKey
-                                            ?: CheckoutIdempotency.newKey().also { pendingCheckoutKey = it }
+                                        m.pendingCheckoutKey
+                                            ?: CheckoutIdempotency.newKey().also { m.pendingCheckoutKey = it }
                                     val order =
                                         api.createOrder(
                                             request =
                                                 CreateOrderRequestDto(
-                                                    addressId = selectedAddressId,
+                                                    addressId = m.selectedAddressId,
                                                     shippingAddress =
-                                                        if (selectedAddressId == null) {
-                                                            shippingAddress.trim().ifBlank { null }
+                                                        if (m.selectedAddressId == null) {
+                                                            m.shippingAddress.trim().ifBlank { null }
                                                         } else {
                                                             null
                                                         },
                                                 ),
                                             idempotencyKey = checkoutKey,
                                         )
-                                    pendingCheckoutKey = null
-                                    cart = api.getCart()
-                                    screen = AppScreen.OrderDone(order)
+                                    m.pendingCheckoutKey = null
+                                    m.cart = api.getCart()
+                                    m.screen = AppScreen.OrderDone(order)
                                 } finally {
-                                    checkoutLocked = false
+                                    m.checkoutLocked = false
                                 }
                             }
                         },
                         onClearCart = {
-                            runApi {
-                                pendingCheckoutKey = null
-                                cart = api.clearCart()
+                            m.runApi {
+                                m.pendingCheckoutKey = null
+                                m.cart = api.clearCart()
                             }
                         },
-                        onOrders = { loadOrders() },
-                        onAddresses = { loadAddresses() },
-                        onProfile = { loadProfile() },
-                                                onNotifications = { loadNotifications() },
-                        notificationsUnread = notificationsUnread,
-                        onLogout = { logout() },
+                        onOrders = { m.loadOrders() },
+                        onAddresses = { m.loadAddresses() },
+                        onProfile = { m.loadProfile() },
+                                                onNotifications = { m.loadNotifications() },
+                        notificationsUnread = m.notificationsUnread,
+                        onLogout = { m.logout() },
                         modifier = screenModifier,
                     )
                 }
 
                 AppScreen.Addresses -> {
                     AddressesScreen(
-                        addresses = addresses,
-                        addrRecipient = addrRecipient,
-                        addrCity = addrCity,
-                        addrStreet = addrStreet,
-                        addrPhone = addrPhone,
-                        loggedIn = loggedIn,
-                        userLabel = userLabel,
-                        cartCount = cart?.totalItems,
-                        error = error,
-                        statusMessage = statusMessage,
-                        loading = loading,
-                        onBackToCatalog = { loadCatalog() },
+                        addresses = m.addresses,
+                        addrRecipient = m.addrRecipient,
+                        addrCity = m.addrCity,
+                        addrStreet = m.addrStreet,
+                        addrPhone = m.addrPhone,
+                        loggedIn = m.loggedIn,
+                        userLabel = m.userLabel,
+                        cartCount = m.cart?.totalItems,
+                        error = m.error,
+                        statusMessage = m.statusMessage,
+                        loading = m.loading,
+                        onBackToCatalog = { m.loadCatalog() },
                         onSetDefault = { addr ->
-                            runApi {
+                            m.runApi {
                                 api.updateAddress(
                                     addr.id,
                                     UpdateAddressRequestDto(default = true),
                                 )
-                                addresses = api.listAddresses()
-                                selectedAddressId = addr.id
-                                statusMessage = "Default address updated"
+                                m.addresses = api.listAddresses()
+                                m.selectedAddressId = addr.id
+                                m.statusMessage = "Default address updated"
                             }
                         },
                         onDelete = { addr ->
-                            runApi {
+                            m.runApi {
                                 api.deleteAddress(addr.id)
-                                addresses = api.listAddresses()
-                                if (selectedAddressId == addr.id) {
-                                    selectedAddressId = addresses.firstOrNull { it.default }?.id
-                                        ?: addresses.firstOrNull()?.id
+                                m.addresses = api.listAddresses()
+                                if (m.selectedAddressId == addr.id) {
+                                    m.selectedAddressId = m.addresses.firstOrNull { it.default }?.id
+                                        ?: m.addresses.firstOrNull()?.id
                                 }
                             }
                         },
-                        onRecipientChange = { addrRecipient = it },
-                        onCityChange = { addrCity = it },
-                        onStreetChange = { addrStreet = it },
+                        onRecipientChange = { m.addrRecipient = it },
+                        onCityChange = { m.addrCity = it },
+                        onStreetChange = { m.addrStreet = it },
                         onPhoneChange = {
-                            addrPhone = ClientInputValidation.filterPhoneInput(it)
+                            m.addrPhone = ClientInputValidation.filterPhoneInput(it)
                         },
                         onSave = {
-                            runApi {
+                            m.runApi {
                                 val created =
                                     api.createAddress(
                                         CreateAddressRequestDto(
-                                            recipientName = addrRecipient.trim(),
-                                            city = addrCity.trim(),
-                                            streetLine1 = addrStreet.trim(),
-                                            phone = addrPhone.trim().ifBlank { null },
-                                            default = addresses.isEmpty(),
+                                            recipientName = m.addrRecipient.trim(),
+                                            city = m.addrCity.trim(),
+                                            streetLine1 = m.addrStreet.trim(),
+                                            phone = m.addrPhone.trim().ifBlank { null },
+                                            default = m.addresses.isEmpty(),
                                         ),
                                     )
-                                addresses = api.listAddresses()
-                                selectedAddressId = created.id
-                                addrRecipient = ""
-                                addrCity = ""
-                                addrStreet = ""
-                                addrPhone = ""
-                                statusMessage = "Address saved"
+                                m.addresses = api.listAddresses()
+                                m.selectedAddressId = created.id
+                                m.addrRecipient = ""
+                                m.addrCity = ""
+                                m.addrStreet = ""
+                                m.addrPhone = ""
+                                m.statusMessage = "Address saved"
                             }
                         },
-                        onCart = { loadCart() },
-                        onOrders = { loadOrders() },
-                        onProfile = { loadProfile() },
-                                                onNotifications = { loadNotifications() },
-                        notificationsUnread = notificationsUnread,
-                        onLogout = { logout() },
+                        onCart = { m.loadCart() },
+                        onOrders = { m.loadOrders() },
+                        onProfile = { m.loadProfile() },
+                                                onNotifications = { m.loadNotifications() },
+                        notificationsUnread = m.notificationsUnread,
+                        onLogout = { m.logout() },
                         modifier = screenModifier,
                     )
                 }
 
                 AppScreen.Notifications -> {
                     NotificationsScreen(
-                        notifications = notifications,
-                        unreadCount = notificationsUnread,
-                        loggedIn = loggedIn,
-                        userLabel = userLabel,
-                        cartCount = cart?.totalItems,
-                        error = error,
-                        statusMessage = statusMessage,
-                        loading = loading,
-                        onBackToCatalog = { loadCatalog() },
+                        notifications = m.notifications,
+                        unreadCount = m.notificationsUnread,
+                        loggedIn = m.loggedIn,
+                        userLabel = m.userLabel,
+                        cartCount = m.cart?.totalItems,
+                        error = m.error,
+                        statusMessage = m.statusMessage,
+                        loading = m.loading,
+                        onBackToCatalog = { m.loadCatalog() },
                         onMarkRead = { n ->
-                            runApi {
+                            m.runApi {
                                 api.markNotificationRead(n.id)
-                                notifications = api.listNotifications(size = 50).content
-                                notificationsUnread = api.notificationsUnreadCount().unread
+                                m.notifications = api.listNotifications(size = 50).content
+                                m.notificationsUnread = api.notificationsUnreadCount().unread
                             }
                         },
                         onMarkAllRead = {
-                            runApi {
-                                notificationsUnread = api.markAllNotificationsRead().unread
-                                notifications = api.listNotifications(size = 50).content
-                                statusMessage = "All notifications marked read"
+                            m.runApi {
+                                m.notificationsUnread = api.markAllNotificationsRead().unread
+                                m.notifications = api.listNotifications(size = 50).content
+                                m.statusMessage = "All m.notifications marked read"
                             }
                         },
                         onRefresh = {
-                            runApi {
-                                notifications = api.listNotifications(size = 50).content
-                                notificationsUnread = api.notificationsUnreadCount().unread
+                            m.runApi {
+                                m.notifications = api.listNotifications(size = 50).content
+                                m.notificationsUnread = api.notificationsUnreadCount().unread
                             }
                         },
-                        onCart = { loadCart() },
-                        onOrders = { loadOrders() },
-                        onAddresses = { loadAddresses() },
-                        onProfile = { loadProfile() },
-                                                onNotifications = { loadNotifications() },
-                        notificationsUnread = notificationsUnread,
-                        onLogout = { logout() },
+                        onCart = { m.loadCart() },
+                        onOrders = { m.loadOrders() },
+                        onAddresses = { m.loadAddresses() },
+                        onProfile = { m.loadProfile() },
+                                                onNotifications = { m.loadNotifications() },
+                        notificationsUnread = m.notificationsUnread,
+                        onLogout = { m.logout() },
                         modifier = screenModifier,
                     )
                 }
 
                 AppScreen.Profile -> {
                     ProfileScreen(
-                        profile = profile,
-                        firstName = firstName,
-                        lastName = lastName,
-                        phone = phone,
-                        currentPassword = currentPassword,
-                        newPassword = newPassword,
-                        loggedIn = loggedIn,
-                        userLabel = userLabel,
-                        cartCount = cart?.totalItems,
-                        error = error,
-                        statusMessage = statusMessage,
-                        loading = loading,
-                        onBackToCatalog = { loadCatalog() },
-                        onFirstNameChange = { firstName = it },
-                        onLastNameChange = { lastName = it },
+                        profile = m.profile,
+                        firstName = m.firstName,
+                        lastName = m.lastName,
+                        phone = m.phone,
+                        currentPassword = m.currentPassword,
+                        newPassword = m.newPassword,
+                        loggedIn = m.loggedIn,
+                        userLabel = m.userLabel,
+                        cartCount = m.cart?.totalItems,
+                        error = m.error,
+                        statusMessage = m.statusMessage,
+                        loading = m.loading,
+                        onBackToCatalog = { m.loadCatalog() },
+                        onFirstNameChange = { m.firstName = it },
+                        onLastNameChange = { m.lastName = it },
                         onPhoneChange = {
-                            phone = ClientInputValidation.filterPhoneInput(it)
+                            m.phone = ClientInputValidation.filterPhoneInput(it)
                         },
                         onSaveProfile = {
-                            runApi {
-                                profile =
+                            m.runApi {
+                                m.profile =
                                     api.updateProfile(
                                         UpdateProfileRequestDto(
-                                            firstName = firstName.trim().ifBlank { null },
-                                            lastName = lastName.trim().ifBlank { null },
-                                            phone = phone.trim().ifBlank { null },
+                                            firstName = m.firstName.trim().ifBlank { null },
+                                            lastName = m.lastName.trim().ifBlank { null },
+                                            phone = m.phone.trim().ifBlank { null },
                                         ),
                                     )
-                                statusMessage = "Profile saved"
+                                m.statusMessage = "Profile saved"
                             }
                         },
-                        onCurrentPasswordChange = { currentPassword = it },
-                        onNewPasswordChange = { newPassword = it },
+                        onCurrentPasswordChange = { m.currentPassword = it },
+                        onNewPasswordChange = { m.newPassword = it },
                         onUpdatePassword = {
-                            runApi {
+                            m.runApi {
                                 api.changePassword(
                                     ChangePasswordRequestDto(
-                                        currentPassword = currentPassword,
-                                        newPassword = newPassword,
+                                        currentPassword = m.currentPassword,
+                                        newPassword = m.newPassword,
                                     ),
                                 )
-                                currentPassword = ""
-                                newPassword = ""
-                                statusMessage = "Password updated"
+                                m.currentPassword = ""
+                                m.newPassword = ""
+                                m.statusMessage = "Password updated"
                             }
                         },
-                        onNotifications = { loadNotifications() },
-                        onCart = { loadCart() },
-                        onOrders = { loadOrders() },
-                        onAddresses = { loadAddresses() },
-                        onLogout = { logout() },
+                        onNotifications = { m.loadNotifications() },
+                        onCart = { m.loadCart() },
+                        onOrders = { m.loadOrders() },
+                        onAddresses = { m.loadAddresses() },
+                        onLogout = { m.logout() },
                         modifier = screenModifier,
                     )
                 }
 
                 AppScreen.OrderDetail -> {
                     OrderDetailScreen(
-                        order = detailOrder,
-                        loggedIn = loggedIn,
-                        userLabel = userLabel,
-                        cartCount = cart?.totalItems,
-                        error = error,
-                        statusMessage = statusMessage,
-                        loading = loading,
-                        onBackToOrders = { loadOrders() },
+                        order = m.detailOrder,
+                        loggedIn = m.loggedIn,
+                        userLabel = m.userLabel,
+                        cartCount = m.cart?.totalItems,
+                        error = m.error,
+                        statusMessage = m.statusMessage,
+                        loading = m.loading,
+                        onBackToOrders = { m.loadOrders() },
                         onPay = {
-                            val o = detailOrder
+                            val o = m.detailOrder
                             if (o != null) {
-                                runApi {
-                                    detailOrder = api.payOrder(o.id)
-                                    statusMessage = "Payment recorded"
-                                    orders = api.listMyOrders(size = 50).content
+                                m.runApi {
+                                    m.detailOrder = api.payOrder(o.id)
+                                    m.statusMessage = "Payment recorded"
+                                    m.orders = api.listMyOrders(size = 50).content
                                 }
                             }
                         },
                         onCancel = {
-                            val o = detailOrder
+                            val o = m.detailOrder
                             if (o != null) {
-                                runApi {
-                                    detailOrder = api.cancelOrder(o.id)
-                                    statusMessage = "Order cancelled"
-                                    orders = api.listMyOrders(size = 50).content
+                                m.runApi {
+                                    m.detailOrder = api.cancelOrder(o.id)
+                                    m.statusMessage = "Order cancelled"
+                                    m.orders = api.listMyOrders(size = 50).content
                                 }
                             }
                         },
                         onRefresh = {
-                            val o = detailOrder
+                            val o = m.detailOrder
                             if (o != null) {
-                                runApi {
-                                    detailOrder = api.getOrder(o.id)
+                                m.runApi {
+                                    m.detailOrder = api.getOrder(o.id)
                                 }
                             }
                         },
-                        onCart = { loadCart() },
-                        onAddresses = { loadAddresses() },
-                        onProfile = { loadProfile() },
-                                                onNotifications = { loadNotifications() },
-                        notificationsUnread = notificationsUnread,
-                        onLogout = { logout() },
+                        onCart = { m.loadCart() },
+                        onAddresses = { m.loadAddresses() },
+                        onProfile = { m.loadProfile() },
+                                                onNotifications = { m.loadNotifications() },
+                        notificationsUnread = m.notificationsUnread,
+                        onLogout = { m.logout() },
                         modifier = screenModifier,
                     )
                 }
 
                 AppScreen.Orders -> {
                     OrdersScreen(
-                        orders = orders,
-                        loggedIn = loggedIn,
-                        userLabel = userLabel,
-                        cartCount = cart?.totalItems,
-                        error = error,
-                        statusMessage = statusMessage,
-                        loading = loading,
-                        onBackToCatalog = { loadCatalog() },
-                        onOpenOrder = { order -> openOrder(order) },
+                        orders = m.orders,
+                        loggedIn = m.loggedIn,
+                        userLabel = m.userLabel,
+                        cartCount = m.cart?.totalItems,
+                        error = m.error,
+                        statusMessage = m.statusMessage,
+                        loading = m.loading,
+                        onBackToCatalog = { m.loadCatalog() },
+                        onOpenOrder = { order -> m.openOrder(order) },
                         onPay = { order ->
-                            runApi {
+                            m.runApi {
                                 val paid = api.payOrder(order.id)
-                                orders =
-                                    orders.map {
+                                m.orders =
+                                    m.orders.map {
                                         if (it.id == paid.id) paid else it
                                     }
-                                statusMessage = "Order paid"
+                                m.statusMessage = "Order paid"
                             }
                         },
                         onCancel = { order ->
-                            runApi {
+                            m.runApi {
                                 val cancelled = api.cancelOrder(order.id)
-                                orders =
-                                    orders.map {
+                                m.orders =
+                                    m.orders.map {
                                         if (it.id == cancelled.id) cancelled else it
                                     }
                             }
                         },
-                        onCart = { loadCart() },
-                        onAddresses = { loadAddresses() },
-                        onProfile = { loadProfile() },
-                        onNotifications = { loadNotifications() },
-                        notificationsUnread = notificationsUnread,
-                        onLogout = { logout() },
+                        onCart = { m.loadCart() },
+                        onAddresses = { m.loadAddresses() },
+                        onProfile = { m.loadProfile() },
+                        onNotifications = { m.loadNotifications() },
+                        notificationsUnread = m.notificationsUnread,
+                        onLogout = { m.logout() },
                         modifier = screenModifier,
                     )
                 }
 
                 AppScreen.Admin -> {
                     AdminScreen(
-                        categories = categories,
-                        categoryName = adminCategoryName,
-                        categorySlug = adminCategorySlug,
-                        editingCategoryId = editingCategoryId,
-                        adminOrders = adminOrders,
-                        products = products,
-                        editingProductId = editingProductId,
-                        productName = adminProductName,
-                        productSlug = adminProductSlug,
-                        productPrice = adminProductPrice,
-                        productStock = adminProductStock,
-                        productFeatured = adminProductFeatured,
-                        productCategoryId = adminProductCategoryId,
-                        loggedIn = loggedIn,
-                        userLabel = userLabel,
-                        cartCount = cart?.totalItems,
-                        error = error,
-                        statusMessage = statusMessage,
-                        loading = loading,
-                        onBackToCatalog = { loadCatalog() },
+                        categories = m.categories,
+                        categoryName = m.adminCategoryName,
+                        categorySlug = m.adminCategorySlug,
+                        editingCategoryId = m.editingCategoryId,
+                        adminOrders = m.adminOrders,
+                        products = m.products,
+                        editingProductId = m.editingProductId,
+                        productName = m.adminProductName,
+                        productSlug = m.adminProductSlug,
+                        productPrice = m.adminProductPrice,
+                        productStock = m.adminProductStock,
+                        productFeatured = m.adminProductFeatured,
+                        productCategoryId = m.adminProductCategoryId,
+                        loggedIn = m.loggedIn,
+                        userLabel = m.userLabel,
+                        cartCount = m.cart?.totalItems,
+                        error = m.error,
+                        statusMessage = m.statusMessage,
+                        loading = m.loading,
+                        onBackToCatalog = { m.loadCatalog() },
                         onCategoryNameChange = { name ->
-                            val previousAutoSlug = slugifyProductName(adminCategoryName)
-                            adminCategoryName = name
-                            if (adminCategorySlug.isBlank() || adminCategorySlug == previousAutoSlug) {
-                                adminCategorySlug = slugifyProductName(name)
+                            val previousAutoSlug = slugifyProductName(m.adminCategoryName)
+                            m.adminCategoryName = name
+                            if (m.adminCategorySlug.isBlank() || m.adminCategorySlug == previousAutoSlug) {
+                                m.adminCategorySlug = slugifyProductName(name)
                             }
                         },
-                        onCategorySlugChange = { adminCategorySlug = it },
+                        onCategorySlugChange = { m.adminCategorySlug = it },
                         onCreateCategory = {
-                            runApi {
+                            m.runApi {
                                 api.createCategory(
                                     CreateCategoryRequestDto(
-                                        name = adminCategoryName.trim(),
-                                        slug = adminCategorySlug.trim(),
+                                        name = m.adminCategoryName.trim(),
+                                        slug = m.adminCategorySlug.trim(),
                                     ),
                                 )
-                                categories = api.listCategories(activeOnly = false)
-                                adminCategoryName = ""
-                                adminCategorySlug = ""
-                                editingCategoryId = null
-                                statusMessage = "Category created"
+                                m.categories = api.listCategories(activeOnly = false)
+                                m.adminCategoryName = ""
+                                m.adminCategorySlug = ""
+                                m.editingCategoryId = null
+                                m.statusMessage = "Category created"
                             }
                         },
                         onDeleteCategory = { category ->
-                            runApi {
+                            m.runApi {
                                 api.deleteCategory(category.id)
-                                categories = api.listCategories(activeOnly = false)
-                                if (editingCategoryId == category.id) {
-                                    editingCategoryId = null
-                                    adminCategoryName = ""
-                                    adminCategorySlug = ""
+                                m.categories = api.listCategories(activeOnly = false)
+                                if (m.editingCategoryId == category.id) {
+                                    m.editingCategoryId = null
+                                    m.adminCategoryName = ""
+                                    m.adminCategorySlug = ""
                                 }
-                                statusMessage = "Category deleted"
+                                m.statusMessage = "Category deleted"
                             }
                         },
                         onEditCategory = { category ->
-                            editingCategoryId = category.id
-                            adminCategoryName = category.name
-                            adminCategorySlug = category.slug
-                            error = null
-                            statusMessage = null
+                            m.editingCategoryId = category.id
+                            m.adminCategoryName = category.name
+                            m.adminCategorySlug = category.slug
+                            m.error = null
+                            m.statusMessage = null
                         },
                         onUpdateCategory = {
-                            val id = editingCategoryId
+                            val id = m.editingCategoryId
                             if (id != null) {
-                                runApi {
+                                m.runApi {
                                     api.updateCategory(
                                         id,
                                         UpdateCategoryRequestDto(
-                                            name = adminCategoryName.trim(),
-                                            slug = adminCategorySlug.trim(),
+                                            name = m.adminCategoryName.trim(),
+                                            slug = m.adminCategorySlug.trim(),
                                         ),
                                     )
-                                    categories = api.listCategories(activeOnly = false)
-                                    editingCategoryId = null
-                                    adminCategoryName = ""
-                                    adminCategorySlug = ""
-                                    statusMessage = "Category updated"
+                                    m.categories = api.listCategories(activeOnly = false)
+                                    m.editingCategoryId = null
+                                    m.adminCategoryName = ""
+                                    m.adminCategorySlug = ""
+                                    m.statusMessage = "Category updated"
                                 }
                             }
                         },
                         onClearCategoryEdit = {
-                            editingCategoryId = null
-                            adminCategoryName = ""
-                            adminCategorySlug = ""
+                            m.editingCategoryId = null
+                            m.adminCategoryName = ""
+                            m.adminCategorySlug = ""
                         },
                         onUpdateOrderStatus = { order, status ->
-                            runApi {
+                            m.runApi {
                                 api.updateAdminOrderStatus(order.id, status)
-                                adminOrders = api.listAdminOrders().content
-                                statusMessage = "Order → ${status.name}"
+                                m.adminOrders = api.listAdminOrders().content
+                                m.statusMessage = "Order → ${status.name}"
                             }
                         },
                         onNameChange = { name ->
-                            val previousAutoSlug = slugifyProductName(adminProductName)
-                            adminProductName = name
-                            if (adminProductSlug.isBlank() || adminProductSlug == previousAutoSlug) {
-                                adminProductSlug = slugifyProductName(name)
+                            val previousAutoSlug = slugifyProductName(m.adminProductName)
+                            m.adminProductName = name
+                            if (m.adminProductSlug.isBlank() || m.adminProductSlug == previousAutoSlug) {
+                                m.adminProductSlug = slugifyProductName(name)
                             }
                         },
-                        onSlugChange = { adminProductSlug = it },
-                        onPriceChange = { adminProductPrice = it },
-                        onStockChange = { adminProductStock = it.filter { ch -> ch.isDigit() } },
-                        onToggleFeatured = { adminProductFeatured = !adminProductFeatured },
-                        onProductCategoryChange = { adminProductCategoryId = it },
+                        onSlugChange = { m.adminProductSlug = it },
+                        onPriceChange = { m.adminProductPrice = it },
+                        onStockChange = { m.adminProductStock = it.filter { ch -> ch.isDigit() } },
+                        onToggleFeatured = { m.adminProductFeatured = !m.adminProductFeatured },
+                        onProductCategoryChange = { m.adminProductCategoryId = it },
                         onCreate = {
-                            runApi {
+                            m.runApi {
                                 val created =
                                     api.createProduct(
                                         CreateProductRequestDto(
-                                            name = adminProductName.trim(),
-                                            slug = adminProductSlug.trim(),
-                                            price = adminProductPrice.trim(),
-                                            stockQuantity = adminProductStock.toIntOrNull() ?: 0,
-                                            featured = adminProductFeatured,
-                                            categoryId = adminProductCategoryId,
+                                            name = m.adminProductName.trim(),
+                                            slug = m.adminProductSlug.trim(),
+                                            price = m.adminProductPrice.trim(),
+                                            stockQuantity = m.adminProductStock.toIntOrNull() ?: 0,
+                                            featured = m.adminProductFeatured,
+                                            categoryId = m.adminProductCategoryId,
                                         ),
                                     )
-                                statusMessage = "Created ${created.name}"
-                                adminProductName = ""
-                                adminProductSlug = ""
-                                adminProductPrice = "9.99"
-                                adminProductStock = "10"
-                                adminProductFeatured = false
-                                adminProductCategoryId = null
+                                m.statusMessage = "Created ${created.name}"
+                                m.adminProductName = ""
+                                m.adminProductSlug = ""
+                                m.adminProductPrice = "9.99"
+                                m.adminProductStock = "10"
+                                m.adminProductFeatured = false
+                                m.adminProductCategoryId = null
                                 val page = api.listProducts(size = 50)
-                                products = page.content
+                                m.products = page.content
                             }
                         },
                         onUpdate = {
-                            val id = editingProductId
+                            val id = m.editingProductId
                             if (id != null) {
-                                runApi {
+                                m.runApi {
                                     api.updateProduct(
                                         id,
                                         UpdateProductRequestDto(
-                                            name = adminProductName.trim(),
-                                            slug = adminProductSlug.trim(),
-                                            price = adminProductPrice.trim(),
-                                            stockQuantity = adminProductStock.toIntOrNull() ?: 0,
-                                            featured = adminProductFeatured,
-                                            categoryId = adminProductCategoryId,
+                                            name = m.adminProductName.trim(),
+                                            slug = m.adminProductSlug.trim(),
+                                            price = m.adminProductPrice.trim(),
+                                            stockQuantity = m.adminProductStock.toIntOrNull() ?: 0,
+                                            featured = m.adminProductFeatured,
+                                            categoryId = m.adminProductCategoryId,
                                         ),
                                     )
-                                    statusMessage = "Updated product"
-                                    editingProductId = null
-                                    adminProductName = ""
-                                    adminProductSlug = ""
-                                    adminProductPrice = "9.99"
-                                    adminProductStock = "10"
-                                    adminProductFeatured = false
-                                    adminProductCategoryId = null
+                                    m.statusMessage = "Updated product"
+                                    m.editingProductId = null
+                                    m.adminProductName = ""
+                                    m.adminProductSlug = ""
+                                    m.adminProductPrice = "9.99"
+                                    m.adminProductStock = "10"
+                                    m.adminProductFeatured = false
+                                    m.adminProductCategoryId = null
                                     val page = api.listProducts(size = 50)
-                                    products = page.content
+                                    m.products = page.content
                                 }
                             }
                         },
                         onDelete = { product ->
-                            runApi {
+                            m.runApi {
                                 api.deleteProduct(product.id)
-                                statusMessage = "Deleted ${product.name}"
-                                if (editingProductId == product.id) {
-                                    editingProductId = null
+                                m.statusMessage = "Deleted ${product.name}"
+                                if (m.editingProductId == product.id) {
+                                    m.editingProductId = null
                                 }
                                 val page = api.listProducts(size = 50)
-                                products = page.content
+                                m.products = page.content
                             }
                         },
                         onEdit = { product ->
-                            editingProductId = product.id
-                            adminProductName = product.name
-                            adminProductSlug = product.slug
-                            adminProductPrice = product.price
-                            adminProductStock = product.stockQuantity.toString()
-                            adminProductFeatured = product.featured
-                            adminProductCategoryId = product.categoryId
-                            error = null
-                            statusMessage = null
+                            m.editingProductId = product.id
+                            m.adminProductName = product.name
+                            m.adminProductSlug = product.slug
+                            m.adminProductPrice = product.price
+                            m.adminProductStock = product.stockQuantity.toString()
+                            m.adminProductFeatured = product.featured
+                            m.adminProductCategoryId = product.categoryId
+                            m.error = null
+                            m.statusMessage = null
                         },
                         onClearEdit = {
-                            editingProductId = null
-                            adminProductName = ""
-                            adminProductSlug = ""
-                            adminProductPrice = "9.99"
-                            adminProductStock = "10"
-                            adminProductFeatured = false
-                            adminProductCategoryId = null
+                            m.editingProductId = null
+                            m.adminProductName = ""
+                            m.adminProductSlug = ""
+                            m.adminProductPrice = "9.99"
+                            m.adminProductStock = "10"
+                            m.adminProductFeatured = false
+                            m.adminProductCategoryId = null
                         },
-                        onCart = { loadCart() },
-                        onOrders = { loadOrders() },
-                        onAddresses = { loadAddresses() },
-                        onProfile = { loadProfile() },
-                        onNotifications = { loadNotifications() },
-                        notificationsUnread = notificationsUnread,
-                        onLogout = { logout() },
+                        onCart = { m.loadCart() },
+                        onOrders = { m.loadOrders() },
+                        onAddresses = { m.loadAddresses() },
+                        onProfile = { m.loadProfile() },
+                        onNotifications = { m.loadNotifications() },
+                        notificationsUnread = m.notificationsUnread,
+                        onLogout = { m.logout() },
                     )
 
                 }
@@ -1082,19 +858,19 @@ fun App() {
                 is AppScreen.OrderDone -> {
                     OrderDoneScreen(
                         order = current.order,
-                        error = error,
-                        statusMessage = statusMessage,
-                        loading = loading,
+                        error = m.error,
+                        statusMessage = m.statusMessage,
+                        loading = m.loading,
                         onPay = {
-                            runApi {
+                            m.runApi {
                                 val paid = api.payOrder(current.order.id)
-                                screen = AppScreen.OrderDone(paid)
-                                statusMessage = "Paid"
+                                m.screen = AppScreen.OrderDone(paid)
+                                m.statusMessage = "Paid"
                             }
                         },
-                        onMyOrders = { loadOrders() },
-                        onBackToCatalog = { loadCatalog() },
-                        onOpenCart = { loadCart() },
+                        onMyOrders = { m.loadOrders() },
+                        onBackToCatalog = { m.loadCatalog() },
+                        onOpenCart = { m.loadCart() },
                         modifier = screenModifier,
                     )
                 }
