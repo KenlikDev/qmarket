@@ -15,6 +15,7 @@ import com.kenlikdev.qmarket.order.dto.OrderItemResponse
 import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
+import com.kenlikdev.qmarket.order.payment.PaymentGateway
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import jakarta.persistence.EntityManager
@@ -38,6 +39,7 @@ class OrderService(
     private val idempotencyKeyRepository: OrderIdempotencyKeyRepository,
     private val entityManager: EntityManager,
     private val notificationService: NotificationService,
+    private val paymentGateway: PaymentGateway,
     transactionManager: PlatformTransactionManager,
 ) {
     private val transactionTemplate = TransactionTemplate(transactionManager)
@@ -380,17 +382,36 @@ class OrderService(
     }
 
     /**
-     * Mock payment provider: marks order PAID if owned by user and status is PENDING or CONFIRMED.
-     * Real PSP integration will replace this in v1.0+.
+     * Charge via [PaymentGateway] then mark order PAID.
+     * Default gateway is mock; swap with a real PSP adapter without changing this flow.
      */
     @Transactional
-    fun payMock(
+    fun pay(
         userId: UUID,
         orderId: UUID,
     ): OrderResponse {
         val order =
             orderRepository
                 .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
+
+        // Fail closed before PSP if status cannot become PAID
+        when (order.status) {
+            OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
+            OrderStatus.PAID -> throw BadRequestException("Order is already paid")
+            OrderStatus.CANCELLED -> throw BadRequestException("Cannot pay a cancelled order")
+            OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
+                throw BadRequestException("Order is already fulfilled")
+        }
+
+        val charge =
+            paymentGateway.charge(
+                orderId = orderId,
+                userId = userId,
+                amount = order.totalAmount,
+            )
+        if (!charge.success) {
+            throw BadRequestException(charge.message ?: "Payment declined by ${paymentGateway.providerId}")
+        }
 
         order.markPaid()
 
@@ -404,6 +425,13 @@ class OrderService(
         )
         return toResponse(saved)
     }
+
+    /** @deprecated Use [pay]; kept name-compatible for older tests — prefer [pay]. */
+    @Transactional
+    fun payMock(
+        userId: UUID,
+        orderId: UUID,
+    ): OrderResponse = pay(userId, orderId)
 
     private fun resolveShippingAddress(
         userId: UUID,

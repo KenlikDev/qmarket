@@ -22,7 +22,7 @@
 - [x] JWT auth register/login/refresh
 - [x] Catalog CRUD + search + seed
 - [x] Cart API
-- [x] Orders: create from cart, list, cancel, admin status, mock pay
+- [x] Orders: create from cart, list, cancel, admin status, pay via PaymentGateway (mock default)
 - [x] Profile + shipping addresses
 - [x] Unit + controller slice + integration tests (incl. stock concurrency)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize

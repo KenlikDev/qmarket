@@ -59,6 +59,9 @@ logging:
     org.hibernate.SQL: DEBUG
 
 qmarket:
+  payment:
+    # mock (default) | future: stripe, yookassa
+    provider: ${QMARKET_PAYMENT_PROVIDER:mock}
   seed:
     # Off by default (safe for accidental prod). Enable locally: QMARKET_SEED_ENABLED=true
     enabled: ${QMARKET_SEED_ENABLED:false}

@@ -73,7 +73,7 @@ class OrderController(
     fun pay(
         authentication: Authentication,
         @PathVariable id: UUID,
-    ): OrderResponse = orderService.payMock(currentUserId(authentication), id)
+    ): OrderResponse = orderService.pay(currentUserId(authentication), id)
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")

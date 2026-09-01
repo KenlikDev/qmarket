@@ -31,6 +31,11 @@
 
 ## Unreleased
 
+### Added
+- Order payments go through `PaymentGateway` port; default `MockPaymentGateway` (`qmarket.payment.provider=mock`)
+- `OrderService.pay` charges gateway then marks PAID; declined charges → 400 without status change
+
+
 ### Refactor
 - Client composition root: extract `QMarketAppModel` (session, catalog/cart/orders, admin, checkout); `App.kt` is screen wiring only (~460 lines)
 

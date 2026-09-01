@@ -240,7 +240,7 @@ class OrderControllerTest {
                 createdAt = Instant.now(),
                 updatedAt = Instant.now(),
             )
-        every { orderService.payMock(userId, orderId) } returns response
+        every { orderService.pay(userId, orderId) } returns response
         val auth = UsernamePasswordAuthenticationToken(userId, null, emptyList())
 
         mockMvc

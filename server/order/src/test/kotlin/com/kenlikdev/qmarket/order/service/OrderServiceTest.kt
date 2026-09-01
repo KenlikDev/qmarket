@@ -16,6 +16,8 @@ import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
+import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
+import com.kenlikdev.qmarket.order.payment.PaymentGateway
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import io.mockk.Runs
@@ -42,6 +44,7 @@ class OrderServiceTest {
     private lateinit var idempotencyKeyRepository: OrderIdempotencyKeyRepository
     private lateinit var orderService: OrderService
     private lateinit var notificationService: NotificationService
+    private lateinit var paymentGateway: PaymentGateway
 
     private val userId = UUID.randomUUID()
     private val productId = UUID.randomUUID()
@@ -64,6 +67,10 @@ class OrderServiceTest {
         addressRepository = mockk()
         idempotencyKeyRepository = mockk(relaxed = true)
         notificationService = mockk(relaxed = true)
+        paymentGateway = mockk()
+        every { paymentGateway.providerId } returns "mock"
+        every { paymentGateway.charge(any(), any(), any(), any()) } returns
+            PaymentChargeResult(success = true, providerReference = "mock_ref")
         val transactionManager = mockk<PlatformTransactionManager>()
         val txStatus = mockk<TransactionStatus>(relaxed = true)
         every { transactionManager.getTransaction(any()) } returns txStatus
@@ -83,6 +90,7 @@ class OrderServiceTest {
                 idempotencyKeyRepository,
                 entityManager,
                 notificationService,
+                paymentGateway,
                 transactionManager,
             )
     }
@@ -454,5 +462,25 @@ class OrderServiceTest {
                 orderId = orderId,
             )
         }
+    }
+
+    @Test
+    fun `pay fails when gateway declines`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = java.math.BigDecimal("10.00"),
+            )
+        every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
+        every { paymentGateway.charge(any(), any(), any(), any()) } returns
+            PaymentChargeResult(success = false, message = "Insufficient funds")
+
+        assertThrows<BadRequestException> {
+            orderService.pay(userId, orderId)
+        }
+        verify(exactly = 0) { orderRepository.save(any()) }
     }
 }
