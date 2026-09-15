@@ -76,6 +76,7 @@
 - [x] Admin users API: `GET /api/v1/admin/users` (+ `/{id}`, search `q`)
 - [x] Admin users integration tests (Testcontainers)
 - [x] Admin users UI in shared client (list + search q)
+- [x] Admin users client tests (ApiClient + AdminScreen Compose)
 - [x] Real PSP adapter skeleton: Stripe PaymentIntents (`provider=stripe`, mock remains default)
 
 - [x] In-app notifications (order placed/paid/cancelled → `user_notifications`, API + client UI)
@@ -94,7 +95,7 @@
 Админ: товары, заказы, пользователи.  
 Платформы: Android + Web (+ Desktop); iOS параллельно.
 
-Открыто для v1.0: реальный PSP (сейчас mock pay), OAuth (optional, v0.2), расширенный admin (пользователи), observability.
+Открыто для v1.0: OAuth (optional, v0.2), deeper observability (traces), prod payment UX (Elements/webhooks beyond test-mode Stripe confirm).
 
 Уже закрыто из прежнего списка: login rate limit, admin catalog/orders UI, refresh revoke/rotation, in-app notifications.
 

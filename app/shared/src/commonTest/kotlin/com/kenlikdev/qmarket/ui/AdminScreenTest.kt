@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.v2.runComposeUiTest
+import com.kenlikdev.qmarket.api.AdminUserDto
 import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
@@ -535,4 +536,68 @@ class AdminScreenTest {
             waitForIdle()
             assertEquals(null, selected)
         }
+
+    @Test
+    fun adminUsersListShowsEmailAndSearch() =
+        runComposeUiTest {
+            setContent {
+                AdminScreen(
+                    categories = emptyList(),
+                    categoryName = "",
+                    categorySlug = "",
+                    adminOrders = emptyList(),
+                    adminUsers =
+                        listOf(
+                            AdminUserDto(
+                                id = "u1",
+                                email = "shopper@test.local",
+                                firstName = "Sam",
+                                lastName = "Shop",
+                                enabled = true,
+                                roles = listOf("ROLE_USER"),
+                            ),
+                        ),
+                    adminUserQuery = "shop",
+                    products = emptyList(),
+                    editingProductId = null,
+                    productName = "Widget",
+                    productSlug = "widget",
+                    productPrice = "10",
+                    productStock = "1",
+                    productFeatured = false,
+                    loggedIn = true,
+                    userLabel = "admin@qmarket.local",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
+                    onUpdateOrderStatus = { _, _ -> },
+                    onNameChange = {},
+                    onSlugChange = {},
+                    onPriceChange = {},
+                    onStockChange = {},
+                    onToggleFeatured = {},
+                    onCreate = {},
+                    onUpdate = {},
+                    onDelete = {},
+                    onEdit = {},
+                    onClearEdit = {},
+                    onCart = {},
+                    onOrders = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+            onNodeWithTag("adminUserQuery").assertExists()
+            onNodeWithTag("adminUserSearch").assertExists()
+            onNodeWithTag("adminUserCard").performScrollTo().assertExists()
+            onNodeWithText("shopper@test.local").assertExists()
+        }
+
 }

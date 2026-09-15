@@ -444,4 +444,49 @@ class QMarketApiClientTest {
             }
         }
 
+
+    @Test
+    fun listAdminUsersParsesPage() =
+        runTest {
+            val engine =
+                MockEngine {
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """
+                                {
+                                  "content": [
+                                    {
+                                      "id": "11111111-1111-1111-1111-111111111111",
+                                      "email": "admin@qmarket.local",
+                                      "firstName": "Ada",
+                                      "lastName": "Admin",
+                                      "enabled": true,
+                                      "emailVerified": true,
+                                      "roles": ["ROLE_ADMIN"],
+                                      "createdAt": "2026-01-01T00:00:00Z"
+                                    }
+                                  ],
+                                  "page": 0,
+                                  "size": 50,
+                                  "totalElements": 1,
+                                  "totalPages": 1
+                                }
+                                """.trimIndent(),
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                val page = QMarketApiClient(client).listAdminUsers(q = "admin")
+                assertEquals(1, page.content.size)
+                assertEquals("admin@qmarket.local", page.content[0].email)
+                assertEquals(listOf("ROLE_ADMIN"), page.content[0].roles)
+            } finally {
+                client.close()
+            }
+        }
+
 }
