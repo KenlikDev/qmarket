@@ -178,4 +178,19 @@ class AuthControllerTest {
 
         verify(exactly = 1) { authService.login(any(), clientKey = "203.0.113.10") }
     }
+
+    @Test
+    fun `POST oauth google returns 200 and tokens`() {
+        every { authService.loginWithGoogle(any()) } returns sampleResponse
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/oauth/google")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"idToken":"google-id-token"}"""),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.accessToken").value("access-token"))
+
+        verify(exactly = 1) { authService.loginWithGoogle(any()) }
+    }
 }

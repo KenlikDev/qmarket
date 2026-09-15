@@ -69,7 +69,7 @@
 - [x] Admin: create / update / delete product UI + category assign (shared client, ROLE_ADMIN)
 - [x] Admin: categories UI (list/create/edit/delete in Admin screen)
 - [x] Admin: orders list + status transitions UI
-- [ ] OAuth (optional)
+- [x] Google OAuth (ID token -> JWT; POST /api/v1/auth/oauth/google, feature-flagged)
 
 ### v1.0 started
 
@@ -96,7 +96,7 @@
 Админ: товары, заказы, пользователи.  
 Платформы: Android + Web (+ Desktop); iOS параллельно.
 
-Открыто для v1.0: OAuth (optional, v0.2), deeper observability (traces), client Payment Element (optional; webhook path is ready).
+Открыто для v1.0: deeper observability (traces), client Payment Element (optional). Google OAuth backend ready (enable via config).
 
 Уже закрыто из прежнего списка: login rate limit, admin catalog/orders UI, refresh revoke/rotation, in-app notifications.
 

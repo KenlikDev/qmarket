@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket.identity.web
 
 import com.kenlikdev.qmarket.identity.dto.AuthResponse
+import com.kenlikdev.qmarket.identity.dto.GoogleOAuthRequest
 import com.kenlikdev.qmarket.identity.dto.LoginRequest
 import com.kenlikdev.qmarket.identity.dto.RefreshTokenRequest
 import com.kenlikdev.qmarket.identity.dto.RegisterRequest
@@ -53,4 +54,9 @@ class AuthController(
     ) {
         authService.logout(request)
     }
+
+    @PostMapping("/oauth/google")
+    fun loginWithGoogle(
+        @Valid @RequestBody request: GoogleOAuthRequest,
+    ): AuthResponse = authService.loginWithGoogle(request)
 }

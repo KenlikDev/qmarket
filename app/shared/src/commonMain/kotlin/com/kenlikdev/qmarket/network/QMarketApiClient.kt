@@ -13,6 +13,7 @@ import com.kenlikdev.qmarket.api.CreateCategoryRequestDto
 import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
+import com.kenlikdev.qmarket.api.GoogleOAuthRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.AdminUserDto
@@ -70,6 +71,9 @@ class QMarketApiClient(
 
     suspend fun login(request: LoginRequestDto): AuthResponseDto =
         post("/api/v1/auth/login", request)
+
+    suspend fun loginWithGoogle(request: GoogleOAuthRequestDto): AuthResponseDto =
+        post("/api/v1/auth/oauth/google", request)
 
     suspend fun refresh(request: RefreshTokenRequestDto): AuthResponseDto =
         post("/api/v1/auth/refresh", request)

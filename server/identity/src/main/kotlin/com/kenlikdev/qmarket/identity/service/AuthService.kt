@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.identity.service
 
+import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.common.security.JwtProperties
@@ -8,6 +9,7 @@ import com.kenlikdev.qmarket.common.validation.InputValidation
 import com.kenlikdev.qmarket.identity.domain.RefreshToken
 import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.dto.AuthResponse
+import com.kenlikdev.qmarket.identity.dto.GoogleOAuthRequest
 import com.kenlikdev.qmarket.identity.dto.LoginRequest
 import com.kenlikdev.qmarket.identity.dto.RefreshTokenRequest
 import com.kenlikdev.qmarket.identity.dto.RegisterRequest
@@ -15,6 +17,7 @@ import com.kenlikdev.qmarket.identity.dto.UserResponse
 import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -30,6 +33,7 @@ class AuthService(
     private val jwtProperties: JwtProperties,
     private val loginRateLimiter: LoginRateLimiter,
     private val refreshTokenRepository: RefreshTokenRepository,
+    private val googleIdTokenVerifierProvider: ObjectProvider<GoogleIdTokenVerifier>,
 ) {
     @Transactional
     fun register(request: RegisterRequest): AuthResponse {
@@ -163,6 +167,56 @@ class AuthService(
         } catch (_: Exception) {
             // best-effort: logout must not fail the client session clear
         }
+    }
+
+    @Transactional
+    fun loginWithGoogle(request: GoogleOAuthRequest): AuthResponse {
+        val verifier =
+            googleIdTokenVerifierProvider.getIfAvailable()
+                ?: throw BadRequestException("Google OAuth is not enabled")
+        val claims = verifier.verify(request.idToken)
+        val email = claims.email.lowercase().trim()
+        var user = userRepository.findByEmail(email)
+        if (user == null) {
+            val userRole =
+                roleRepository.findByName("ROLE_USER")
+                    ?: throw IllegalStateException("ROLE_USER not found in database. Run Flyway migrations.")
+            val unusablePassword =
+                passwordEncoder.encode("oauth-google-" + UUID.randomUUID())
+                    ?: throw IllegalStateException("Password encoding returned null")
+            user =
+                User(
+                    email = email,
+                    passwordHash = unusablePassword,
+                ).apply {
+                    firstName = claims.givenName
+                    lastName = claims.familyName
+                    emailVerified = claims.emailVerified
+                    roles.add(userRole)
+                }
+            user = userRepository.save(user)
+        } else {
+            if (!user.enabled) {
+                throw UnauthorizedException("User account is disabled")
+            }
+            var dirty = false
+            if (user.firstName.isNullOrBlank() && !claims.givenName.isNullOrBlank()) {
+                user.firstName = claims.givenName
+                dirty = true
+            }
+            if (user.lastName.isNullOrBlank() && !claims.familyName.isNullOrBlank()) {
+                user.lastName = claims.familyName
+                dirty = true
+            }
+            if (claims.emailVerified && !user.emailVerified) {
+                user.emailVerified = true
+                dirty = true
+            }
+            if (dirty) {
+                user = userRepository.save(user)
+            }
+        }
+        return issueTokens(user, familyId = UUID.randomUUID())
     }
 
     private fun issueTokens(

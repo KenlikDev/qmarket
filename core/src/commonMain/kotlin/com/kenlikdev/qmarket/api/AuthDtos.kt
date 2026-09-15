@@ -62,3 +62,8 @@ data class ChangePasswordRequestDto(
     val currentPassword: String,
     val newPassword: String,
 )
+
+@Serializable
+data class GoogleOAuthRequestDto(
+    val idToken: String,
+)

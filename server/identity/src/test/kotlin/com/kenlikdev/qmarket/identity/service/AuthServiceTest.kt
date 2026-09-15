@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.identity.service
 
+import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.common.security.JwtProperties
@@ -7,6 +8,7 @@ import com.kenlikdev.qmarket.common.security.JwtService
 import com.kenlikdev.qmarket.identity.domain.RefreshToken
 import com.kenlikdev.qmarket.identity.domain.Role
 import com.kenlikdev.qmarket.identity.domain.User
+import com.kenlikdev.qmarket.identity.dto.GoogleOAuthRequest
 import com.kenlikdev.qmarket.identity.dto.LoginRequest
 import com.kenlikdev.qmarket.identity.dto.RefreshTokenRequest
 import com.kenlikdev.qmarket.identity.dto.RegisterRequest
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.Instant
 import java.util.Date
@@ -42,6 +45,8 @@ class AuthServiceTest {
     private lateinit var jwtService: JwtService
     private lateinit var jwtProperties: JwtProperties
     private lateinit var authService: AuthService
+    private lateinit var googleIdTokenVerifier: GoogleIdTokenVerifier
+    private lateinit var googleIdTokenVerifierProvider: ObjectProvider<GoogleIdTokenVerifier>
 
     private val userRole = Role(id = UUID.randomUUID(), name = "ROLE_USER")
 
@@ -51,6 +56,9 @@ class AuthServiceTest {
         roleRepository = mockk()
         passwordEncoder = mockk()
         refreshTokenRepository = mockk()
+        googleIdTokenVerifier = mockk()
+        googleIdTokenVerifierProvider = mockk()
+        every { googleIdTokenVerifierProvider.getIfAvailable() } returns googleIdTokenVerifier
         jwtService = mockk()
 
         every { userRepository.save(any()) } returnsArgument 0
@@ -86,6 +94,7 @@ class AuthServiceTest {
                 jwtProperties,
                 LoginRateLimiter(maxAttempts = 100, windowSeconds = 300),
                 refreshTokenRepository,
+                googleIdTokenVerifierProvider,
             )
     }
 
@@ -285,5 +294,64 @@ class AuthServiceTest {
             authService.refresh(RefreshTokenRequest(refreshToken = "old-refresh"))
         }
         verify(exactly = 0) { refreshTokenRepository.revokeFamily(any(), any()) }
+    }
+
+    @Test
+    fun `loginWithGoogle creates user when email is new`() {
+        val userId = UUID.randomUUID()
+        every { googleIdTokenVerifier.verify("id-token") } returns
+            GoogleIdTokenClaims(
+                subject = "google-sub",
+                email = "google.user@gmail.com",
+                emailVerified = true,
+                givenName = "Google",
+                familyName = "User",
+            )
+        every { userRepository.findByEmail("google.user@gmail.com") } returns null
+        every { roleRepository.findByName("ROLE_USER") } returns userRole
+        every { userRepository.save(any()) } answers {
+            @Suppress("UNCHECKED_CAST")
+            (invocation.args[0] as User).also { it.id = userId }
+        }
+
+        val result = authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
+
+        assertEquals("access", result.accessToken)
+        assertEquals("refresh", result.refreshToken)
+        assertEquals("google.user@gmail.com", result.user.email)
+    }
+
+    @Test
+    fun `loginWithGoogle reuses existing user`() {
+        val userId = UUID.randomUUID()
+        val existing =
+            User(
+                id = userId,
+                email = "google.user@gmail.com",
+                passwordHash = "hashed",
+                firstName = "Existing",
+                enabled = true,
+                emailVerified = true,
+            ).apply { roles.add(userRole) }
+        every { googleIdTokenVerifier.verify("id-token") } returns
+            GoogleIdTokenClaims(
+                subject = "google-sub",
+                email = "google.user@gmail.com",
+                emailVerified = true,
+            )
+        every { userRepository.findByEmail("google.user@gmail.com") } returns existing
+
+        val result = authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
+
+        assertEquals(userId, result.user.id)
+        assertEquals("google.user@gmail.com", result.user.email)
+    }
+
+    @Test
+    fun `loginWithGoogle when oauth disabled throws`() {
+        every { googleIdTokenVerifierProvider.getIfAvailable() } returns null
+        assertThrows<BadRequestException> {
+            authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
+        }
     }
 }
