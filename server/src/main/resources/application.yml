@@ -66,6 +66,8 @@ qmarket:
       secret-key: ${STRIPE_SECRET_KEY:}
       api-base-url: ${STRIPE_API_BASE_URL:https://api.stripe.com}
       default-currency: ${STRIPE_DEFAULT_CURRENCY:rub}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+      webhook-tolerance-seconds: ${STRIPE_WEBHOOK_TOLERANCE_SECONDS:300}
   seed:
     # Off by default (safe for accidental prod). Enable locally: QMARKET_SEED_ENABLED=true
     enabled: ${QMARKET_SEED_ENABLED:false}

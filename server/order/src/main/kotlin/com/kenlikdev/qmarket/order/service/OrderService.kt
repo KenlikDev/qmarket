@@ -426,6 +426,43 @@ class OrderService(
         return toResponse(saved)
     }
 
+    /**
+     * Provider webhook / async capture path: mark order PAID without re-charging.
+     * Idempotent when already PAID. Ignores terminal non-payable statuses with a log-friendly exception.
+     */
+    @Transactional
+    fun markPaidFromProvider(
+        orderId: UUID,
+        providerId: String,
+        providerReference: String?,
+    ): OrderResponse {
+        val order =
+            orderRepository.findById(orderId).orElseThrow {
+                NotFoundException("Order not found: $orderId")
+            }
+        when (order.status) {
+            OrderStatus.PAID -> return toResponse(order)
+            OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
+            else ->
+                throw BadRequestException(
+                    "Cannot mark order ${order.status} as PAID from $providerId",
+                )
+        }
+        order.markPaid()
+        val saved = orderRepository.save(order)
+        notificationService.notifyOrderEvent(
+            userId = saved.userId,
+            type = "ORDER_PAID",
+            title = "Payment received",
+            body =
+                "Order ${saved.id} is paid via $providerId" +
+                    (providerReference?.let { " ($it)" } ?: "") +
+                    ". Total ${saved.totalAmount}.",
+            orderId = saved.id,
+        )
+        return toResponse(saved)
+    }
+
     /** @deprecated Use [pay]; kept name-compatible for older tests — prefer [pay]. */
     @Transactional
     fun payMock(

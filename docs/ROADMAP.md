@@ -78,6 +78,7 @@
 - [x] Admin users UI in shared client (list + search q)
 - [x] Admin users client tests (ApiClient + AdminScreen Compose)
 - [x] Real PSP adapter skeleton: Stripe PaymentIntents (`provider=stripe`, mock remains default)
+- [x] Stripe webhook (`POST /api/v1/payments/stripe/webhook`) + signature verify + markPaidFromProvider
 
 - [x] In-app notifications (order placed/paid/cancelled → `user_notifications`, API + client UI)
 - [x] Admin status change notifies customer; TopBar Alerts badge (unread count)
@@ -95,7 +96,7 @@
 Админ: товары, заказы, пользователи.  
 Платформы: Android + Web (+ Desktop); iOS параллельно.
 
-Открыто для v1.0: OAuth (optional, v0.2), deeper observability (traces), prod payment UX (Elements/webhooks beyond test-mode Stripe confirm).
+Открыто для v1.0: OAuth (optional, v0.2), deeper observability (traces), client Payment Element (optional; webhook path is ready).
 
 Уже закрыто из прежнего списка: login rate limit, admin catalog/orders UI, refresh revoke/rotation, in-app notifications.
 

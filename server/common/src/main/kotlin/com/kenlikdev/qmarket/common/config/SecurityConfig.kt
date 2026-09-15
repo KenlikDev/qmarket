@@ -49,6 +49,7 @@ open class SecurityConfig(
                 auth
                     .requestMatchers(
                         "/api/v1/auth/**",
+                        "/api/v1/payments/stripe/webhook",
                         "/actuator/health",
                         "/actuator/info",
                     ).permitAll()
