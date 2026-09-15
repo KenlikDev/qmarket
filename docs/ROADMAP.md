@@ -75,7 +75,7 @@
 
 - [x] Admin users API: `GET /api/v1/admin/users` (+ `/{id}`, search `q`)
 - [x] Admin users integration tests (Testcontainers)
-- [ ] Admin users UI in shared client
+- [x] Admin users UI in shared client (list + search q)
 - [ ] Real PSP adapter (Stripe/YooKassa/…)
 
 - [x] In-app notifications (order placed/paid/cancelled → `user_notifications`, API + client UI)

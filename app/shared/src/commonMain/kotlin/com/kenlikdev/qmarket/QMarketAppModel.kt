@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.kenlikdev.qmarket.api.AddressDto
+import com.kenlikdev.qmarket.api.AdminUserDto
 import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.NotificationDto
@@ -81,6 +82,8 @@ class QMarketAppModel(
     var adminCategoryName by mutableStateOf("")
     var adminCategorySlug by mutableStateOf("")
     var adminOrders by mutableStateOf<List<OrderDto>>(emptyList())
+    var adminUsers by mutableStateOf<List<AdminUserDto>>(emptyList())
+    var adminUserQuery by mutableStateOf("")
     var cart by mutableStateOf<CartDto?>(null)
     var orders by mutableStateOf<List<OrderDto>>(emptyList())
     var detailOrder by mutableStateOf<OrderDto?>(null)
@@ -116,6 +119,8 @@ class QMarketAppModel(
     fun clearUserScopedUiState() {
         orders = emptyList()
         adminOrders = emptyList()
+        adminUsers = emptyList()
+        adminUserQuery = ""
         addresses = emptyList()
         selectedAddressId = null
         profile = null
@@ -373,7 +378,16 @@ class QMarketAppModel(
         runApi {
             categories = api.listCategories(activeOnly = false)
             adminOrders = api.listAdminOrders().content
+            adminUsers =
+                api.listAdminUsers(q = adminUserQuery.trim().ifBlank { null }).content
             screen = AppScreen.Admin
+        }
+    }
+
+    fun searchAdminUsers() {
+        runApi {
+            adminUsers =
+                api.listAdminUsers(q = adminUserQuery.trim().ifBlank { null }).content
         }
     }
 

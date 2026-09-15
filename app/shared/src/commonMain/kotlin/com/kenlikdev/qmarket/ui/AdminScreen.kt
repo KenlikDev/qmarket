@@ -24,6 +24,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.kenlikdev.qmarket.api.AdminUserDto
 import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
@@ -39,6 +40,10 @@ fun AdminScreen(
     categoryName: String,
     categorySlug: String,
     adminOrders: List<OrderDto> = emptyList(),
+    adminUsers: List<AdminUserDto> = emptyList(),
+    adminUserQuery: String = "",
+    onAdminUserQueryChange: (String) -> Unit = {},
+    onSearchAdminUsers: () -> Unit = {},
     products: List<ProductDto>,
     editingProductId: String?,
     productName: String,
@@ -348,6 +353,59 @@ fun AdminScreen(
                             .testTag("adminCreateProduct"),
                 ) {
                     Text("Create product")
+                }
+            }
+
+
+            Text(
+                "Users (${adminUsers.size})",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 24.dp),
+            )
+            OutlinedTextField(
+                value = adminUserQuery,
+                onValueChange = onAdminUserQueryChange,
+                label = { Text("Search users") },
+                singleLine = true,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .testTag("adminUserQuery"),
+            )
+            TextButton(
+                onClick = onSearchAdminUsers,
+                enabled = !loading,
+                modifier = Modifier.testTag("adminUserSearch"),
+            ) {
+                Text("Search")
+            }
+            if (adminUsers.isEmpty()) {
+                Text("No users", style = MaterialTheme.typography.bodySmall)
+            }
+            adminUsers.forEach { user ->
+                Card(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .testTag("adminUserCard"),
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(user.email, style = MaterialTheme.typography.titleSmall)
+                        val name =
+                            listOfNotNull(user.firstName, user.lastName)
+                                .joinToString(" ")
+                                .ifBlank { "—" }
+                        Text(name, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            user.roles.joinToString().ifBlank { "no roles" },
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Text(
+                            if (user.enabled) "enabled" else "disabled",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
             }
 
