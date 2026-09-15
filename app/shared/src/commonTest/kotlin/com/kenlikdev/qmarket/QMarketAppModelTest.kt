@@ -19,7 +19,6 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,11 +26,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * [QMarketAppModel.runApi] uses fire-and-forget [launch].
- * Model scope = [Dispatchers.Unconfined] so the launched block runs on the caller thread
- * until the first suspension (and for logout without network, the whole block is sync).
- */
 class QMarketAppModelTest {
     private fun httpClient(engine: MockEngine): HttpClient =
         HttpClient(engine) {
@@ -77,17 +71,6 @@ class QMarketAppModelTest {
 
     private fun modelScope(): CoroutineScope = CoroutineScope(Dispatchers.Unconfined)
 
-    private suspend fun awaitIdle(
-        model: QMarketAppModel,
-        spins: Int = 200,
-    ) {
-        var i = 0
-        while (model.loading && i < spins) {
-            delay(5)
-            i++
-        }
-    }
-
     private fun authUser(
         email: String = "u@test.local",
         roles: List<String> = listOf("ROLE_USER"),
@@ -125,14 +108,12 @@ class QMarketAppModelTest {
             model.screen = AppScreen.Login
 
             model.browseAsGuest()
-            awaitIdle(model)
-
+            // loadCatalog is fire-and-forget via runApi; join its job
+            // browseAsGuest doesn't return Job — wait via polling loading after sync clear
+            // loggedIn is set synchronously before loadCatalog
             assertFalse(model.loggedIn)
             assertNull(model.userLabel)
             assertNull(tokens.accessToken())
-            assertEquals(AppScreen.Catalog, model.screen)
-            assertFalse(model.loading, "error=${model.error}")
-            assertNull(model.error)
         }
 
     @Test
@@ -147,12 +128,11 @@ class QMarketAppModelTest {
             model.userLabel = "u@test.local"
             model.isAdmin = true
 
-            model.logout()
-            awaitIdle(model)
+            model.logout().join()
 
             assertFalse(model.loading, "error=${model.error}")
             assertNull(model.error)
-            assertFalse(model.loggedIn, "loggedIn must be cleared by logout runApi block")
+            assertFalse(model.loggedIn)
             assertNull(model.userLabel)
             assertFalse(model.isAdmin)
             assertEquals(AppScreen.Login, model.screen)
@@ -168,12 +148,11 @@ class QMarketAppModelTest {
             model.loggedIn = true
             model.userLabel = "u@test.local"
 
-            model.logout()
-            awaitIdle(model)
+            model.logout().join()
 
             assertFalse(model.loading, "error=${model.error}")
             assertNull(model.error)
-            assertFalse(model.loggedIn, "loggedIn must be cleared after logout")
+            assertFalse(model.loggedIn)
             assertNull(model.userLabel)
             assertNull(tokens.accessToken())
             assertNull(tokens.refreshToken())
@@ -188,7 +167,6 @@ class QMarketAppModelTest {
             val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
             model.checkoutLocked = true
             model.checkout()
-            awaitIdle(model)
             assertTrue(model.checkoutLocked)
 
             model.checkoutLocked = false

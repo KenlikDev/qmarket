@@ -32,6 +32,7 @@ import com.kenlikdev.qmarket.api.RegisterRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -96,7 +97,7 @@ class QMarketAppModel(
     var addrStreet by mutableStateOf("")
     var addrPhone by mutableStateOf("")
 
-    fun runApi(block: suspend () -> Unit) {
+    fun runApi(block: suspend () -> Unit): Job =
         scope.launch {
             loading = true
             error = null
@@ -111,7 +112,6 @@ class QMarketAppModel(
                 loading = false
             }
         }
-    }
 
     fun clearUserScopedUiState() {
         orders = emptyList()
@@ -254,9 +254,9 @@ class QMarketAppModel(
         }
     }
 
-    fun logout() {
+    fun logout(): Job {
         val refresh = tokens.refreshToken()
-        runApi {
+        return runApi {
             if (!refresh.isNullOrBlank()) {
                 api.logout(refresh)
             }
