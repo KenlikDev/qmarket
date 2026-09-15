@@ -76,7 +76,7 @@
 - [x] Admin users API: `GET /api/v1/admin/users` (+ `/{id}`, search `q`)
 - [x] Admin users integration tests (Testcontainers)
 - [x] Admin users UI in shared client (list + search q)
-- [ ] Real PSP adapter (Stripe/YooKassa/…)
+- [x] Real PSP adapter skeleton: Stripe PaymentIntents (`provider=stripe`, mock remains default)
 
 - [x] In-app notifications (order placed/paid/cancelled → `user_notifications`, API + client UI)
 - [x] Admin status change notifies customer; TopBar Alerts badge (unread count)

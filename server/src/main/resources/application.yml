@@ -60,8 +60,12 @@ logging:
 
 qmarket:
   payment:
-    # mock (default) | future: stripe, yookassa
+    # mock (default) | stripe
     provider: ${QMARKET_PAYMENT_PROVIDER:mock}
+    stripe:
+      secret-key: ${STRIPE_SECRET_KEY:}
+      api-base-url: ${STRIPE_API_BASE_URL:https://api.stripe.com}
+      default-currency: ${STRIPE_DEFAULT_CURRENCY:rub}
   seed:
     # Off by default (safe for accidental prod). Enable locally: QMARKET_SEED_ENABLED=true
     enabled: ${QMARKET_SEED_ENABLED:false}
