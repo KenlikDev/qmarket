@@ -52,7 +52,7 @@ class JpaProductCatalogTest {
     fun `findById maps ProductInfo`() {
         val id = UUID.randomUUID()
         every { productRepository.findById(id) } returns Optional.of(product(id = id, stock = 3))
-        val info = catalog.findById(id)!!
+        val info = requireNotNull(catalog.findById(id))
         assertEquals(id, info.id)
         assertEquals(3, info.stockQuantity)
         assertEquals("item", info.slug)
@@ -129,8 +129,8 @@ class JpaProductCatalogTest {
         every { productRepository.decreaseStockIfAvailable(id, 5) } returns 0
         every { productRepository.findById(id) } returns Optional.of(product(id = id, stock = 2, slug = "low-stock"))
         val ex = assertThrows<BadRequestException> { catalog.decreaseStock(id, 5) }
-        assert(ex.message!!.contains("Insufficient stock"))
-        assert(ex.message!!.contains("low-stock"))
+        assert(ex.message.orEmpty().contains("Insufficient stock"))
+        assert(ex.message.orEmpty().contains("low-stock"))
     }
 
     @Test
