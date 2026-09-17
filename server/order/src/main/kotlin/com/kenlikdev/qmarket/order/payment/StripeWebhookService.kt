@@ -1,5 +1,7 @@
 package com.kenlikdev.qmarket.order.payment
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.order.domain.StripeWebhookEvent
@@ -12,16 +14,15 @@ import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
 /**
- * Stripe webhook handler with **database-backed** idempotency.
+ * Stripe webhook handler with database-backed idempotency and Jackson [JsonNode] parsing
+ * (no jackson-module-kotlin required).
  *
  * Flow:
- * 1. Verify signature (outside business TX concerns for auth failures).
- * 2. Parse event id/type.
- * 3. Claim event via INSERT … ON CONFLICT DO NOTHING (source of truth in Postgres).
- * 4. Only the winner runs business logic; then marks PROCESSED (or FAILED).
- *
- * Transient failures after claim leave status RECEIVED/FAILED so Stripe retries
- * can re-process (we allow re-entry only for FAILED; PROCESSED is terminal no-op).
+ * 1. Verify signature
+ * 2. Parse JSON tree
+ * 3. Claim event (INSERT ON CONFLICT DO NOTHING)
+ * 4. payment_intent.succeeded → amount/currency + markPaidFromProvider
+ * 5. Mark PROCESSED or FAILED
  */
 @Service
 @ConditionalOnProperty(name = ["qmarket.payment.provider"], havingValue = "stripe")
@@ -29,6 +30,7 @@ class StripeWebhookService(
     private val props: StripeProperties,
     private val orderService: OrderService,
     private val eventRepository: StripeWebhookEventRepository,
+    private val objectMapper: ObjectMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -52,13 +54,21 @@ class StripeWebhookService(
             throw UnauthorizedException("Invalid Stripe webhook signature")
         }
 
+        val root: JsonNode =
+            try {
+                objectMapper.readTree(payload)
+            } catch (ex: Exception) {
+                log.warn("Unparseable Stripe webhook payload: {}", ex.message)
+                throw BadRequestException("Invalid Stripe webhook payload")
+            }
+
         val eventId =
-            extractJsonString(payload, "id")
+            root.path("id").asText(null)
                 ?: run {
                     log.warn("Stripe webhook without event id")
                     return
                 }
-        val type = extractJsonString(payload, "type") ?: "unknown"
+        val type = root.path("type").asText("unknown")
 
         val claimed = eventRepository.tryClaim(eventId, type) == 1
         if (!claimed) {
@@ -69,7 +79,6 @@ class StripeWebhookService(
                     return
                 }
                 StripeWebhookEvent.STATUS_RECEIVED -> {
-                    // Another in-flight worker claimed it; avoid double process.
                     log.info("Stripe event {} already claimed (RECEIVED), skipping", eventId)
                     return
                 }
@@ -85,14 +94,13 @@ class StripeWebhookService(
 
         val event =
             eventRepository.findById(eventId).orElseGet {
-                // Should exist after claim; defensive create for FAILED retry path.
                 StripeWebhookEvent(eventId = eventId, eventType = type).also { eventRepository.save(it) }
             }
 
         try {
             when (type) {
                 "payment_intent.succeeded" -> {
-                    val result = onPaymentIntentSucceeded(payload)
+                    val result = onPaymentIntentSucceeded(root)
                     event.markProcessed(result.providerReference, result.orderId)
                 }
                 else -> {
@@ -114,10 +122,11 @@ class StripeWebhookService(
         val providerReference: String?,
     )
 
-    private fun onPaymentIntentSucceeded(payload: String): ProcessResult {
-        val intentId = extractNestedId(payload) ?: extractJsonString(payload, "id")
+    private fun onPaymentIntentSucceeded(root: JsonNode): ProcessResult {
+        val pi = root.path("data").path("object")
+        val intentId = pi.path("id").asText(null)
         val orderIdStr =
-            extractMetadataOrderId(payload)
+            pi.path("metadata").path("order_id").asText(null)
                 ?: run {
                     log.warn("payment_intent.succeeded without metadata.order_id, pi={}", intentId)
                     return ProcessResult(orderId = null, providerReference = intentId)
@@ -127,30 +136,18 @@ class StripeWebhookService(
                 log.warn("Invalid order_id in Stripe metadata: {}", orderIdStr)
                 return ProcessResult(orderId = null, providerReference = intentId)
             }
+
+        val amountNode = pi.get("amount")
+        val amountMinor = if (amountNode != null && amountNode.isNumber) amountNode.asLong() else null
+        val currency = pi.path("currency").asText(null)
+
         orderService.markPaidFromProvider(
             orderId = orderId,
             providerId = "stripe",
             providerReference = intentId,
+            amountMinor = amountMinor,
+            currency = currency,
         )
         return ProcessResult(orderId = orderId, providerReference = intentId)
-    }
-
-    private fun extractJsonString(
-        json: String,
-        field: String,
-    ): String? {
-        val pattern = Regex("\"${Regex.escape(field)}\"\\s*:\\s*\"([^\"]+)\"")
-        return pattern.find(json)?.groupValues?.get(1)
-    }
-
-    /** Prefer data.object.id for PaymentIntent id inside event envelope. */
-    private fun extractNestedId(payload: String): String? {
-        val objectBlock = Regex("\"object\"\\s*:\\s*\\{([^}]{0,2000})\\}").find(payload)?.groupValues?.get(1)
-        return objectBlock?.let { extractJsonString("{$it}", "id") }
-    }
-
-    private fun extractMetadataOrderId(payload: String): String? {
-        val meta = Regex("\"metadata\"\\s*:\\s*\\{([^}]*)\\}").find(payload)?.groupValues?.get(1) ?: return null
-        return Regex("\"order_id\"\\s*:\\s*\"([^\"]+)\"").find(meta)?.groupValues?.get(1)
     }
 }

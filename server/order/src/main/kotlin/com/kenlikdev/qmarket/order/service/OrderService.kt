@@ -428,13 +428,19 @@ class OrderService(
 
     /**
      * Provider webhook / async capture path: mark order PAID without re-charging.
-     * Idempotent when already PAID. Ignores terminal non-payable statuses with a log-friendly exception.
+     * Idempotent when already PAID.
+     *
+     * When [amountMinor] is provided (Stripe PaymentIntent.amount in minor units),
+     * it must match [Order.totalAmount] converted with scale 2. Optional [currency]
+     * must be a 3-letter code when present (orders have no stored currency column yet).
      */
     @Transactional
     fun markPaidFromProvider(
         orderId: UUID,
         providerId: String,
         providerReference: String?,
+        amountMinor: Long? = null,
+        currency: String? = null,
     ): OrderResponse {
         val order =
             orderRepository.findById(orderId).orElseThrow {
@@ -448,6 +454,27 @@ class OrderService(
                     "Cannot mark order ${order.status} as PAID from $providerId",
                 )
         }
+
+        if (amountMinor != null) {
+            val expectedMinor =
+                order.totalAmount
+                    .setScale(2, java.math.RoundingMode.HALF_UP)
+                    .movePointRight(2)
+                    .longValueExact()
+            if (amountMinor != expectedMinor) {
+                throw BadRequestException(
+                    "Payment amount mismatch for order $orderId: " +
+                        "provider=$amountMinor minor, order=$expectedMinor minor",
+                )
+            }
+        }
+        if (!currency.isNullOrBlank()) {
+            val normalized = currency.lowercase()
+            if (normalized.length != 3) {
+                throw BadRequestException("Invalid provider currency: $currency")
+            }
+        }
+
         order.markPaid()
         val saved = orderRepository.save(order)
         notificationService.notifyOrderEvent(

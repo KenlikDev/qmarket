@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.order.payment
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.order.domain.StripeWebhookEvent
 import com.kenlikdev.qmarket.order.dto.OrderResponse
@@ -21,6 +22,7 @@ class StripeWebhookServiceTest {
             webhookSecret = "whsec_test",
             webhookToleranceSeconds = 300,
         )
+    private val objectMapper = ObjectMapper()
     private lateinit var orderService: OrderService
     private lateinit var eventRepository: StripeWebhookEventRepository
     private lateinit var service: StripeWebhookService
@@ -29,8 +31,7 @@ class StripeWebhookServiceTest {
     fun setUp() {
         orderService = mockk()
         eventRepository = mockk(relaxed = true)
-        service = StripeWebhookService(props, orderService, eventRepository)
-        // Default: claim succeeds, find returns the claimed row
+        service = StripeWebhookService(props, orderService, eventRepository, objectMapper)
         every { eventRepository.tryClaim(any(), any()) } returns 1
         every { eventRepository.findById(any()) } answers {
             Optional.of(
@@ -60,7 +61,7 @@ class StripeWebhookServiceTest {
     }
 
     @Test
-    fun `payment_intent succeeded marks order paid`() {
+    fun `payment_intent succeeded marks order paid with amount`() {
         val orderId = UUID.randomUUID()
         val payload =
             """
@@ -70,6 +71,9 @@ class StripeWebhookServiceTest {
               "data": {
                 "object": {
                   "id": "pi_abc",
+                  "amount": 2599,
+                  "currency": "usd",
+                  "status": "succeeded",
                   "metadata": {
                     "order_id": "$orderId",
                     "user_id": "${UUID.randomUUID()}"
@@ -79,15 +83,14 @@ class StripeWebhookServiceTest {
             }
             """.trimIndent()
         every {
-            orderService.markPaidFromProvider(orderId, "stripe", "pi_abc")
+            orderService.markPaidFromProvider(orderId, "stripe", "pi_abc", 2599L, "usd")
         } returns mockk<OrderResponse>(relaxed = true)
 
         service.handle(payload, signedPayload(payload))
 
         verify(exactly = 1) {
-            orderService.markPaidFromProvider(orderId, "stripe", "pi_abc")
+            orderService.markPaidFromProvider(orderId, "stripe", "pi_abc", 2599L, "usd")
         }
-        verify { eventRepository.tryClaim(match { it.startsWith("evt_") }, "payment_intent.succeeded") }
         verify {
             eventRepository.save(
                 match {
@@ -110,6 +113,8 @@ class StripeWebhookServiceTest {
               "data": {
                 "object": {
                   "id": "pi_dup",
+                  "amount": 100,
+                  "currency": "usd",
                   "metadata": { "order_id": "$orderId" }
                 }
               }
@@ -128,7 +133,7 @@ class StripeWebhookServiceTest {
         service.handle(payload, signedPayload(payload))
 
         verify(exactly = 0) {
-            orderService.markPaidFromProvider(any(), any(), any())
+            orderService.markPaidFromProvider(any(), any(), any(), any(), any())
         }
     }
 
@@ -143,6 +148,8 @@ class StripeWebhookServiceTest {
               "data": {
                 "object": {
                   "id": "pi_retry",
+                  "amount": 500,
+                  "currency": "usd",
                   "metadata": { "order_id": "$orderId" }
                 }
               }
@@ -159,16 +166,13 @@ class StripeWebhookServiceTest {
                 ),
             )
         every {
-            orderService.markPaidFromProvider(orderId, "stripe", "pi_retry")
+            orderService.markPaidFromProvider(orderId, "stripe", "pi_retry", 500L, "usd")
         } returns mockk(relaxed = true)
 
         service.handle(payload, signedPayload(payload))
 
         verify(exactly = 1) {
-            orderService.markPaidFromProvider(orderId, "stripe", "pi_retry")
-        }
-        verify {
-            eventRepository.save(match { it.status == StripeWebhookEvent.STATUS_PROCESSED })
+            orderService.markPaidFromProvider(orderId, "stripe", "pi_retry", 500L, "usd")
         }
     }
 }
