@@ -12,6 +12,7 @@ import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.ObjectProvider
 import java.util.Optional
 import java.util.UUID
 
@@ -25,13 +26,23 @@ class StripeWebhookServiceTest {
     private val objectMapper = ObjectMapper()
     private lateinit var orderService: OrderService
     private lateinit var eventRepository: StripeWebhookEventRepository
+    private lateinit var paymentMetricsProvider: ObjectProvider<PaymentMetrics>
     private lateinit var service: StripeWebhookService
 
     @BeforeEach
     fun setUp() {
         orderService = mockk()
         eventRepository = mockk(relaxed = true)
-        service = StripeWebhookService(props, orderService, eventRepository, objectMapper)
+        paymentMetricsProvider = mockk()
+        every { paymentMetricsProvider.getIfAvailable() } returns null
+        service =
+            StripeWebhookService(
+                props,
+                orderService,
+                eventRepository,
+                objectMapper,
+                paymentMetricsProvider,
+            )
         every { eventRepository.tryClaim(any(), any()) } returns 1
         every { eventRepository.findById(any()) } answers {
             Optional.of(

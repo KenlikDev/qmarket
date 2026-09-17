@@ -79,6 +79,8 @@
 - [x] Admin users client tests (ApiClient + AdminScreen Compose)
 - [x] Real PSP adapter skeleton: Stripe PaymentIntents (`provider=stripe`, mock remains default)
 - [x] Stripe webhook (`POST /api/v1/payments/stripe/webhook`) + signature verify + markPaidFromProvider
+- [x] Persistent webhook idempotency (V11 stripe_webhook_events) + amount reconciliation
+- [x] Correlation id filter (MDC) + payment webhook metrics
 
 - [x] In-app notifications (order placed/paid/cancelled → `user_notifications`, API + client UI)
 - [x] Admin status change notifies customer; TopBar Alerts badge (unread count)
@@ -96,7 +98,9 @@
 Админ: товары, заказы, пользователи.  
 Платформы: Android + Web (+ Desktop); iOS параллельно.
 
-Открыто для v1.0: deeper observability (traces), client Payment Element (optional). Google OAuth backend ready (enable via config).
+Открыто для v1.0: distributed traces (optional), client Payment Element (optional).
+Сделано: correlation id (X-Correlation-Id / MDC), payment webhook Micrometer counters (`qmarket.payment.webhook.*`, `qmarket.payment.order.paid_from_provider`).
+Google OAuth backend ready (enable via config).
 
 Уже закрыто из прежнего списка: login rate limit, admin catalog/orders UI, refresh revoke/rotation, in-app notifications.
 

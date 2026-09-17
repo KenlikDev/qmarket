@@ -8,21 +8,16 @@ import com.kenlikdev.qmarket.order.domain.StripeWebhookEvent
 import com.kenlikdev.qmarket.order.repository.StripeWebhookEventRepository
 import com.kenlikdev.qmarket.order.service.OrderService
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
 /**
- * Stripe webhook handler with database-backed idempotency and Jackson [JsonNode] parsing
- * (no jackson-module-kotlin required).
+ * Stripe webhook handler with database-backed idempotency and Jackson [JsonNode] parsing.
  *
- * Flow:
- * 1. Verify signature
- * 2. Parse JSON tree
- * 3. Claim event (INSERT ON CONFLICT DO NOTHING)
- * 4. payment_intent.succeeded → amount/currency + markPaidFromProvider
- * 5. Mark PROCESSED or FAILED
+ * Metrics (when [PaymentMetrics] is available): received / duplicate / processed / failed.
  */
 @Service
 @ConditionalOnProperty(name = ["qmarket.payment.provider"], havingValue = "stripe")
@@ -31,8 +26,11 @@ class StripeWebhookService(
     private val orderService: OrderService,
     private val eventRepository: StripeWebhookEventRepository,
     private val objectMapper: ObjectMapper,
+    private val paymentMetrics: ObjectProvider<PaymentMetrics>,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+
+    private fun metrics(): PaymentMetrics? = paymentMetrics.getIfAvailable()
 
     @Transactional
     fun handle(
@@ -70,15 +68,20 @@ class StripeWebhookService(
                 }
         val type = root.path("type").asText("unknown")
 
+        metrics()?.webhookReceived()
+        log.info("Stripe webhook received eventId={} type={}", eventId, type)
+
         val claimed = eventRepository.tryClaim(eventId, type) == 1
         if (!claimed) {
             val existing = eventRepository.findById(eventId).orElse(null)
             when (existing?.status) {
                 StripeWebhookEvent.STATUS_PROCESSED -> {
+                    metrics()?.webhookDuplicate()
                     log.info("Ignoring already PROCESSED Stripe event {}", eventId)
                     return
                 }
                 StripeWebhookEvent.STATUS_RECEIVED -> {
+                    metrics()?.webhookDuplicate()
                     log.info("Stripe event {} already claimed (RECEIVED), skipping", eventId)
                     return
                 }
@@ -86,6 +89,7 @@ class StripeWebhookService(
                     log.info("Retrying FAILED Stripe event {}", eventId)
                 }
                 else -> {
+                    metrics()?.webhookDuplicate()
                     log.info("Ignoring duplicate Stripe event {}", eventId)
                     return
                 }
@@ -102,6 +106,9 @@ class StripeWebhookService(
                 "payment_intent.succeeded" -> {
                     val result = onPaymentIntentSucceeded(root)
                     event.markProcessed(result.providerReference, result.orderId)
+                    if (result.orderId != null) {
+                        metrics()?.orderPaidFromProvider()
+                    }
                 }
                 else -> {
                     log.debug("Ignoring Stripe event type={}", type)
@@ -109,7 +116,10 @@ class StripeWebhookService(
                 }
             }
             eventRepository.save(event)
+            metrics()?.webhookProcessed()
+            log.info("Stripe webhook processed eventId={} type={}", eventId, type)
         } catch (ex: Exception) {
+            metrics()?.webhookFailed()
             log.error("Failed processing Stripe event {}: {}", eventId, ex.message)
             event.markFailed(ex.message ?: ex.javaClass.simpleName)
             eventRepository.save(event)

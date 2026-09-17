@@ -52,6 +52,9 @@ springdoc:
     operations-sorter: method
 
 logging:
+  pattern:
+    # correlationId from CorrelationIdFilter (MDC)
+    console: "%d{ISO8601} [%thread] %-5level %logger{36} [corr=%X{correlationId}] - %msg%n"
   level:
     root: INFO
     com.kenlikdev.qmarket: DEBUG
