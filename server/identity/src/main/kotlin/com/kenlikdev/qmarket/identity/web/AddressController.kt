@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.identity.web
 
+import com.kenlikdev.qmarket.common.security.userId
 import com.kenlikdev.qmarket.identity.dto.AddressResponse
 import com.kenlikdev.qmarket.identity.dto.CreateAddressRequest
 import com.kenlikdev.qmarket.identity.dto.UpdateAddressRequest
@@ -24,27 +25,27 @@ class AddressController(
     private val addressService: AddressService,
 ) {
     @GetMapping
-    fun list(authentication: Authentication): List<AddressResponse> = addressService.list(currentUserId(authentication))
+    fun list(authentication: Authentication): List<AddressResponse> = addressService.list(authentication.userId())
 
     @GetMapping("/{id}")
     fun get(
         authentication: Authentication,
         @PathVariable id: UUID,
-    ): AddressResponse = addressService.get(currentUserId(authentication), id)
+    ): AddressResponse = addressService.get(authentication.userId(), id)
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
         authentication: Authentication,
         @Valid @RequestBody request: CreateAddressRequest,
-    ): AddressResponse = addressService.create(currentUserId(authentication), request)
+    ): AddressResponse = addressService.create(authentication.userId(), request)
 
     @PutMapping("/{id}")
     fun update(
         authentication: Authentication,
         @PathVariable id: UUID,
         @Valid @RequestBody request: UpdateAddressRequest,
-    ): AddressResponse = addressService.update(currentUserId(authentication), id, request)
+    ): AddressResponse = addressService.update(authentication.userId(), id, request)
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -52,8 +53,6 @@ class AddressController(
         authentication: Authentication,
         @PathVariable id: UUID,
     ) {
-        addressService.delete(currentUserId(authentication), id)
+        addressService.delete(authentication.userId(), id)
     }
-
-    private fun currentUserId(authentication: Authentication): UUID = authentication.principal as UUID
 }

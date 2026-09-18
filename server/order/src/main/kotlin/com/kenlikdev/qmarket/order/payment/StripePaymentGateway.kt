@@ -1,9 +1,9 @@
 package com.kenlikdev.qmarket.order.payment
 
+import com.kenlikdev.qmarket.common.util.Money
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import java.math.BigDecimal
-import java.math.RoundingMode
 import java.util.UUID
 
 /**
@@ -31,7 +31,7 @@ class StripePaymentGateway(
             return PaymentChargeResult(success = false, message = "Amount must be positive")
         }
         val cur = currency.ifBlank { props.defaultCurrency }.lowercase()
-        val amountMinor = toMinorUnits(amount)
+        val amountMinor = Money.toMinorUnits(amount)
         return try {
             val intent = stripeApi.createPaymentIntent(amountMinor, cur, orderId, userId)
             val ok = intent.status in SUCCEEDED_STATUSES
@@ -57,10 +57,8 @@ class StripePaymentGateway(
     companion object {
         private val SUCCEEDED_STATUSES = setOf("succeeded", "requires_capture")
 
-        fun toMinorUnits(amount: BigDecimal): Long =
-            amount
-                .setScale(2, RoundingMode.HALF_UP)
-                .movePointRight(2)
-                .longValueExact()
+        /** @deprecated Prefer [Money.toMinorUnits]; kept for existing call sites/tests. */
+        @Deprecated("Use Money.toMinorUnits", ReplaceWith("Money.toMinorUnits(amount)", "com.kenlikdev.qmarket.common.util.Money"))
+        fun toMinorUnits(amount: BigDecimal): Long = Money.toMinorUnits(amount)
     }
 }

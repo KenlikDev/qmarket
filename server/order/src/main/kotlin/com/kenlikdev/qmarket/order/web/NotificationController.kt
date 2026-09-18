@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.order.web
 
+import com.kenlikdev.qmarket.common.security.userId
 import com.kenlikdev.qmarket.order.dto.NotificationResponse
 import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.dto.UnreadCountResponse
@@ -23,19 +24,17 @@ class NotificationController(
         authentication: Authentication,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
-    ): PageResponse<NotificationResponse> = notificationService.listMine(currentUserId(authentication), page, size)
+    ): PageResponse<NotificationResponse> = notificationService.listMine(authentication.userId(), page, size)
 
     @GetMapping("/unread-count")
-    fun unreadCount(authentication: Authentication): UnreadCountResponse = notificationService.unreadCount(currentUserId(authentication))
+    fun unreadCount(authentication: Authentication): UnreadCountResponse = notificationService.unreadCount(authentication.userId())
 
     @PostMapping("/{id}/read")
     fun markRead(
         authentication: Authentication,
         @PathVariable id: UUID,
-    ): NotificationResponse = notificationService.markRead(currentUserId(authentication), id)
+    ): NotificationResponse = notificationService.markRead(authentication.userId(), id)
 
     @PostMapping("/read-all")
-    fun markAllRead(authentication: Authentication): UnreadCountResponse = notificationService.markAllRead(currentUserId(authentication))
-
-    private fun currentUserId(authentication: Authentication): UUID = authentication.principal as UUID
+    fun markAllRead(authentication: Authentication): UnreadCountResponse = notificationService.markAllRead(authentication.userId())
 }

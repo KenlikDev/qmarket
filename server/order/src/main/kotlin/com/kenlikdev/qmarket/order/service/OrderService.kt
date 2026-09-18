@@ -5,6 +5,7 @@ import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import com.kenlikdev.qmarket.common.util.Money
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderIdempotencyKey
@@ -19,7 +20,6 @@ import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
 import com.kenlikdev.qmarket.order.payment.StripeApiClient
 import com.kenlikdev.qmarket.order.payment.StripeApiException
-import com.kenlikdev.qmarket.order.payment.StripePaymentGateway
 import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
@@ -465,7 +465,7 @@ class OrderService(
         }
 
         val currency = stripeProps.defaultCurrency
-        val amountMinor = StripePaymentGateway.toMinorUnits(order.totalAmount)
+        val amountMinor = Money.toMinorUnits(order.totalAmount)
         try {
             val intent =
                 stripeApi.createPaymentIntentForClient(
@@ -519,7 +519,7 @@ class OrderService(
         }
 
         if (amountMinor != null) {
-            val expectedMinor = StripePaymentGateway.toMinorUnits(order.totalAmount)
+            val expectedMinor = Money.toMinorUnits(order.totalAmount)
             if (amountMinor != expectedMinor) {
                 throw BadRequestException(
                     "Payment amount mismatch for order $orderId: " +

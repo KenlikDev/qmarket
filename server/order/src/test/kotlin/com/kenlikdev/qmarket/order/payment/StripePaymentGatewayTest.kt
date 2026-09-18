@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.order.payment
 
+import com.kenlikdev.qmarket.common.util.Money
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -21,9 +22,9 @@ class StripePaymentGatewayTest {
     }
 
     @Test
-    fun `toMinorUnits converts rubles to kopecks`() {
-        assertEquals(1050L, StripePaymentGateway.toMinorUnits(BigDecimal("10.50")))
-        assertEquals(1L, StripePaymentGateway.toMinorUnits(BigDecimal("0.01")))
+    fun `Money toMinorUnits converts major to minor units`() {
+        assertEquals(1050L, Money.toMinorUnits(BigDecimal("10.50")))
+        assertEquals(1L, Money.toMinorUnits(BigDecimal("0.01")))
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.order.web
 
+import com.kenlikdev.qmarket.common.security.userId
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PageResponse
@@ -37,7 +38,7 @@ class OrderController(
         @Valid @RequestBody request: CreateOrderRequest,
         @RequestHeader(value = "Idempotency-Key", required = false) idempotencyKey: String?,
     ): ResponseEntity<OrderResponse> {
-        val userId = currentUserId(authentication)
+        val userId = authentication.userId()
         // Explicit replay: same key + same body → 200; same key + different body → 409 from service.
         if (idempotencyKey != null) {
             orderService.findIdempotentReplay(userId, request, idempotencyKey)?.let { existing ->
@@ -56,25 +57,25 @@ class OrderController(
         authentication: Authentication,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
-    ): PageResponse<OrderResponse> = orderService.listMyOrders(currentUserId(authentication), page, size)
+    ): PageResponse<OrderResponse> = orderService.listMyOrders(authentication.userId(), page, size)
 
     @GetMapping("/{id}")
     fun myOrder(
         authentication: Authentication,
         @PathVariable id: UUID,
-    ): OrderResponse = orderService.getMyOrder(currentUserId(authentication), id)
+    ): OrderResponse = orderService.getMyOrder(authentication.userId(), id)
 
     @PostMapping("/{id}/cancel")
     fun cancel(
         authentication: Authentication,
         @PathVariable id: UUID,
-    ): OrderResponse = orderService.cancelMyOrder(currentUserId(authentication), id)
+    ): OrderResponse = orderService.cancelMyOrder(authentication.userId(), id)
 
     @PostMapping("/{id}/pay")
     fun pay(
         authentication: Authentication,
         @PathVariable id: UUID,
-    ): OrderResponse = orderService.pay(currentUserId(authentication), id)
+    ): OrderResponse = orderService.pay(authentication.userId(), id)
 
     /**
      * Stripe Payment Element / mobile SDK: returns client_secret for an unpaid order.
@@ -84,7 +85,7 @@ class OrderController(
     fun paymentSession(
         authentication: Authentication,
         @PathVariable id: UUID,
-    ): PaymentSessionResponse = orderService.createPaymentSession(currentUserId(authentication), id)
+    ): PaymentSessionResponse = orderService.createPaymentSession(authentication.userId(), id)
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
@@ -105,6 +106,4 @@ class OrderController(
         @PathVariable id: UUID,
         @Valid @RequestBody request: UpdateOrderStatusRequest,
     ): OrderResponse = orderService.updateStatus(id, request)
-
-    private fun currentUserId(authentication: Authentication): UUID = authentication.principal as UUID
 }

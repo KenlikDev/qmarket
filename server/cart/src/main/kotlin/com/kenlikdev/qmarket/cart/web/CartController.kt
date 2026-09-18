@@ -4,6 +4,7 @@ import com.kenlikdev.qmarket.cart.dto.AddCartItemRequest
 import com.kenlikdev.qmarket.cart.dto.CartResponse
 import com.kenlikdev.qmarket.cart.dto.UpdateCartItemRequest
 import com.kenlikdev.qmarket.cart.service.CartService
+import com.kenlikdev.qmarket.common.security.userId
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.Authentication
@@ -24,30 +25,28 @@ class CartController(
     private val cartService: CartService,
 ) {
     @GetMapping
-    fun getCart(authentication: Authentication): CartResponse = cartService.getCart(currentUserId(authentication))
+    fun getCart(authentication: Authentication): CartResponse = cartService.getCart(authentication.userId())
 
     @PostMapping("/items")
     @ResponseStatus(HttpStatus.OK)
     fun addItem(
         authentication: Authentication,
         @Valid @RequestBody request: AddCartItemRequest,
-    ): CartResponse = cartService.addItem(currentUserId(authentication), request)
+    ): CartResponse = cartService.addItem(authentication.userId(), request)
 
     @PutMapping("/items/{productId}")
     fun updateItem(
         authentication: Authentication,
         @PathVariable productId: UUID,
         @Valid @RequestBody request: UpdateCartItemRequest,
-    ): CartResponse = cartService.updateItem(currentUserId(authentication), productId, request)
+    ): CartResponse = cartService.updateItem(authentication.userId(), productId, request)
 
     @DeleteMapping("/items/{productId}")
     fun removeItem(
         authentication: Authentication,
         @PathVariable productId: UUID,
-    ): CartResponse = cartService.removeItem(currentUserId(authentication), productId)
+    ): CartResponse = cartService.removeItem(authentication.userId(), productId)
 
     @DeleteMapping
-    fun clear(authentication: Authentication): CartResponse = cartService.clear(currentUserId(authentication))
-
-    private fun currentUserId(authentication: Authentication): UUID = authentication.principal as UUID
+    fun clear(authentication: Authentication): CartResponse = cartService.clear(authentication.userId())
 }

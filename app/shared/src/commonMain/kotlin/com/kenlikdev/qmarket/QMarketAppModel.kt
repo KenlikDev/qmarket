@@ -3,35 +3,36 @@ package com.kenlikdev.qmarket
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.kenlikdev.qmarket.api.AddCartItemRequestDto
 import com.kenlikdev.qmarket.api.AddressDto
 import com.kenlikdev.qmarket.api.AdminUserDto
 import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.CategoryDto
+import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
+import com.kenlikdev.qmarket.api.CreateAddressRequestDto
+import com.kenlikdev.qmarket.api.CreateCategoryRequestDto
+import com.kenlikdev.qmarket.api.CreateOrderRequestDto
+import com.kenlikdev.qmarket.api.CreateProductRequestDto
+import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
+import com.kenlikdev.qmarket.api.RegisterRequestDto
+import com.kenlikdev.qmarket.api.UpdateAddressRequestDto
+import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
+import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
+import com.kenlikdev.qmarket.api.UpdateProductRequestDto
+import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
 import com.kenlikdev.qmarket.network.ApiException
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.ui.AppScreen
 import com.kenlikdev.qmarket.ui.CatalogFilterParams
 import com.kenlikdev.qmarket.ui.CheckoutIdempotency
-import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
-import com.kenlikdev.qmarket.api.UpdateProductRequestDto
-import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
-import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
-import com.kenlikdev.qmarket.api.UpdateAddressRequestDto
-import com.kenlikdev.qmarket.api.OrderStatusDto
-import com.kenlikdev.qmarket.api.CreateProductRequestDto
-import com.kenlikdev.qmarket.api.CreateCategoryRequestDto
-import com.kenlikdev.qmarket.api.CreateAddressRequestDto
-import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
-import com.kenlikdev.qmarket.api.AddCartItemRequestDto
-import com.kenlikdev.qmarket.api.RegisterRequestDto
-import com.kenlikdev.qmarket.api.LoginRequestDto
-import com.kenlikdev.qmarket.api.CreateOrderRequestDto
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -49,7 +50,7 @@ class QMarketAppModel(
     var screen by mutableStateOf<AppScreen>(
         if (restoredSession) AppScreen.Catalog else AppScreen.Login,
     )
-    var email by mutableStateOf(tokens.sessionEmail() ?: "admin@qmarket.local")
+    var email by mutableStateOf(tokens.sessionEmail() ?: DEMO_EMAIL)
     var password by mutableStateOf("") // demo: use admin123 when testing locally
     var firstName by mutableStateOf("")
     var lastName by mutableStateOf("")
@@ -107,6 +108,8 @@ class QMarketAppModel(
             statusMessage = null
             try {
                 block()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: ApiException) {
                 error = e.message
             } catch (e: Exception) {
@@ -719,5 +722,10 @@ class QMarketAppModel(
             adminOrders = api.listAdminOrders().content
             statusMessage = "Order → ${status.name}"
         }
+    }
+
+    companion object {
+        /** Prefill for local demo login; not used in production builds. */
+        const val DEMO_EMAIL = "admin@qmarket.local"
     }
 }
