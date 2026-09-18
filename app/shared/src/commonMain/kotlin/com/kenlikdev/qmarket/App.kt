@@ -187,8 +187,11 @@ fun App() {
                         loading = m.loading,
                         onBackToCatalog = { m.loadCatalog() },
                         onDecreaseQty = { item ->
-                            if (item.quantity <= 1) m.removeCartItem(item.productId)
-                            else m.updateCartQuantity(item.productId, item.quantity - 1)
+                            if (item.quantity <= 1) {
+                                m.removeCartItem(item.productId)
+                            } else {
+                                m.updateCartQuantity(item.productId, item.quantity - 1)
+                            }
                         },
                         onIncreaseQty = { item -> m.updateCartQuantity(item.productId, item.quantity + 1) },
                         onRemoveItem = { item -> m.removeCartItem(item.productId) },
@@ -207,7 +210,7 @@ fun App() {
                         onOrders = { m.loadOrders() },
                         onAddresses = { m.loadAddresses() },
                         onProfile = { m.loadProfile() },
-                                                onNotifications = { m.loadNotifications() },
+                        onNotifications = { m.loadNotifications() },
                         notificationsUnread = m.notificationsUnread,
                         onLogout = { m.logout() },
                         modifier = screenModifier,
@@ -240,7 +243,7 @@ fun App() {
                         onCart = { m.loadCart() },
                         onOrders = { m.loadOrders() },
                         onProfile = { m.loadProfile() },
-                                                onNotifications = { m.loadNotifications() },
+                        onNotifications = { m.loadNotifications() },
                         notificationsUnread = m.notificationsUnread,
                         onLogout = { m.logout() },
                         modifier = screenModifier,
@@ -265,7 +268,7 @@ fun App() {
                         onOrders = { m.loadOrders() },
                         onAddresses = { m.loadAddresses() },
                         onProfile = { m.loadProfile() },
-                                                onNotifications = { m.loadNotifications() },
+                        onNotifications = { m.loadNotifications() },
                         notificationsUnread = m.notificationsUnread,
                         onLogout = { m.logout() },
                         modifier = screenModifier,
@@ -323,7 +326,7 @@ fun App() {
                         onCart = { m.loadCart() },
                         onAddresses = { m.loadAddresses() },
                         onProfile = { m.loadProfile() },
-                                                onNotifications = { m.loadNotifications() },
+                        onNotifications = { m.loadNotifications() },
                         notificationsUnread = m.notificationsUnread,
                         onLogout = { m.logout() },
                         modifier = screenModifier,
@@ -418,7 +421,6 @@ fun App() {
                         notificationsUnread = m.notificationsUnread,
                         onLogout = { m.logout() },
                     )
-
                 }
 
                 is AppScreen.OrderDone -> {

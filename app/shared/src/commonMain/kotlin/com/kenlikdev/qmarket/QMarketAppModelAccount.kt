@@ -135,4 +135,3 @@ fun QMarketAppModel.markAllNotificationsRead() {
         statusMessage = "All notifications marked read"
     }
 }
-

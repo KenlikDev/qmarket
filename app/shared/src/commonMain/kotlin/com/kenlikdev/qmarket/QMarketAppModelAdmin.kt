@@ -152,7 +152,11 @@ fun QMarketAppModel.clearProductEdit() {
     adminProductCategoryId = null
 }
 
-fun QMarketAppModel.beginEditCategory(id: String, name: String, slug: String) {
+fun QMarketAppModel.beginEditCategory(
+    id: String,
+    name: String,
+    slug: String,
+) {
     editingCategoryId = id
     adminCategoryName = name
     adminCategorySlug = slug
@@ -166,7 +170,10 @@ fun QMarketAppModel.clearCategoryEdit() {
     adminCategorySlug = ""
 }
 
-fun QMarketAppModel.updateAdminOrderStatus(orderId: String, status: OrderStatusDto) {
+fun QMarketAppModel.updateAdminOrderStatus(
+    orderId: String,
+    status: OrderStatusDto,
+) {
     runApi {
         api.updateAdminOrderStatus(orderId, status)
         adminOrders = api.listAdminOrders().content

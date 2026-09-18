@@ -8,24 +8,15 @@ import com.kenlikdev.qmarket.api.AddressDto
 import com.kenlikdev.qmarket.api.AdminUserDto
 import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.CategoryDto
-import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
-import com.kenlikdev.qmarket.api.CreateAddressRequestDto
-import com.kenlikdev.qmarket.api.CreateCategoryRequestDto
 import com.kenlikdev.qmarket.api.CreateOrderRequestDto
-import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.OrderDto
-import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
 import com.kenlikdev.qmarket.api.RegisterRequestDto
-import com.kenlikdev.qmarket.api.UpdateAddressRequestDto
 import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
-import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
-import com.kenlikdev.qmarket.api.UpdateProductRequestDto
-import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
 import com.kenlikdev.qmarket.network.ApiException
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
@@ -224,7 +215,6 @@ class QMarketAppModel(
         }
     }
 
-
     fun loadOrders() {
         runApi {
             val page = api.listMyOrders(size = 50)
@@ -232,7 +222,6 @@ class QMarketAppModel(
             screen = AppScreen.Orders
         }
     }
-
 
     fun logout(): Job {
         val refresh = tokens.refreshToken()
@@ -378,7 +367,10 @@ class QMarketAppModel(
         }
     }
 
-    fun updateCartQuantity(productId: String, quantity: Int) {
+    fun updateCartQuantity(
+        productId: String,
+        quantity: Int,
+    ) {
         runApi {
             pendingCheckoutKey = null
             cart =
@@ -420,7 +412,6 @@ class QMarketAppModel(
         }
     }
 
-
     fun cancelOrder(orderId: String) {
         runApi {
             val cancelled = api.cancelOrder(orderId)
@@ -438,7 +429,6 @@ class QMarketAppModel(
             detailOrder = api.getOrder(orderId)
         }
     }
-
 
     companion object {
         /** Prefill for local demo login; not used in production builds. */
