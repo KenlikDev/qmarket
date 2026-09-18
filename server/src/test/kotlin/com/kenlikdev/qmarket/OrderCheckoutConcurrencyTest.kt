@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.data.domain.PageRequest
 import org.springframework.test.context.ActiveProfiles
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -111,8 +112,7 @@ class OrderCheckoutConcurrencyTest {
             orderRepository
                 .findByUserIdOrderByCreatedAtDesc(
                     userId,
-                    org.springframework.data.domain.PageRequest
-                        .of(0, 20),
+                    PageRequest.of(0, 20),
                 ).totalElements,
         )
     }
