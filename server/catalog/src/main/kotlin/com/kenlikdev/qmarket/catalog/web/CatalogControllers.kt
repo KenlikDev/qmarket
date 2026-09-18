@@ -95,7 +95,6 @@ class ProductController(
             size = size,
         )
 
-
     @GetMapping("/admin")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     fun searchAdmin(
