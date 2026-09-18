@@ -56,9 +56,5 @@ class StripePaymentGateway(
 
     companion object {
         private val SUCCEEDED_STATUSES = setOf("succeeded", "requires_capture")
-
-        /** @deprecated Prefer [Money.toMinorUnits]; kept for existing call sites/tests. */
-        @Deprecated("Use Money.toMinorUnits", ReplaceWith("Money.toMinorUnits(amount)", "com.kenlikdev.qmarket.common.util.Money"))
-        fun toMinorUnits(amount: BigDecimal): Long = Money.toMinorUnits(amount)
     }
 }
