@@ -172,7 +172,7 @@ class QMarketAppModel(
     fun loadCatalog(navigate: Boolean = true) {
         runApi {
             catalogCategories =
-                runCatchingCancellable { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+                runCatchingCancellable { api.listCategories() }.getOrElse { catalogCategories }
             val page =
                 api.listProducts(
                     size = 50,
