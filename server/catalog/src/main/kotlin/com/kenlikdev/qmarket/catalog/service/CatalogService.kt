@@ -180,10 +180,11 @@ class CatalogService(
         slug: String,
         requireActive: Boolean = true,
     ): ProductResponse {
+        val normalizedSlug = slug.trim().lowercase()
         val product =
             productRepository
-                .findBySlug(slug)
-                .orElseThrow { NotFoundException("Product with slug '$slug' not found") }
+                .findBySlug(normalizedSlug)
+                .orElseThrow { NotFoundException("Product with slug '$normalizedSlug' not found") }
         if (requireActive && !product.active) {
             throw NotFoundException("Product with slug '$slug' not found")
         }
@@ -265,7 +266,6 @@ class CatalogService(
         return productRepository.save(product).toResponse()
     }
 
-
     private fun resolveParentCategory(
         categoryId: UUID?,
         parentId: UUID,
@@ -274,10 +274,11 @@ class CatalogService(
             throw BadRequestException("A category cannot be its own parent")
         }
 
-        var current =
+        val parent =
             categoryRepository
                 .findById(parentId)
                 .orElseThrow { NotFoundException("Parent category $parentId not found") }
+        var current = parent
         val visited = mutableSetOf<UUID>()
 
         while (true) {
@@ -295,9 +296,7 @@ class CatalogService(
             current = current.parent ?: break
         }
 
-        return categoryRepository
-            .findById(parentId)
-            .orElseThrow { NotFoundException("Parent category $parentId not found") }
+        return parent
     }
 
     /**
