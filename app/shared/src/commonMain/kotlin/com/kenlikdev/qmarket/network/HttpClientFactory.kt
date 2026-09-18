@@ -17,6 +17,8 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * Shared Ktor plugins for QMarket API.
@@ -65,13 +67,15 @@ fun HttpClientConfig<*>.qMarketConfig(
                     }
                     val auth = response.body<AuthResponseDto>()
                     if (tokenProvider is MutableTokenProvider) {
-                        tokenProvider.applyAuth(auth)
+                        withContext(NonCancellable) {
+                            tokenProvider.applyAuth(auth)
+                        }
                     }
                     BearerTokens(auth.accessToken, auth.refreshToken)
                 }
                 // Ktor 3.5: return true to ATTACH bearer. Skip /api/v1/auth/** (login/register/refresh).
                 sendWithoutRequest { request ->
-                    "auth" !in request.url.pathSegments
+                    !request.url.encodedPath.startsWith("/api/v1/auth/")
                 }
             }
         }
