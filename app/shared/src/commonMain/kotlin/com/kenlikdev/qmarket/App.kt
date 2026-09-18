@@ -345,6 +345,8 @@ fun App() {
                         loading = m.loading,
                         onBackToOrders = { m.loadOrders() },
                         onPay = { m.detailOrder?.let { m.payOrder(it.id) } },
+                        onStartPaymentSession = { m.detailOrder?.let { m.startPaymentSession(it.id) } },
+                        paymentSession = m.paymentSession,
                         onCancel = { m.detailOrder?.let { m.cancelOrder(it.id) } },
                         onRefresh = { m.detailOrder?.let { m.refreshOrder(it.id) } },
                         onCart = { m.loadCart() },

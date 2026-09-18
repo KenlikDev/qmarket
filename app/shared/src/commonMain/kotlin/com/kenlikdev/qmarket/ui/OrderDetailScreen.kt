@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
 
 @Composable
@@ -30,6 +31,8 @@ fun OrderDetailScreen(
     loading: Boolean,
     onBackToOrders: () -> Unit,
     onPay: () -> Unit,
+    onStartPaymentSession: (() -> Unit)? = null,
+    paymentSession: PaymentSessionDto? = null,
     onCancel: () -> Unit,
     onRefresh: () -> Unit,
     onCart: () -> Unit,
@@ -148,6 +151,31 @@ fun OrderDetailScreen(
                             }
                         }
                     }
+                    paymentSession?.let { session ->
+                        Card(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 12.dp)
+                                    .testTag("orderDetailPaymentSession"),
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    "Stripe session ready",
+                                    style = MaterialTheme.typography.titleSmall,
+                                )
+                                Text(
+                                    "PI: ${session.paymentIntentId}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.testTag("orderDetailPaymentIntentId"),
+                                )
+                                Text(
+                                    "Bind Payment Element / mobile SDK to clientSecret",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
+                    }
                     Row(modifier = Modifier.padding(top = 16.dp)) {
                         if (order.status == OrderStatusDto.PENDING) {
                             Button(
@@ -156,6 +184,15 @@ fun OrderDetailScreen(
                                 modifier = Modifier.testTag("orderDetailPay"),
                             ) {
                                 Text("Pay (mock)")
+                            }
+                            if (onStartPaymentSession != null) {
+                                TextButton(
+                                    onClick = onStartPaymentSession,
+                                    enabled = !loading,
+                                    modifier = Modifier.testTag("orderDetailPaymentSessionBtn"),
+                                ) {
+                                    Text("Stripe session")
+                                }
                             }
                             TextButton(
                                 onClick = onCancel,
