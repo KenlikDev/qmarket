@@ -143,8 +143,8 @@ class QMarketAppModel(
         try {
             val page = api.listProducts(size = 50)
             products = page.content
-            cart = runCatching { api.getCart() }.getOrNull()
-            runCatching { api.getProfile() }.onSuccess { p ->
+            cart = runCatchingCancellable { api.getCart() }.getOrNull()
+            runCatchingCancellable { api.getProfile() }.onSuccess { p ->
                 tokens.applyRoles(p.roles)
                 isAdmin = tokens.isAdmin()
             }
@@ -152,6 +152,8 @@ class QMarketAppModel(
             userLabel = tokens.sessionEmail()
             isAdmin = tokens.isAdmin()
             screen = AppScreen.Catalog
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             tokens.clear()
             api.clearBearerTokenCache()
@@ -170,7 +172,7 @@ class QMarketAppModel(
     fun loadCatalog(navigate: Boolean = true) {
         runApi {
             catalogCategories =
-                runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+                runCatchingCancellable { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
             val page =
                 api.listProducts(
                     size = 50,
@@ -198,7 +200,7 @@ class QMarketAppModel(
     fun loadCart() {
         runApi {
             cart = api.getCart()
-            addresses = runCatching { api.listAddresses() }.getOrElse { addresses }
+            addresses = runCatchingCancellable { api.listAddresses() }.getOrElse { addresses }
             if (selectedAddressId == null) {
                 selectedAddressId = addresses.firstOrNull { it.default }?.id
                     ?: addresses.firstOrNull()?.id
@@ -262,9 +264,9 @@ class QMarketAppModel(
             applySession(auth.user.email)
             val page = api.listProducts(size = 50)
             products = page.content
-            cart = runCatching { api.getCart() }.getOrNull()
+            cart = runCatchingCancellable { api.getCart() }.getOrNull()
             notificationsUnread =
-                runCatching { api.notificationsUnreadCount().unread }.getOrDefault(0L)
+                runCatchingCancellable { api.notificationsUnreadCount().unread }.getOrDefault(0L)
             screen = AppScreen.Catalog
         }
     }
@@ -286,7 +288,7 @@ class QMarketAppModel(
             applySession(auth.user.email)
             val page = api.listProducts(size = 50)
             products = page.content
-            cart = runCatching { api.getCart() }.getOrNull()
+            cart = runCatchingCancellable { api.getCart() }.getOrNull()
             screen = AppScreen.Catalog
         }
     }
