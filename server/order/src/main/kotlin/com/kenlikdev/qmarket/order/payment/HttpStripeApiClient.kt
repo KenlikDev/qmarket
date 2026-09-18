@@ -26,22 +26,6 @@ class HttpStripeApiClient(
             .connectTimeout(Duration.ofSeconds(10))
             .build(),
 ) : StripeApiClient {
-    override fun createPaymentIntent(
-        amountMinor: Long,
-        currency: String,
-        orderId: UUID,
-        userId: UUID,
-    ): StripePaymentIntentResult {
-        val form =
-            baseForm(amountMinor, currency, orderId, userId) +
-                mapOf(
-                    "confirm" to "true",
-                    // Legacy server-side charge path; disabled at the gateway layer.
-                    "payment_method" to "pm_card_visa",
-                )
-        return postPaymentIntent(form)
-    }
-
     override fun createPaymentIntentForClient(
         amountMinor: Long,
         currency: String,
