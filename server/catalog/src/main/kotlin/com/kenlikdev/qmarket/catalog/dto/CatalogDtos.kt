@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Digits
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import java.math.BigDecimal
 import java.time.Instant
@@ -16,6 +17,7 @@ data class CreateCategoryRequest(
     @field:NotBlank @field:Size(max = 150)
     val name: String,
     @field:NotBlank @field:Size(max = 150)
+    @field:Pattern(regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$", message = "Slug must contain lowercase letters, digits, and single hyphens only")
     val slug: String,
     val description: String? = null,
     val parentId: UUID? = null,
@@ -27,6 +29,7 @@ data class UpdateCategoryRequest(
     @field:NotBlank @field:Size(max = 150)
     val name: String? = null,
     @field:NotBlank @field:Size(max = 150)
+    @field:Pattern(regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$", message = "Slug must contain lowercase letters, digits, and single hyphens only")
     val slug: String? = null,
     @field:Size(max = 255)
     val description: String? = null,
@@ -53,6 +56,7 @@ data class CreateProductRequest(
     @field:NotBlank @field:Size(max = 255)
     val name: String,
     @field:NotBlank @field:Size(max = 255)
+    @field:Pattern(regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$", message = "Slug must contain lowercase letters, digits, and single hyphens only")
     val slug: String,
     @field:Size(max = 255)
     val description: String? = null,
@@ -77,6 +81,7 @@ data class UpdateProductRequest(
     @field:NotBlank @field:Size(max = 255)
     val name: String? = null,
     @field:NotBlank @field:Size(max = 255)
+    @field:Pattern(regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$", message = "Slug must contain lowercase letters, digits, and single hyphens only")
     val slug: String? = null,
     @field:Size(max = 255)
     val description: String? = null,
