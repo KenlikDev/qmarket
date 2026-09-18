@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest
 import org.springframework.validation.BeanPropertyBindingResult
 import org.springframework.validation.FieldError
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.core.MethodParameter
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -74,7 +75,8 @@ class GlobalExceptionHandlerTest {
     fun `validation errors do not expose rejected values`() {
         val bindingResult = BeanPropertyBindingResult(Any(), "request")
         bindingResult.addError(FieldError("request", "password", "super-secret"))
-        val exception = MethodArgumentNotValidException(null, bindingResult)
+        val parameter = mockk<MethodParameter>(relaxed = true)
+        val exception = MethodArgumentNotValidException(parameter, bindingResult)
 
         val response = handler.handleValidation(exception, request)
 
