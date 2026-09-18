@@ -15,8 +15,15 @@ data class JwtProperties(
         require(s.isNotEmpty()) {
             "qmarket.security.jwt.secret is required. Set JWT_SECRET or use profile 'dev' / 'test'."
         }
-        require(s.length >= 32) {
-            "qmarket.security.jwt.secret must be at least 32 characters (got ${s.length})."
+        val byteLength = s.toByteArray(Charsets.UTF_8).size
+        require(byteLength >= 32) {
+            "qmarket.security.jwt.secret must contain at least 32 UTF-8 bytes (got $byteLength)."
+        }
+        require(accessTokenExpirationMs > 0) {
+            "qmarket.security.jwt.access-token-expiration-ms must be greater than 0."
+        }
+        require(refreshTokenExpirationMs > 0) {
+            "qmarket.security.jwt.refresh-token-expiration-ms must be greater than 0."
         }
         val weak =
             setOf(
