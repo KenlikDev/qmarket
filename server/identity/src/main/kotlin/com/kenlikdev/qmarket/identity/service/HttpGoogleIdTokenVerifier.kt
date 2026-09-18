@@ -4,6 +4,7 @@ import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
+import tools.jackson.databind.ObjectMapper
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -16,6 +17,7 @@ import java.time.Duration
 @ConditionalOnProperty(name = ["qmarket.security.oauth.google.enabled"], havingValue = "true")
 class HttpGoogleIdTokenVerifier(
     private val props: GoogleOAuthProperties,
+    private val objectMapper: ObjectMapper,
     private val httpClient: HttpClient =
         HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
 ) : GoogleIdTokenVerifier {
@@ -24,6 +26,7 @@ class HttpGoogleIdTokenVerifier(
         if (token.isEmpty()) {
             throw UnauthorizedException("Google idToken must not be blank")
         }
+
         val uri =
             URI.create(
                 "https://oauth2.googleapis.com/tokeninfo?id_token=" +
@@ -40,50 +43,47 @@ class HttpGoogleIdTokenVerifier(
         if (response.statusCode() !in 200..299) {
             throw UnauthorizedException("Invalid Google ID token")
         }
+
         val body = response.body()
+        val root =
+            try {
+                objectMapper.readTree(body)
+            } catch (_: Exception) {
+                throw UnauthorizedException("Invalid Google token response")
+            }
+
         val email =
-            extract(body, "email")?.lowercase()
+            root.path("email").asString(null)?.trim()?.lowercase()
                 ?: throw UnauthorizedException("Google token missing email")
-        val aud =
-            extract(body, "aud")
+        val audience =
+            root.path("aud").asString(null)?.trim()
                 ?: throw UnauthorizedException("Google token missing aud")
-        val allowed =
+
+        val allowedAudiences =
             props.clientIds
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
+                .asSequence()
+                .map(String::trim)
+                .filter(String::isNotEmpty)
                 .toSet()
-        if (allowed.isNotEmpty() && aud !in allowed) {
+        if (allowedAudiences.isNotEmpty() && audience !in allowedAudiences) {
             throw UnauthorizedException("Google token audience is not allowed")
         }
-        val emailVerified = extract(body, "email_verified")?.equals("true", ignoreCase = true) == true
+
+        val emailVerified = root.path("email_verified").asBoolean(false)
         if (props.requireEmailVerified && !emailVerified) {
             throw UnauthorizedException("Google email is not verified")
         }
-        val sub =
-            extract(body, "sub")
+
+        val subject =
+            root.path("sub").asString(null)?.trim()
                 ?: throw UnauthorizedException("Google token missing sub")
+
         return GoogleIdTokenClaims(
-            subject = sub,
+            subject = subject,
             email = email,
             emailVerified = emailVerified,
-            givenName = extract(body, "given_name"),
-            familyName = extract(body, "family_name"),
+            givenName = root.path("given_name").asString(null),
+            familyName = root.path("family_name").asString(null),
         )
-    }
-
-    private fun extract(
-        json: String,
-        field: String,
-    ): String? {
-        val key = "\"" + field + "\""
-        val keyIdx = json.indexOf(key)
-        if (keyIdx < 0) return null
-        val colon = json.indexOf(':', keyIdx + key.length)
-        if (colon < 0) return null
-        val firstQuote = json.indexOf('"', colon + 1)
-        if (firstQuote < 0) return null
-        val secondQuote = json.indexOf('"', firstQuote + 1)
-        if (secondQuote < 0) return null
-        return json.substring(firstQuote + 1, secondQuote)
     }
 }
