@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.common.security
 
+import io.jsonwebtoken.JwtException
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -31,14 +32,18 @@ class JwtAuthenticationFilter(
             if (jwtService.isAccessToken(claims) && SecurityContextHolder.getContext().authentication == null) {
                 val userId = jwtService.getUserId(claims)
 
-                @Suppress("UNCHECKED_CAST")
-                val roles = (claims["roles"] as? Collection<String>).orEmpty()
-                val authorities = roles.map { SimpleGrantedAuthority(it) }
+                val roles =
+                    (claims["roles"] as? Collection<*>)
+                        ?.filterIsInstance<String>()
+                        .orEmpty()
+                val authorities = roles.map(::SimpleGrantedAuthority)
                 val authentication = UsernamePasswordAuthenticationToken(userId, null, authorities)
                 SecurityContextHolder.getContext().authentication = authentication
             }
-        } catch (ex: Exception) {
-            // Invalid token — leave context empty; security will reject if endpoint requires auth
+        } catch (_: JwtException) {
+            // Invalid token — leave context empty; security will reject if endpoint requires auth.
+        } catch (_: IllegalArgumentException) {
+            // Malformed user id/claim — leave context empty and let Spring Security reject if required.
         }
 
         filterChain.doFilter(request, response)
