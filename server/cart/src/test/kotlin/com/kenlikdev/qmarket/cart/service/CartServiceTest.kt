@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.springframework.dao.DataIntegrityViolationException
 import java.math.BigDecimal
 import java.util.UUID
 
@@ -60,6 +59,7 @@ class CartServiceTest {
     fun `addItem creates cart and adds product`() {
         every { productCatalog.requireActive(productId) } returns product
         every { cartRepository.findByUserId(userId) } returns null
+        every { cartRepository.insertIfMissing(userId) } returns 1
         every { cartRepository.save(any()) } answers { firstArg() }
         every { productCatalog.findByIds(any()) } returns mapOf(productId to product)
 
@@ -68,13 +68,15 @@ class CartServiceTest {
         assertEquals(2, result.totalItems)
         assertEquals(1, result.items.size)
         assertEquals(productId, result.items[0].productId)
-        verify { cartRepository.save(any()) }
+        verify(exactly = 1) { cartRepository.insertIfMissing(userId) }
+        verify(exactly = 2) { cartRepository.findByUserId(userId) }
     }
 
     @Test
     fun `addItem rejects quantity above stock`() {
         every { productCatalog.requireActive(productId) } returns product
         every { cartRepository.findByUserId(userId) } returns null
+        every { cartRepository.insertIfMissing(userId) } returns 1
         every { cartRepository.save(any()) } answers { firstArg() }
 
         assertThrows<BadRequestException> {
@@ -87,7 +89,12 @@ class CartServiceTest {
         val cart =
             Cart(id = UUID.randomUUID(), userId = userId).apply {
                 items.add(
-                    CartItem(id = UUID.randomUUID(), cart = this, productId = productId, quantity = 1),
+                    CartItem(
+                        id = UUID.randomUUID(),
+                        cart = this,
+                        productId = productId,
+                        quantity = 1,
+                    ),
                 )
             }
         every { productCatalog.requireActive(productId) } returns product
@@ -106,7 +113,12 @@ class CartServiceTest {
         val cart =
             Cart(id = UUID.randomUUID(), userId = userId).apply {
                 items.add(
-                    CartItem(id = UUID.randomUUID(), cart = this, productId = productId, quantity = 2),
+                    CartItem(
+                        id = UUID.randomUUID(),
+                        cart = this,
+                        productId = productId,
+                        quantity = 2,
+                    ),
                 )
             }
         every { cartRepository.findByUserId(userId) } returns cart
@@ -130,7 +142,7 @@ class CartServiceTest {
     }
 
     @Test
-    fun `addItem recovers when concurrent cart insert hits unique constraint`() {
+    fun `addItem is safe when another transaction creates the cart first`() {
         val raceProductId = UUID.randomUUID()
         val raceProduct =
             ProductInfo(
@@ -142,51 +154,46 @@ class CartServiceTest {
                 active = true,
             )
         val existing = Cart(id = UUID.randomUUID(), userId = userId)
+
         every { productCatalog.requireActive(raceProductId) } returns raceProduct
         every { productCatalog.findByIds(any()) } returns mapOf(raceProductId to raceProduct)
-        // 1st find: miss → insert attempt; 2nd find: winner row after UNIQUE conflict
         every { cartRepository.findByUserId(userId) } returnsMany listOf(null, existing)
-        every { cartRepository.save(any()) } answers {
-            val cart = firstArg<Cart>()
-            if (cart.id == null) {
-                throw DataIntegrityViolationException("duplicate user_id")
-            }
-            cart
-        }
+        every { cartRepository.insertIfMissing(userId) } returns 0
+        every { cartRepository.save(any()) } answers { firstArg() }
 
         val response =
             cartService.addItem(
                 userId,
                 AddCartItemRequest(productId = raceProductId, quantity = 1),
             )
+
         assertEquals(1, response.items.size)
         assertEquals(raceProductId, response.items[0].productId)
+        verify(exactly = 1) { cartRepository.insertIfMissing(userId) }
     }
-}
-
 
     @Test
     fun `findOrCreate uses atomic insert and reread`() {
-        val userId = UUID.randomUUID()
-        val productId = UUID.randomUUID()
-        val product = ProductInfo(
-            id = productId,
-            name = "Phone",
-            slug = "phone",
-            price = BigDecimal("10.00"),
-            stockQuantity = 5,
-            active = true,
-        )
+        val raceProduct =
+            ProductInfo(
+                id = productId,
+                name = "Phone",
+                slug = "phone",
+                price = BigDecimal("10.00"),
+                stockQuantity = 5,
+                active = true,
+            )
         val cart = Cart(id = UUID.randomUUID(), userId = userId)
 
-        every { productCatalog.requireActive(productId) } returns product
+        every { productCatalog.requireActive(productId) } returns raceProduct
         every { cartRepository.findByUserId(userId) } returnsMany listOf(null, cart)
         every { cartRepository.insertIfMissing(userId) } returns 1
-        every { cartRepository.save(any()) } returns cart
+        every { cartRepository.save(any()) } answers { firstArg() }
+        every { productCatalog.findByIds(any()) } returns mapOf(productId to raceProduct)
 
-        val result = service.addItem(userId, AddCartItemRequest(productId, 1))
+        val result = cartService.addItem(userId, AddCartItemRequest(productId, 1))
 
         assertEquals(cart.id, result.id)
         verify(exactly = 1) { cartRepository.insertIfMissing(userId) }
-        verify(exactly = 1) { cartRepository.findByUserId(userId) }
     }
+}
