@@ -354,4 +354,19 @@ class AuthServiceTest {
             authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
         }
     }
+    @Test
+    fun `refresh propagates repository infrastructure failures`() {
+        val claims = mockk<Claims>()
+        every { jwtService.parseClaims("refresh") } returns claims
+        every { jwtService.isRefreshToken(claims) } returns true
+        every { jwtService.getUserId(claims) } returns UUID.randomUUID()
+        every { jwtService.getJti(claims) } returns UUID.randomUUID()
+        every { refreshTokenRepository.findByJti(any()) } throws IllegalStateException("database unavailable")
+
+        assertThrows<IllegalStateException> {
+            authService.refresh(RefreshTokenRequest(refreshToken = "refresh"))
+        }
+    }
+
+
 }
