@@ -50,3 +50,13 @@ data class PageResponse<T>(
     val totalElements: Long,
     val totalPages: Int,
 )
+
+/** Client Payment Element / SDK session for an unpaid order (Stripe path). */
+data class PaymentSessionResponse(
+    val orderId: UUID,
+    val providerId: String,
+    val paymentIntentId: String,
+    val clientSecret: String,
+    /** Publishable key for Stripe.js / mobile SDK; may be blank if not configured. */
+    val publishableKey: String = "",
+)

@@ -56,3 +56,12 @@ data class OrderDto(
     val createdAt: String? = null,
     val updatedAt: String? = null,
 )
+
+@Serializable
+data class PaymentSessionDto(
+    val orderId: String,
+    val providerId: String,
+    val paymentIntentId: String,
+    val clientSecret: String,
+    val publishableKey: String = "",
+)

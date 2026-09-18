@@ -18,6 +18,7 @@ import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.AdminUserDto
 import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.UnreadCountDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.UpdateOrderStatusRequestDto
@@ -253,6 +254,10 @@ class QMarketApiClient(
     suspend fun cancelOrder(id: String): OrderDto = postEmpty("/api/v1/orders/$id/cancel")
 
     suspend fun payOrder(id: String): OrderDto = postEmpty("/api/v1/orders/$id/pay")
+
+    /** Stripe Payment Element session (requires provider=stripe on server). */
+    suspend fun createPaymentSession(id: String): PaymentSessionDto =
+        postEmpty("/api/v1/orders/$id/payment-session")
 
     suspend fun listAdminOrders(
         page: Int = 0,

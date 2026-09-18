@@ -30,22 +30,51 @@ class HttpStripeApiClient(
         orderId: UUID,
         userId: UUID,
     ): StripePaymentIntentResult {
+        val form =
+            baseForm(amountMinor, currency, orderId, userId) +
+                mapOf(
+                    "confirm" to "true",
+                    // Test-mode PM only — production should use [createPaymentIntentForClient].
+                    "payment_method" to "pm_card_visa",
+                )
+        return postPaymentIntent(form)
+    }
+
+    override fun createPaymentIntentForClient(
+        amountMinor: Long,
+        currency: String,
+        orderId: UUID,
+        userId: UUID,
+    ): StripePaymentIntentResult {
+        val form =
+            baseForm(amountMinor, currency, orderId, userId) +
+                mapOf(
+                    "automatic_payment_methods[enabled]" to "true",
+                )
+        return postPaymentIntent(form)
+    }
+
+    private fun baseForm(
+        amountMinor: Long,
+        currency: String,
+        orderId: UUID,
+        userId: UUID,
+    ): Map<String, String> =
+        mapOf(
+            "amount" to amountMinor.toString(),
+            "currency" to currency.lowercase(),
+            "metadata[order_id]" to orderId.toString(),
+            "metadata[user_id]" to userId.toString(),
+        )
+
+    private fun postPaymentIntent(fields: Map<String, String>): StripePaymentIntentResult {
         require(props.secretKey.isNotBlank()) {
             "qmarket.payment.stripe.secret-key is required when provider=stripe"
         }
         val form =
-            mapOf(
-                "amount" to amountMinor.toString(),
-                "currency" to currency.lowercase(),
-                "confirm" to "true",
-                // Test-mode payment method; replace with client PM / Elements in production.
-                "payment_method" to "pm_card_visa",
-                "metadata[order_id]" to orderId.toString(),
-                "metadata[user_id]" to userId.toString(),
-            ).entries.joinToString("&") { (k, v) ->
+            fields.entries.joinToString("&") { (k, v) ->
                 "${enc(k)}=${enc(v)}"
             }
-
         val request =
             HttpRequest
                 .newBuilder()
@@ -64,7 +93,13 @@ class HttpStripeApiClient(
         }
         val id = extractJsonString(body, "id") ?: error("Stripe response missing id: $body")
         val status = extractJsonString(body, "status") ?: "unknown"
-        return StripePaymentIntentResult(id = id, status = status, rawBody = body)
+        val clientSecret = extractJsonString(body, "client_secret")
+        return StripePaymentIntentResult(
+            id = id,
+            status = status,
+            clientSecret = clientSecret,
+            rawBody = body,
+        )
     }
 
     private fun enc(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)

@@ -3,6 +3,7 @@ package com.kenlikdev.qmarket.order.web
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PageResponse
+import com.kenlikdev.qmarket.order.dto.PaymentSessionResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.service.OrderService
 import jakarta.validation.Valid
@@ -74,6 +75,16 @@ class OrderController(
         authentication: Authentication,
         @PathVariable id: UUID,
     ): OrderResponse = orderService.pay(currentUserId(authentication), id)
+
+    /**
+     * Stripe Payment Element / mobile SDK: returns client_secret for an unpaid order.
+     * Requires provider=stripe. Order is marked PAID via webhook after client confirms.
+     */
+    @PostMapping("/{id}/payment-session")
+    fun paymentSession(
+        authentication: Authentication,
+        @PathVariable id: UUID,
+    ): PaymentSessionResponse = orderService.createPaymentSession(currentUserId(authentication), id)
 
     @GetMapping("/admin/all")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")

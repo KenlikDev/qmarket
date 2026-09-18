@@ -100,8 +100,9 @@
 Админ: товары, заказы, пользователи.  
 Платформы: Android + Web (+ Desktop); iOS параллельно.
 
-Открыто для v1.0: distributed traces (optional), client Payment Element (optional).
+Открыто для v1.0: distributed traces (optional); client Payment Element UI (Stripe.js / mobile SDK binding).
 Сделано частично: coverage % gates (JaCoCo line ≥40% on `:server:order` + `:server:identity`; raise over time).
+Сделано: payment-session API (`POST /api/v1/orders/{id}/payment-session` → client_secret) for Payment Element.
 Сделано: correlation id (X-Correlation-Id / MDC), payment webhook Micrometer counters (`qmarket.payment.webhook.*`, `qmarket.payment.order.paid_from_provider`).
 Google OAuth backend ready (enable via config).
 

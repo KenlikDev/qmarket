@@ -14,11 +14,17 @@ import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.OrderItemResponse
 import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PageResponse
+import com.kenlikdev.qmarket.order.dto.PaymentSessionResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
+import com.kenlikdev.qmarket.order.payment.StripeApiClient
+import com.kenlikdev.qmarket.order.payment.StripeApiException
+import com.kenlikdev.qmarket.order.payment.StripePaymentGateway
+import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import jakarta.persistence.EntityManager
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -40,6 +46,8 @@ class OrderService(
     private val entityManager: EntityManager,
     private val notificationService: NotificationService,
     private val paymentGateway: PaymentGateway,
+    private val stripeApiClient: ObjectProvider<StripeApiClient>,
+    private val stripeProperties: ObjectProvider<StripeProperties>,
     transactionManager: PlatformTransactionManager,
 ) {
     private val transactionTemplate = TransactionTemplate(transactionManager)
@@ -424,6 +432,61 @@ class OrderService(
             orderId = saved.id,
         )
         return toResponse(saved)
+    }
+
+    /**
+     * Create a Stripe PaymentIntent for client-side confirmation (Payment Element / mobile SDK).
+     * Requires `qmarket.payment.provider=stripe`. Order stays PENDING until webhook or pay path.
+     */
+    @Transactional(readOnly = true)
+    fun createPaymentSession(
+        userId: UUID,
+        orderId: UUID,
+    ): PaymentSessionResponse {
+        val stripeApi =
+            stripeApiClient.ifAvailable
+                ?: throw BadRequestException(
+                    "Payment session requires qmarket.payment.provider=stripe",
+                )
+        val stripeProps = stripeProperties.ifAvailable ?: StripeProperties()
+
+        val order =
+            orderRepository.findByIdAndUserId(orderId, userId)
+                ?: throw NotFoundException("Order not found")
+        when (order.status) {
+            OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
+            OrderStatus.PAID -> throw BadRequestException("Order is already paid")
+            OrderStatus.CANCELLED -> throw BadRequestException("Cannot pay a cancelled order")
+            OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
+                throw BadRequestException("Order is already fulfilled")
+        }
+        if (order.totalAmount <= BigDecimal.ZERO) {
+            throw BadRequestException("Amount must be positive")
+        }
+
+        val currency = stripeProps.defaultCurrency
+        val amountMinor = StripePaymentGateway.toMinorUnits(order.totalAmount)
+        try {
+            val intent =
+                stripeApi.createPaymentIntentForClient(
+                    amountMinor = amountMinor,
+                    currency = currency,
+                    orderId = orderId,
+                    userId = userId,
+                )
+            val secret =
+                intent.clientSecret
+                    ?: throw BadRequestException("Stripe did not return client_secret")
+            return PaymentSessionResponse(
+                orderId = orderId,
+                providerId = "stripe",
+                paymentIntentId = intent.id,
+                clientSecret = secret,
+                publishableKey = stripeProps.publishableKey,
+            )
+        } catch (ex: StripeApiException) {
+            throw BadRequestException("Stripe error: ${ex.message}")
+        }
     }
 
     /**

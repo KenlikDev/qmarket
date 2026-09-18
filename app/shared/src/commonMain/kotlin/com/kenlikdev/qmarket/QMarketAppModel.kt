@@ -9,6 +9,7 @@ import com.kenlikdev.qmarket.api.CartDto
 import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
 import com.kenlikdev.qmarket.network.ApiException
@@ -450,6 +451,18 @@ class QMarketAppModel(
             orders = orders.map { if (it.id == paid.id) paid else it }
         }
     }
+
+    /** Stripe client session; UI/SDK uses clientSecret. Null message on success via paymentSession state. */
+    var paymentSession: PaymentSessionDto? by mutableStateOf(null)
+        private set
+
+    fun startPaymentSession(orderId: String) {
+        runApi {
+            paymentSession = api.createPaymentSession(orderId)
+            statusMessage = "Payment session ready (${paymentSession?.providerId})"
+        }
+    }
+
 
     fun cancelOrder(orderId: String) {
         runApi {
