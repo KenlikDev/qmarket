@@ -3,6 +3,9 @@ package com.kenlikdev.qmarket.common.exception
 import io.mockk.every
 import io.mockk.mockk
 import jakarta.servlet.http.HttpServletRequest
+import org.springframework.validation.BeanPropertyBindingResult
+import org.springframework.validation.FieldError
+import org.springframework.web.bind.MethodArgumentNotValidException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -67,4 +70,19 @@ class GlobalExceptionHandlerTest {
         assertEquals("INTERNAL_ERROR", response.body?.code)
         assertEquals("An unexpected error occurred", response.body?.message)
     }
+    @Test
+    fun `validation errors do not expose rejected values`() {
+        val bindingResult = BeanPropertyBindingResult(Any(), "request")
+        bindingResult.addError(FieldError("request", "password", "super-secret"))
+        val exception = MethodArgumentNotValidException(null, bindingResult)
+
+        val response = handler.handleValidation(exception, request)
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.statusCode)
+        assertEquals(
+            FieldErrorDetail(field = "password", message = "super-secret"),
+            response.body?.details?.single(),
+        )
+    }
+
 }
