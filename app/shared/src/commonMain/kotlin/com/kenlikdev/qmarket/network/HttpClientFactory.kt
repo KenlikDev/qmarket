@@ -52,26 +52,27 @@ fun HttpClientConfig<*>.qMarketConfig(
                     BearerTokens(access, tokenProvider.refreshToken().orEmpty())
                 }
                 refreshTokens {
-                    val currentRefresh = tokenProvider.refreshToken() ?: return@refreshTokens null
-                    val response =
-                        client.post("/api/v1/auth/refresh") {
-                            markAsRefreshTokenRequest()
-                            contentType(ContentType.Application.Json)
-                            setBody(RefreshTokenRequestDto(refreshToken = currentRefresh))
+                    withContext(NonCancellable) {
+                        val currentRefresh = tokenProvider.refreshToken() ?: return@withContext null
+                        val response =
+                            client.post("/api/v1/auth/refresh") {
+                                markAsRefreshTokenRequest()
+                                contentType(ContentType.Application.Json)
+                                setBody(RefreshTokenRequestDto(refreshToken = currentRefresh))
+                            }
+                        if (response.status != HttpStatusCode.OK) {
+                            if (tokenProvider is MutableTokenProvider) {
+                                tokenProvider.clear()
+                            }
+                            return@withContext null
                         }
-                    if (response.status != HttpStatusCode.OK) {
+
+                        val auth = response.body<AuthResponseDto>()
                         if (tokenProvider is MutableTokenProvider) {
-                            tokenProvider.clear()
-                        }
-                        return@refreshTokens null
-                    }
-                    val auth = response.body<AuthResponseDto>()
-                    if (tokenProvider is MutableTokenProvider) {
-                        withContext(NonCancellable) {
                             tokenProvider.applyAuth(auth)
                         }
+                        BearerTokens(auth.accessToken, auth.refreshToken)
                     }
-                    BearerTokens(auth.accessToken, auth.refreshToken)
                 }
                 // Ktor 3.5: return true to ATTACH bearer. Skip /api/v1/auth/** (login/register/refresh).
                 sendWithoutRequest { request ->
