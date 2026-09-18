@@ -27,7 +27,7 @@ ktlint = "14.2.0"
 
 # Persistence & DB
 postgresql = "42.7.13"
-flyway = "13.0.0"
+flyway = "13.6.0"
 
 # Security & JWT
 jjwt = "0.13.0"
