@@ -42,19 +42,18 @@ object ClientInputValidation {
     fun isValidPassword(value: String): Boolean = value.length in 8..100
 
     fun filterPhoneInput(input: String): String {
-        val filtered =
-            input.filter { ch ->
-                ch.isDigit() ||
-                    ch == '+' ||
-                    ch.isWhitespace() ||
-                    ch == '-' ||
-                    ch == '(' ||
-                    ch == ')' ||
-                    ch == '.'
-            }
-        val plusIndex = filtered.indexOf('+')
-        if (plusIndex < 0) return filtered
-        return filtered.removeRange(plusIndex + 1, filtered.length)
-            .let { filtered.substring(0, plusIndex + 1) + filtered.substring(plusIndex + 1) }
+        val allowed = { ch: Char ->
+            ch.isDigit() ||
+                ch.isWhitespace() ||
+                ch == '-' ||
+                ch == '(' ||
+                ch == ')' ||
+                ch == '.'
+        }
+        val leadingWhitespace = input.takeWhile(Char::isWhitespace)
+        val body = input.drop(leadingWhitespace.length)
+        val hasLeadingPlus = body.startsWith('+')
+        val sanitized = body.drop(if (hasLeadingPlus) 1 else 0).filter(allowed)
+        return leadingWhitespace + (if (hasLeadingPlus) "+" else "") + sanitized
     }
 }
