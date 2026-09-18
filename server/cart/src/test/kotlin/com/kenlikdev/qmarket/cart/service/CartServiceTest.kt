@@ -163,3 +163,30 @@ class CartServiceTest {
         assertEquals(raceProductId, response.items[0].productId)
     }
 }
+
+
+    @Test
+    fun `findOrCreate uses atomic insert and reread`() {
+        val userId = UUID.randomUUID()
+        val productId = UUID.randomUUID()
+        val product = ProductInfo(
+            id = productId,
+            name = "Phone",
+            slug = "phone",
+            price = BigDecimal("10.00"),
+            stockQuantity = 5,
+            active = true,
+        )
+        val cart = Cart(id = UUID.randomUUID(), userId = userId)
+
+        every { productCatalog.requireActive(productId) } returns product
+        every { cartRepository.findByUserId(userId) } returnsMany listOf(null, cart)
+        every { cartRepository.insertIfMissing(userId) } returns 1
+        every { cartRepository.save(any()) } returns cart
+
+        val result = service.addItem(userId, AddCartItemRequest(productId, 1))
+
+        assertEquals(cart.id, result.id)
+        verify(exactly = 1) { cartRepository.insertIfMissing(userId) }
+        verify(exactly = 1) { cartRepository.findByUserId(userId) }
+    }
