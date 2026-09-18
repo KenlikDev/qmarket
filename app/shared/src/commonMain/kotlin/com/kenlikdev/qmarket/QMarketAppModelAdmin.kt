@@ -60,7 +60,7 @@ fun QMarketAppModel.updateCategory() {
         adminCategoryName = ""
         adminCategorySlug = ""
         categories = api.listAdminCategories()
-        catalogCategories = runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+        catalogCategories = runCatchingCancellable { api.listCategories() }.getOrElse { catalogCategories }
         statusMessage = "Category updated"
     }
 }
@@ -73,8 +73,8 @@ fun QMarketAppModel.deleteCategory(id: String) {
             adminCategoryName = ""
             adminCategorySlug = ""
         }
-        categories = api.listCategories(activeOnly = false)
-        catalogCategories = runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+        categories = api.listAdminCategories()
+        catalogCategories = runCatchingCancellable { api.listCategories() }.getOrElse { catalogCategories }
         statusMessage = "Category deleted"
     }
 }
@@ -126,7 +126,7 @@ fun QMarketAppModel.deleteProduct(product: ProductDto) {
         if (editingProductId == product.id) {
             editingProductId = null
         }
-        products = api.listProducts(size = 50).content
+        products = api.listAdminProducts(size = 50).content
     }
 }
 
