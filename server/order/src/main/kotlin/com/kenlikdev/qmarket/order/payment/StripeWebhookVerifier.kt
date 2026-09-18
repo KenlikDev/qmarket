@@ -78,11 +78,13 @@ object StripeWebhookVerifier {
         if (length % 2 != 0) return null
         if (any { it !in '0'..'9' && it !in 'a'..'f' && it !in 'A'..'F' }) return null
 
-        return ByteArray(length / 2) { index ->
+        val result = ByteArray(length / 2)
+        for (index in result.indices) {
             val high = digitToIntOrNull(index * 2) ?: return null
             val low = digitToIntOrNull(index * 2 + 1) ?: return null
-            ((high shl 4) or low).toByte()
+            result[index] = ((high shl 4) or low).toByte()
         }
+        return result
     }
 
     private fun String.digitToIntOrNull(index: Int): Int? =
