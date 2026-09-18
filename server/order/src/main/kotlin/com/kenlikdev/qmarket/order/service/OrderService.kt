@@ -5,26 +5,19 @@ import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
-import com.kenlikdev.qmarket.common.util.Money
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderIdempotencyKey
 import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
-import com.kenlikdev.qmarket.order.dto.OrderItemResponse
 import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.dto.PaymentSessionResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
-import com.kenlikdev.qmarket.order.payment.PaymentGateway
-import com.kenlikdev.qmarket.order.payment.StripeApiClient
-import com.kenlikdev.qmarket.order.payment.StripeApiException
-import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import jakarta.persistence.EntityManager
-import org.springframework.beans.factory.ObjectProvider
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -45,9 +38,7 @@ class OrderService(
     private val idempotencyKeyRepository: OrderIdempotencyKeyRepository,
     private val entityManager: EntityManager,
     private val notificationService: NotificationService,
-    private val paymentGateway: PaymentGateway,
-    private val stripeApiClient: ObjectProvider<StripeApiClient>,
-    private val stripeProperties: ObjectProvider<StripeProperties>,
+    private val orderPaymentService: OrderPaymentService,
     transactionManager: PlatformTransactionManager,
 ) {
     private val transactionTemplate = TransactionTemplate(transactionManager)
@@ -122,7 +113,7 @@ class OrderService(
                     NotFoundException("Order not found for idempotency key")
                 }
             order.items.size
-            toResponse(order)
+            OrderMapper.toResponse(order)
         }
     }
 
@@ -236,7 +227,7 @@ class OrderService(
             orderId = saved.id,
         )
 
-        return toResponse(saved)
+        return OrderMapper.toResponse(saved)
     }
 
     /**
@@ -278,7 +269,7 @@ class OrderService(
         val order =
             orderRepository
                 .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
-        return toResponse(order)
+        return OrderMapper.toResponse(order)
     }
 
     @Transactional(readOnly = true)
@@ -294,7 +285,7 @@ class OrderService(
             )
         val result = orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
         return PageResponse(
-            content = result.content.map { toResponse(it) },
+            content = result.content.map { OrderMapper.toResponse(it) },
             page = result.number,
             size = result.size,
             totalElements = result.totalElements,
@@ -308,7 +299,7 @@ class OrderService(
             orderRepository
                 .findById(orderId)
                 .orElseThrow { NotFoundException("Order not found") }
-        return toResponse(order)
+        return OrderMapper.toResponse(order)
     }
 
     @Transactional(readOnly = true)
@@ -324,7 +315,7 @@ class OrderService(
             )
         val result = orderRepository.findAll(pageable)
         return PageResponse(
-            content = result.content.map { toResponse(it) },
+            content = result.content.map { OrderMapper.toResponse(it) },
             page = result.number,
             size = result.size,
             totalElements = result.totalElements,
@@ -361,7 +352,7 @@ class OrderService(
                 orderId = saved.id,
             )
         }
-        return toResponse(saved)
+        return OrderMapper.toResponse(saved)
     }
 
     @Transactional
@@ -386,175 +377,39 @@ class OrderService(
             body = "Order ${saved.id} was cancelled. Stock restored where applicable.",
             orderId = saved.id,
         )
-        return toResponse(saved)
+        return OrderMapper.toResponse(saved)
     }
 
-    /**
-     * Charge via [PaymentGateway] then mark order PAID.
-     * Default gateway is mock; swap with a real PSP adapter without changing this flow.
-     */
-    @Transactional
     fun pay(
         userId: UUID,
         orderId: UUID,
-    ): OrderResponse {
-        val order =
-            orderRepository
-                .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
+    ): OrderResponse = orderPaymentService.pay(userId, orderId)
 
-        // Fail closed before PSP if status cannot become PAID
-        when (order.status) {
-            OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
-            OrderStatus.PAID -> throw BadRequestException("Order is already paid")
-            OrderStatus.CANCELLED -> throw BadRequestException("Cannot pay a cancelled order")
-            OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
-                throw BadRequestException("Order is already fulfilled")
-        }
-
-        val charge =
-            paymentGateway.charge(
-                orderId = orderId,
-                userId = userId,
-                amount = order.totalAmount,
-            )
-        if (!charge.success) {
-            throw BadRequestException(charge.message ?: "Payment declined by ${paymentGateway.providerId}")
-        }
-
-        order.markPaid()
-
-        val saved = orderRepository.save(order)
-        notificationService.notifyOrderEvent(
-            userId = userId,
-            type = "ORDER_PAID",
-            title = "Payment received",
-            body = "Order ${saved.id} is paid. Total ${saved.totalAmount}.",
-            orderId = saved.id,
-        )
-        return toResponse(saved)
-    }
-
-    /**
-     * Create a Stripe PaymentIntent for client-side confirmation (Payment Element / mobile SDK).
-     * Requires `qmarket.payment.provider=stripe`. Order stays PENDING until webhook or pay path.
-     */
-    @Transactional(readOnly = true)
     fun createPaymentSession(
         userId: UUID,
         orderId: UUID,
-    ): PaymentSessionResponse {
-        val stripeApi =
-            stripeApiClient.ifAvailable
-                ?: throw BadRequestException(
-                    "Payment session requires qmarket.payment.provider=stripe",
-                )
-        val stripeProps = stripeProperties.ifAvailable ?: StripeProperties()
+    ): PaymentSessionResponse = orderPaymentService.createPaymentSession(userId, orderId)
 
-        val order =
-            orderRepository.findByIdAndUserId(orderId, userId)
-                ?: throw NotFoundException("Order not found")
-        when (order.status) {
-            OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
-            OrderStatus.PAID -> throw BadRequestException("Order is already paid")
-            OrderStatus.CANCELLED -> throw BadRequestException("Cannot pay a cancelled order")
-            OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
-                throw BadRequestException("Order is already fulfilled")
-        }
-        if (order.totalAmount <= BigDecimal.ZERO) {
-            throw BadRequestException("Amount must be positive")
-        }
-
-        val currency = stripeProps.defaultCurrency
-        val amountMinor = Money.toMinorUnits(order.totalAmount)
-        try {
-            val intent =
-                stripeApi.createPaymentIntentForClient(
-                    amountMinor = amountMinor,
-                    currency = currency,
-                    orderId = orderId,
-                    userId = userId,
-                )
-            val secret =
-                intent.clientSecret
-                    ?: throw BadRequestException("Stripe did not return client_secret")
-            return PaymentSessionResponse(
-                orderId = orderId,
-                providerId = "stripe",
-                paymentIntentId = intent.id,
-                clientSecret = secret,
-                publishableKey = stripeProps.publishableKey,
-            )
-        } catch (ex: StripeApiException) {
-            throw BadRequestException("Stripe error: ${ex.message}")
-        }
-    }
-
-    /**
-     * Provider webhook / async capture path: mark order PAID without re-charging.
-     * Idempotent when already PAID.
-     *
-     * When [amountMinor] is provided (Stripe PaymentIntent.amount in minor units),
-     * it must match [Order.totalAmount] converted with scale 2. Optional [currency]
-     * must be a 3-letter code when present (orders have no stored currency column yet).
-     */
-    @Transactional
     fun markPaidFromProvider(
         orderId: UUID,
         providerId: String,
         providerReference: String?,
         amountMinor: Long? = null,
         currency: String? = null,
-    ): OrderResponse {
-        val order =
-            orderRepository.findById(orderId).orElseThrow {
-                NotFoundException("Order not found: $orderId")
-            }
-        when (order.status) {
-            OrderStatus.PAID -> return toResponse(order)
-            OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
-            else ->
-                throw BadRequestException(
-                    "Cannot mark order ${order.status} as PAID from $providerId",
-                )
-        }
-
-        if (amountMinor != null) {
-            val expectedMinor = Money.toMinorUnits(order.totalAmount)
-            if (amountMinor != expectedMinor) {
-                throw BadRequestException(
-                    "Payment amount mismatch for order $orderId: " +
-                        "provider=$amountMinor minor, order=$expectedMinor minor",
-                )
-            }
-        }
-        if (!currency.isNullOrBlank()) {
-            val normalized = currency.lowercase()
-            if (normalized.length != 3) {
-                throw BadRequestException("Invalid provider currency: $currency")
-            }
-        }
-
-        order.markPaid()
-        val saved = orderRepository.save(order)
-        notificationService.notifyOrderEvent(
-            userId = saved.userId,
-            type = "ORDER_PAID",
-            title = "Payment received",
-            body =
-                "Order ${saved.id} is paid via $providerId" +
-                    (providerReference?.let { " ($it)" } ?: "") +
-                    ". Total ${saved.totalAmount}.",
-            orderId = saved.id,
+    ): OrderResponse =
+        orderPaymentService.markPaidFromProvider(
+            orderId,
+            providerId,
+            providerReference,
+            amountMinor,
+            currency,
         )
-        return toResponse(saved)
-    }
 
     /** @deprecated Use [pay]; kept name-compatible for older tests — prefer [pay]. */
-    @Transactional
     fun payMock(
         userId: UUID,
         orderId: UUID,
-    ): OrderResponse = pay(userId, orderId)
+    ): OrderResponse = orderPaymentService.pay(userId, orderId)
 
     private fun resolveShippingAddress(
         userId: UUID,
@@ -572,27 +427,4 @@ class OrderService(
         }
         return freeForm
     }
-
-    private fun toResponse(order: Order): OrderResponse =
-        OrderResponse(
-            id = order.id ?: error("Order id is null"),
-            userId = order.userId,
-            status = order.status,
-            totalAmount = order.totalAmount,
-            shippingAddress = order.shippingAddress,
-            customerNote = order.customerNote,
-            items =
-                order.items.map {
-                    OrderItemResponse(
-                        productId = it.productId,
-                        productName = it.productName,
-                        productSlug = it.productSlug,
-                        unitPrice = it.unitPrice,
-                        quantity = it.quantity,
-                        lineTotal = it.lineTotal,
-                    )
-                },
-            createdAt = order.createdAt,
-            updatedAt = order.updatedAt,
-        )
 }
