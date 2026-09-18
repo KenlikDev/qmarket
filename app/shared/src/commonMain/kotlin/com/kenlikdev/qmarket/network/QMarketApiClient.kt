@@ -151,7 +151,6 @@ class QMarketApiClient(
     suspend fun createProduct(request: CreateProductRequestDto): ProductDto =
         post("/api/v1/products", request)
 
-
     suspend fun listAdminProducts(
         page: Int = 0,
         size: Int = 50,
