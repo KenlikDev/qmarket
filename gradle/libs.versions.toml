@@ -102,17 +102,6 @@ mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 
 [bundles]
-spring-boot-web = [
-    "spring-boot-starter-web",
-    "spring-boot-starter-validation",
-    "spring-boot-starter-actuator"
-]
-spring-boot-data = [
-    "spring-boot-starter-data-jpa",
-    "postgresql",
-    "spring-boot-starter-flyway",
-    "flyway-database-postgresql"
-]
 jwt = ["jjwt-api", "jjwt-impl", "jjwt-jackson"]
 
 [plugins]
