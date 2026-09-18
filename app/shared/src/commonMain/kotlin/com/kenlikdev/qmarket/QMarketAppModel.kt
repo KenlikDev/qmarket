@@ -228,18 +228,21 @@ class QMarketAppModel(
     fun logout(): Job {
         val refresh = tokens.refreshToken()
         return runApi {
-            if (!refresh.isNullOrBlank()) {
-                api.logout(refresh)
+            try {
+                if (!refresh.isNullOrBlank()) {
+                    api.logout(refresh)
+                }
+            } finally {
+                isAdmin = false
+                tokens.clear()
+                api.clearBearerTokenCache()
+                clearUserScopedUiState()
+                loggedIn = false
+                userLabel = null
+                products = emptyList()
+                error = null
+                screen = AppScreen.Login
             }
-            isAdmin = false
-            tokens.clear()
-            api.clearBearerTokenCache()
-            clearUserScopedUiState()
-            loggedIn = false
-            userLabel = null
-            products = emptyList()
-            error = null
-            screen = AppScreen.Login
         }
     }
 
