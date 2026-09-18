@@ -48,6 +48,7 @@ class OrderServiceTest {
     private lateinit var orderService: OrderService
     private lateinit var notificationService: NotificationService
     private lateinit var paymentGateway: PaymentGateway
+    private lateinit var idempotency: OrderIdempotencySupport
 
     private val userId = UUID.randomUUID()
     private val productId = UUID.randomUUID()
@@ -96,18 +97,26 @@ class OrderServiceTest {
                 stripeApiClient,
                 stripeProperties,
             )
+        val idempotency =
+            OrderIdempotencySupport(
+                orderRepository,
+                idempotencyKeyRepository,
+                entityManager,
+                transactionManager,
+            )
         orderService =
             OrderService(
                 orderRepository,
                 cartRepository,
                 productCatalog,
                 addressRepository,
-                idempotencyKeyRepository,
-                entityManager,
                 notificationService,
                 orderPaymentService,
+                idempotency,
                 transactionManager,
             )
+        // expose for fingerprint assertions in idempotency tests
+        this.idempotency = idempotency
     }
 
     @Test
@@ -183,7 +192,7 @@ class OrderServiceTest {
     }
 
     @Test
-    fun `payMock sets status to PAID`() {
+    fun `pay sets status to PAID`() {
         val orderId = UUID.randomUUID()
         val order =
             Order(
@@ -195,13 +204,13 @@ class OrderServiceTest {
         every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
-        val result = orderService.payMock(userId, orderId)
+        val result = orderService.pay(userId, orderId)
 
         assertEquals(OrderStatus.PAID, result.status)
     }
 
     @Test
-    fun `payMock fails when already paid`() {
+    fun `pay fails when already paid`() {
         val orderId = UUID.randomUUID()
         val order =
             Order(
@@ -213,17 +222,17 @@ class OrderServiceTest {
         every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
 
         assertThrows<BadRequestException> {
-            orderService.payMock(userId, orderId)
+            orderService.pay(userId, orderId)
         }
     }
 
     @Test
-    fun `payMock fails for other user order`() {
+    fun `pay fails for other user order`() {
         val orderId = UUID.randomUUID()
         every { orderRepository.findByIdAndUserId(orderId, userId) } returns null
 
         assertThrows<NotFoundException> {
-            orderService.payMock(userId, orderId)
+            orderService.pay(userId, orderId)
         }
     }
 
@@ -432,7 +441,7 @@ class OrderServiceTest {
     fun `createFromCart same key different body returns conflict`() {
         val orderId = UUID.randomUUID()
         val hash =
-            orderService.requestFingerprint(
+            idempotency.requestFingerprint(
                 CreateOrderRequest(shippingAddress = "Original Street"),
             )
         every { idempotencyKeyRepository.findByUserIdAndKey(userId, "key-dup") } returns

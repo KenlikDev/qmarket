@@ -188,11 +188,4 @@ class OrderPaymentService(
         )
         return OrderMapper.toResponse(saved)
     }
-
-    /** @deprecated Use [pay]; kept name-compatible for older tests — prefer [pay]. */
-    @Transactional
-    fun payMock(
-        userId: UUID,
-        orderId: UUID,
-    ): OrderResponse = pay(userId, orderId)
 }

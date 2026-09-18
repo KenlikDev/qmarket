@@ -224,13 +224,6 @@ class QMarketAppModel(
         }
     }
 
-    fun loadNotifications() {
-        runApi {
-            notifications = api.listNotifications(size = 50).content
-            notificationsUnread = api.notificationsUnreadCount().unread
-            screen = AppScreen.Notifications
-        }
-    }
 
     fun loadOrders() {
         runApi {
@@ -240,27 +233,6 @@ class QMarketAppModel(
         }
     }
 
-    fun loadProfile() {
-        runApi {
-            val p = api.getProfile()
-            profile = p
-            firstName = p.firstName.orEmpty()
-            lastName = p.lastName.orEmpty()
-            phone = p.phone.orEmpty()
-            screen = AppScreen.Profile
-        }
-    }
-
-    fun loadAddresses(navigate: Boolean = true) {
-        runApi {
-            addresses = api.listAddresses()
-            if (selectedAddressId == null) {
-                selectedAddressId = addresses.firstOrNull { it.default }?.id
-                    ?: addresses.firstOrNull()?.id
-            }
-            if (navigate) screen = AppScreen.Addresses
-        }
-    }
 
     fun logout(): Job {
         val refresh = tokens.refreshToken()
@@ -467,101 +439,6 @@ class QMarketAppModel(
         }
     }
 
-    fun saveProfile() {
-        runApi {
-            profile =
-                api.updateProfile(
-                    UpdateProfileRequestDto(
-                        firstName = firstName.trim().ifBlank { null },
-                        lastName = lastName.trim().ifBlank { null },
-                        phone = phone.trim().ifBlank { null },
-                    ),
-                )
-            statusMessage = "Profile saved"
-        }
-    }
-
-    fun updatePassword() {
-        runApi {
-            api.changePassword(
-                ChangePasswordRequestDto(
-                    currentPassword = currentPassword,
-                    newPassword = newPassword,
-                ),
-            )
-            currentPassword = ""
-            newPassword = ""
-            statusMessage = "Password updated"
-        }
-    }
-
-    fun addAddress() {
-        runApi {
-            val created =
-                api.createAddress(
-                    CreateAddressRequestDto(
-                        recipientName = addrRecipient.trim(),
-                        city = addrCity.trim(),
-                        streetLine1 = addrStreet.trim(),
-                        phone = addrPhone.trim().ifBlank { null },
-                        default = addresses.isEmpty(),
-                    ),
-                )
-            addresses = api.listAddresses()
-            selectedAddressId = created.id
-            addrRecipient = ""
-            addrCity = ""
-            addrStreet = ""
-            addrPhone = ""
-            statusMessage = "Address saved"
-        }
-    }
-
-    fun deleteAddress(id: String) {
-        runApi {
-            api.deleteAddress(id)
-            addresses = api.listAddresses()
-            if (selectedAddressId == id) {
-                selectedAddressId = addresses.firstOrNull { it.default }?.id
-                    ?: addresses.firstOrNull()?.id
-            }
-            pendingCheckoutKey = null
-            statusMessage = "Address deleted"
-        }
-    }
-
-    fun setDefaultAddress(id: String) {
-        runApi {
-            api.updateAddress(id, UpdateAddressRequestDto(default = true))
-            addresses = api.listAddresses()
-            selectedAddressId = id
-            pendingCheckoutKey = null
-            statusMessage = "Default address updated"
-        }
-    }
-
-    fun markNotificationRead(id: String) {
-        runApi {
-            api.markNotificationRead(id)
-            notifications = api.listNotifications(size = 50).content
-            notificationsUnread = api.notificationsUnreadCount().unread
-        }
-    }
-
-    fun refreshNotifications() {
-        runApi {
-            notifications = api.listNotifications(size = 50).content
-            notificationsUnread = api.notificationsUnreadCount().unread
-        }
-    }
-
-    fun markAllNotificationsRead() {
-        runApi {
-            notificationsUnread = api.markAllNotificationsRead().unread
-            notifications = api.listNotifications(size = 50).content
-            statusMessage = "All notifications marked read"
-        }
-    }
 
     companion object {
         /** Prefill for local demo login; not used in production builds. */

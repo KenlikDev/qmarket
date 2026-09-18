@@ -104,7 +104,7 @@ class OrderStatusConcurrencyTest {
         pool.submit {
             try {
                 start.await()
-                orderService.payMock(userId, UUID.fromString(orderId))
+                orderService.pay(userId, UUID.fromString(orderId))
                 payOk.incrementAndGet()
             } catch (_: BadRequestException) {
                 rejected.incrementAndGet()

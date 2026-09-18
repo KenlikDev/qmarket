@@ -3,11 +3,9 @@ package com.kenlikdev.qmarket.order.service
 import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.BadRequestException
-import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
-import com.kenlikdev.qmarket.order.domain.OrderIdempotencyKey
 import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
@@ -15,9 +13,7 @@ import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.dto.PaymentSessionResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
-import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
-import jakarta.persistence.EntityManager
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -26,7 +22,6 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
-import java.security.MessageDigest
 import java.util.UUID
 
 @Service
@@ -35,10 +30,9 @@ class OrderService(
     private val cartRepository: CartRepository,
     private val productCatalog: ProductCatalog,
     private val addressRepository: AddressRepository,
-    private val idempotencyKeyRepository: OrderIdempotencyKeyRepository,
-    private val entityManager: EntityManager,
     private val notificationService: NotificationService,
     private val orderPaymentService: OrderPaymentService,
+    private val idempotency: OrderIdempotencySupport,
     transactionManager: PlatformTransactionManager,
 ) {
     private val transactionTemplate = TransactionTemplate(transactionManager)
@@ -55,100 +49,28 @@ class OrderService(
         request: CreateOrderRequest,
         idempotencyKey: String? = null,
     ): OrderResponse {
-        val normalizedKey = normalizeIdempotencyKey(idempotencyKey)
+        val normalizedKey = idempotency.normalizeKey(idempotencyKey)
         if (normalizedKey != null) {
-            loadIdempotentOrder(userId, normalizedKey, request)?.let { return it }
+            idempotency.loadReplay(userId, normalizedKey, request)?.let { return it }
         }
 
         return try {
             requireNotNull(
                 transactionTemplate.execute {
                     if (normalizedKey != null) {
-                        acquireIdempotencyLock(userId, normalizedKey)
-                        loadIdempotentOrder(userId, normalizedKey, request)?.let { return@execute it }
+                        idempotency.acquireLock(userId, normalizedKey)
+                        idempotency.loadReplay(userId, normalizedKey, request)?.let { return@execute it }
                     }
                     createFromCartInTransaction(userId, request, normalizedKey)
                 },
             ) { "Checkout transaction returned no result" }
         } catch (ex: DataIntegrityViolationException) {
-            if (normalizedKey != null && isIdempotencyKeyConstraint(ex)) {
-                loadIdempotentOrder(userId, normalizedKey, request)?.let { return it }
+            if (normalizedKey != null && idempotency.isKeyConstraint(ex)) {
+                idempotency.loadReplay(userId, normalizedKey, request)?.let { return it }
                 throw BadRequestException("Concurrent checkout conflict — retry with the same Idempotency-Key")
             }
             throw ex
         }
-    }
-
-    private fun acquireIdempotencyLock(
-        userId: UUID,
-        normalizedKey: String,
-    ) {
-        val lockId = idempotencyLockId(userId, normalizedKey)
-        entityManager
-            .createNativeQuery("SELECT pg_advisory_xact_lock(:lockId)")
-            .setParameter("lockId", lockId)
-            .singleResult
-    }
-
-    private fun idempotencyLockId(
-        userId: UUID,
-        normalizedKey: String,
-    ): Long {
-        val a = userId.mostSignificantBits xor userId.leastSignificantBits
-        val b = normalizedKey.hashCode().toLong()
-        return a xor (b shl 32) xor (b ushr 16)
-    }
-
-    private fun loadIdempotentOrder(
-        userId: UUID,
-        normalizedKey: String,
-        request: CreateOrderRequest,
-    ): OrderResponse? {
-        val existing = idempotencyKeyRepository.findByUserIdAndKey(userId, normalizedKey) ?: return null
-        assertRequestFingerprintMatches(existing, request)
-        // Short TX so LAZY order.items can be initialized for toResponse.
-        return transactionTemplate.execute {
-            val order =
-                orderRepository.findById(existing.orderId).orElseThrow {
-                    NotFoundException("Order not found for idempotency key")
-                }
-            order.items.size
-            OrderMapper.toResponse(order)
-        }
-    }
-
-    private fun assertRequestFingerprintMatches(
-        existing: OrderIdempotencyKey,
-        request: CreateOrderRequest,
-    ) {
-        val stored = existing.requestHash
-        if (stored.isBlank()) {
-            // Pre-V8 rows: no fingerprint stored — allow replay with any body.
-            return
-        }
-        val incoming = requestFingerprint(request)
-        if (stored != incoming) {
-            throw ConflictException(
-                "Idempotency-Key was already used with a different request body",
-            )
-        }
-    }
-
-    /**
-     * Stable SHA-256 of fields that affect order creation (shipping + note).
-     */
-    internal fun requestFingerprint(request: CreateOrderRequest): String {
-        val normalized =
-            buildString {
-                append("addressId=")
-                append(request.addressId?.toString().orEmpty())
-                append("|shipping=")
-                append(request.shippingAddress?.trim().orEmpty())
-                append("|note=")
-                append(request.customerNote?.trim().orEmpty())
-            }
-        val digest = MessageDigest.getInstance("SHA-256").digest(normalized.toByteArray(Charsets.UTF_8))
-        return digest.joinToString("") { b -> "%02x".format(b) }
     }
 
     private fun createFromCartInTransaction(
@@ -157,7 +79,7 @@ class OrderService(
         normalizedKey: String?,
     ): OrderResponse {
         if (normalizedKey != null) {
-            loadIdempotentOrder(userId, normalizedKey, request)?.let { return it }
+            idempotency.loadReplay(userId, normalizedKey, request)?.let { return it }
         }
 
         val cart =
@@ -206,13 +128,11 @@ class OrderService(
         val saved = orderRepository.save(order)
 
         if (normalizedKey != null) {
-            idempotencyKeyRepository.save(
-                OrderIdempotencyKey(
-                    userId = userId,
-                    key = normalizedKey,
-                    orderId = requireNotNull(saved.id) { "Order id missing after persist" },
-                    requestHash = requestFingerprint(request),
-                ),
+            idempotency.saveKey(
+                userId = userId,
+                normalizedKey = normalizedKey,
+                orderId = requireNotNull(saved.id) { "Order id missing after persist" },
+                request = request,
             )
         }
 
@@ -230,36 +150,11 @@ class OrderService(
         return OrderMapper.toResponse(saved)
     }
 
-    /**
-     * If [rawKey] already maps to an order for [userId], validate request fingerprint
-     * and return the existing order (HTTP 200 replay). Null = first attempt.
-     */
     fun findIdempotentReplay(
         userId: UUID,
         request: CreateOrderRequest,
         rawKey: String,
-    ): OrderResponse? {
-        val key = normalizeIdempotencyKey(rawKey) ?: return null
-        return loadIdempotentOrder(userId, key, request)
-    }
-
-    private fun isIdempotencyKeyConstraint(ex: DataIntegrityViolationException): Boolean {
-        val msg =
-            buildString {
-                append(ex.message.orEmpty())
-                append(' ')
-                append(ex.mostSpecificCause.message.orEmpty())
-            }.lowercase()
-        return "uq_order_idempotency" in msg || "order_idempotency_keys" in msg
-    }
-
-    private fun normalizeIdempotencyKey(raw: String?): String? {
-        val key = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-        if (key.length > 128) {
-            throw BadRequestException("Idempotency-Key must be at most 128 characters")
-        }
-        return key
-    }
+    ): OrderResponse? = idempotency.findReplay(userId, request, rawKey)
 
     @Transactional(readOnly = true)
     fun getMyOrder(
@@ -406,10 +301,6 @@ class OrderService(
         )
 
     /** @deprecated Use [pay]; kept name-compatible for older tests — prefer [pay]. */
-    fun payMock(
-        userId: UUID,
-        orderId: UUID,
-    ): OrderResponse = orderPaymentService.pay(userId, orderId)
 
     private fun resolveShippingAddress(
         userId: UUID,
