@@ -188,11 +188,8 @@ class QMarketApiClient(
         deleteNoContent("/api/v1/products/$id")
     }
 
-    suspend fun listCategories(activeOnly: Boolean = true): List<CategoryDto> {
-        val response =
-            http.get("/api/v1/categories") {
-                parameter("activeOnly", activeOnly)
-            }
+    suspend fun listCategories(): List<CategoryDto> {
+        val response = http.get("/api/v1/categories")
         return response.parseBody()
     }
 
