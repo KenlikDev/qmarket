@@ -6,7 +6,6 @@ import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.common.security.JwtProperties
 import com.kenlikdev.qmarket.common.security.JwtService
 import com.kenlikdev.qmarket.common.validation.InputValidation
-import io.jsonwebtoken.JwtException
 import com.kenlikdev.qmarket.identity.domain.RefreshToken
 import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.dto.AuthResponse
@@ -18,6 +17,7 @@ import com.kenlikdev.qmarket.identity.dto.UserResponse
 import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
+import io.jsonwebtoken.JwtException
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
