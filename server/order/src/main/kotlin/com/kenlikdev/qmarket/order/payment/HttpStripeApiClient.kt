@@ -2,6 +2,7 @@ package com.kenlikdev.qmarket.order.payment
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
+import tools.jackson.databind.ObjectMapper
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -18,6 +19,7 @@ import java.util.UUID
 @ConditionalOnProperty(name = ["qmarket.payment.provider"], havingValue = "stripe")
 class HttpStripeApiClient(
     private val props: StripeProperties,
+    private val objectMapper: ObjectMapper,
     private val httpClient: HttpClient =
         HttpClient
             .newBuilder()
@@ -34,7 +36,7 @@ class HttpStripeApiClient(
             baseForm(amountMinor, currency, orderId, userId) +
                 mapOf(
                     "confirm" to "true",
-                    // Test-mode PM only — production should use [createPaymentIntentForClient].
+                    // Legacy server-side charge path; disabled at the gateway layer.
                     "payment_method" to "pm_card_visa",
                 )
         return postPaymentIntent(form)
@@ -71,9 +73,10 @@ class HttpStripeApiClient(
         require(props.secretKey.isNotBlank()) {
             "qmarket.payment.stripe.secret-key is required when provider=stripe"
         }
+
         val form =
-            fields.entries.joinToString("&") { (k, v) ->
-                "${enc(k)}=${enc(v)}"
+            fields.entries.joinToString("&") { (key, value) ->
+                "${enc(key)}=${enc(value)}"
             }
         val request =
             HttpRequest
@@ -87,13 +90,37 @@ class HttpStripeApiClient(
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         val body = response.body()
+        val root =
+            try {
+                objectMapper.readTree(body)
+            } catch (_: Exception) {
+                throw StripeApiException(
+                    message = "Stripe returned invalid JSON",
+                    statusCode = response.statusCode(),
+                    responseBody = body,
+                )
+            }
+
         if (response.statusCode() !in 200..299) {
-            val message = extractJsonString(body, "message") ?: "Stripe HTTP ${response.statusCode()}"
+            val message =
+                root
+                    .path("error")
+                    .path("message")
+                    .asString(null)
+                    ?: "Stripe HTTP ${response.statusCode()}"
             throw StripeApiException(message, response.statusCode(), body)
         }
-        val id = extractJsonString(body, "id") ?: error("Stripe response missing id: $body")
-        val status = extractJsonString(body, "status") ?: "unknown"
-        val clientSecret = extractJsonString(body, "client_secret")
+
+        val id =
+            root.path("id").asString(null)
+                ?: throw StripeApiException(
+                    message = "Stripe response missing id",
+                    statusCode = response.statusCode(),
+                    responseBody = body,
+                )
+        val status = root.path("status").asString("unknown") ?: "unknown"
+        val clientSecret = root.path("client_secret").asString(null)
+
         return StripePaymentIntentResult(
             id = id,
             status = status,
@@ -103,14 +130,6 @@ class HttpStripeApiClient(
     }
 
     private fun enc(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
-
-    private fun extractJsonString(
-        json: String,
-        field: String,
-    ): String? {
-        val pattern = Regex("\"${Regex.escape(field)}\"\\s*:\\s*\"([^\"]+)\"")
-        return pattern.find(json)?.groupValues?.get(1)
-    }
 }
 
 class StripeApiException(
