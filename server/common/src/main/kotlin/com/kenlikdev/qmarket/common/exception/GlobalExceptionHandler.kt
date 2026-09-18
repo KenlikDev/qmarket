@@ -47,7 +47,6 @@ open class GlobalExceptionHandler {
                         FieldErrorDetail(
                             field = error.field,
                             message = error.defaultMessage ?: "Invalid value",
-                            rejectedValue = error.rejectedValue,
                         )
                     else ->
                         FieldErrorDetail(
