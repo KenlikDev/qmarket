@@ -5,6 +5,8 @@
 qmarket:
   seed:
     enabled: true
+    admin:
+      password: admin123
   security:
     jwt:
       # Local-only secret (never use in production)
