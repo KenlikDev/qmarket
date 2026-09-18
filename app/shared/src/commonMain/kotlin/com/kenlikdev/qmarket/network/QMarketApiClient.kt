@@ -2,34 +2,34 @@ package com.kenlikdev.qmarket.network
 
 import com.kenlikdev.qmarket.api.AddCartItemRequestDto
 import com.kenlikdev.qmarket.api.AddressDto
+import com.kenlikdev.qmarket.api.AdminUserDto
 import com.kenlikdev.qmarket.api.ApiErrorDto
 import com.kenlikdev.qmarket.api.AuthResponseDto
 import com.kenlikdev.qmarket.api.CartDto
+import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.ChangePasswordRequestDto
 import com.kenlikdev.qmarket.api.CreateAddressRequestDto
-import com.kenlikdev.qmarket.api.CreateOrderRequestDto
-import com.kenlikdev.qmarket.api.CategoryDto
 import com.kenlikdev.qmarket.api.CreateCategoryRequestDto
+import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.CreateProductRequestDto
-import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
-import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.GoogleOAuthRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.NotificationDto
-import com.kenlikdev.qmarket.api.AdminUserDto
 import com.kenlikdev.qmarket.api.OrderDto
-import com.kenlikdev.qmarket.api.PaymentSessionDto
-import com.kenlikdev.qmarket.api.UnreadCountDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
-import com.kenlikdev.qmarket.api.UpdateOrderStatusRequestDto
 import com.kenlikdev.qmarket.api.PageDto
+import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
 import com.kenlikdev.qmarket.api.QMarketJson
 import com.kenlikdev.qmarket.api.RefreshTokenRequestDto
 import com.kenlikdev.qmarket.api.RegisterRequestDto
+import com.kenlikdev.qmarket.api.UnreadCountDto
 import com.kenlikdev.qmarket.api.UpdateAddressRequestDto
 import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
+import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
+import com.kenlikdev.qmarket.api.UpdateOrderStatusRequestDto
+import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.auth.authProvider
@@ -151,6 +151,34 @@ class QMarketApiClient(
     suspend fun createProduct(request: CreateProductRequestDto): ProductDto =
         post("/api/v1/products", request)
 
+    
+    suspend fun listAdminProducts(
+        page: Int = 0,
+        size: Int = 50,
+        q: String? = null,
+        categoryId: String? = null,
+        featuredOnly: Boolean? = null,
+        minPrice: String? = null,
+        maxPrice: String? = null,
+        sortBy: String? = null,
+        sortDir: String? = null,
+    ): PageDto<ProductDto> {
+        val response =
+            http.get("/api/v1/products/admin") {
+                parameter("page", page)
+                parameter("size", size)
+                q?.let { parameter("q", it) }
+                categoryId?.let { parameter("categoryId", it) }
+                featuredOnly?.let { parameter("featuredOnly", it) }
+                minPrice?.let { parameter("minPrice", it) }
+                maxPrice?.let { parameter("maxPrice", it) }
+                sortBy?.let { parameter("sortBy", it) }
+                sortDir?.let { parameter("sortDir", it) }
+            }
+        return response.parseBody()
+    }
+
+
     suspend fun updateProduct(
         id: String,
         request: UpdateProductRequestDto,
@@ -160,7 +188,7 @@ class QMarketApiClient(
         deleteNoContent("/api/v1/products/$id")
     }
 
-    suspend fun listCategories(activeOnly: Boolean = false): List<CategoryDto> {
+    suspend fun listCategories(activeOnly: Boolean = true): List<CategoryDto> {
         val response =
             http.get("/api/v1/categories") {
                 parameter("activeOnly", activeOnly)
@@ -170,6 +198,15 @@ class QMarketApiClient(
 
     suspend fun createCategory(request: CreateCategoryRequestDto): CategoryDto =
         post("/api/v1/categories", request)
+
+    suspend fun listAdminCategories(activeOnly: Boolean = false): List<CategoryDto> {
+        val response =
+            http.get("/api/v1/categories/admin") {
+                parameter("activeOnly", activeOnly)
+            }
+        return response.parseBody()
+    }
+
 
     suspend fun updateCategory(
         id: String,
@@ -250,7 +287,6 @@ class QMarketApiClient(
     suspend fun markAllNotificationsRead(): UnreadCountDto =
         postEmpty("/api/v1/notifications/read-all")
 
-
     suspend fun cancelOrder(id: String): OrderDto = postEmpty("/api/v1/orders/$id/cancel")
 
     suspend fun payOrder(id: String): OrderDto = postEmpty("/api/v1/orders/$id/pay")
@@ -279,7 +315,6 @@ class QMarketApiClient(
             "/api/v1/orders/admin/$id/status",
             UpdateOrderStatusRequestDto(status = status),
         )
-
 
     suspend fun listAdminUsers(
         page: Int = 0,
