@@ -51,6 +51,24 @@ tasks.jacocoTestReport {
     }
 }
 
+// Minimum line coverage threshold; raise gradually as test coverage improves.
+tasks.jacocoTestCoverageVerification {
+    dependsOn(tasks.jacocoTestReport)
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.40".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(tasks.jacocoTestCoverageVerification)
+}
+
 ktlint {
     version.set("1.5.0")
     android.set(false)

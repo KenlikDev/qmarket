@@ -48,6 +48,14 @@ jobs:
       - name: Unit + integration tests, ktlint, JaCoCo reports
         run: ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 
+      # Enforce minimum line coverage on core business modules.
+      - name: JaCoCo coverage verification (order + identity)
+        run: >
+          ./gradlew
+          :server:order:jacocoTestCoverageVerification
+          :server:identity:jacocoTestCoverageVerification
+          --parallel --no-daemon
+
       - name: Upload JaCoCo HTML
         if: always()
         uses: actions/upload-artifact@v7
