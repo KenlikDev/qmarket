@@ -1,20 +1,20 @@
-# QMarket — план и версии
+# QMarket — plan and versions
 
-Источник: согласованный план разработки. Релиз версии — только после закрытия scope, зелёных тестов и подтверждения.
+Source of truth for the agreed delivery plan. A version is released only after scope is closed, tests are green, and explicit confirmation.
 
-## Версии
+## Versions
 
-| Версия | Фокус | Статус |
+| Version | Focus | Status |
 |--------|--------|--------|
 | **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **Ready for release confirmation** |
 | **v0.2 Catalog & Auth polish** | OAuth optional, admin catalog UX | **WIP** (create product UI + rate limit done) |
 | **v0.3** | (merged into v0.1 client) reserved / skip | done via shared UI |
-| **v1.0 MVP** | Payments (1 провайдер), notifications, admin UI, search | pending |
+| **v1.0 MVP** | Payments (1 provider), notifications, admin UI, search | pending |
 | **v1.1 Growth** | Recommendations, reviews, promos, delivery integrations | pending |
 | **v1.2 Scale** | Observability, cache, performance | pending |
 | **v2.0** | Microservices evolution by need | pending |
 
-## v0.1 Foundation — чеклист (факт)
+## v0.1 Foundation — checklist (as built)
 
 ### Backend
 
@@ -94,29 +94,29 @@
 - [x] Prod: actuator exposure limited to health/info
 - [x] JwtProperties rejects known placeholder/dev secrets
 
-## v1.0 MVP (из плана)
+## v1.0 MVP (from plan)
 
-Покупатель: регистрация, каталог, корзина, заказ, оплата (мок + 1 провайдер), подтверждение.  
-Админ: товары, заказы, пользователи.  
-Платформы: Android + Web (+ Desktop); iOS параллельно.
+Shopper: register, catalog, cart, order, payment (mock + 1 provider), confirmation.
+Admin: products, orders, users.
+Platforms: Android + Web (+ Desktop); iOS in parallel.
 
-Открыто для v1.0: distributed traces (optional); client Payment Element UI (Stripe.js / mobile SDK binding).
-Сделано частично: coverage % gates (JaCoCo line ≥40% on `:server:order` + `:server:identity`; raise over time).
-Сделано: payment-session API (`POST /api/v1/orders/{id}/payment-session` → client_secret) for Payment Element.
-Сделано: correlation id (X-Correlation-Id / MDC), payment webhook Micrometer counters (`qmarket.payment.webhook.*`, `qmarket.payment.order.paid_from_provider`).
+Still open for v1.0: distributed traces (optional); client Payment Element UI (Stripe.js / mobile SDK binding).
+Partially done: coverage gates (JaCoCo line ≥40% on `:server:order` + `:server:identity`; raise over time).
+Done: payment-session API (`POST /api/v1/orders/{id}/payment-session` → client_secret) for Payment Element.
+Done: correlation id (X-Correlation-Id / MDC), payment webhook Micrometer counters (`qmarket.payment.webhook.*`, `qmarket.payment.order.paid_from_provider`).
 Google OAuth backend ready (enable via config).
 
-Уже закрыто из прежнего списка: login rate limit, admin catalog/orders UI, refresh revoke/rotation, in-app notifications.
+Already closed from earlier scope: login rate limit, admin catalog/orders UI, refresh revoke/rotation, in-app notifications.
 
-## Архитектура
+## Architecture
 
-Монолит → модульный монолит (сейчас) → микросервисы по нагрузке (v2.0+).
+Monolith → modular monolith (current) → microservices when load requires it (v2.0+).
 
-Контракты модулей — в `*.api` (как `catalog-api`), не в `common`.
+Module contracts live in `*.api` modules (e.g. `catalog-api`), not in `common`.
 
-Клиент: экраны в `app/shared/.../ui/`, состояние/API-сценарии в `QMarketAppModel`, сеть в `network/`, валидация в `validation/`.
-См. также `docs/CLIENT_ARCHITECTURE.md`.
+Client: screens under `app/shared/.../ui/`, state/API flows in `QMarketAppModel`, networking in `network/`, validation in `validation/`.
+See also `docs/CLIENT_ARCHITECTURE.md`.
 
-## Правило релиза
+## Release rule
 
-Версия не считается выпущенной, пока не закрыт согласованный scope, не зелёные тесты, не обновлена документация и нет явного подтверждения.
+A version is not released until the agreed scope is closed, tests are green, documentation is updated, and there is explicit confirmation.

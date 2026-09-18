@@ -1,12 +1,12 @@
 # QMarket
 
-Онлайн-магазин на **Kotlin Multiplatform + Spring Boot 4.1** (модульный монолит).
+Online shop built with **Kotlin Multiplatform + Spring Boot 4.1** (modular monolith).
 
-План и версии: [docs/ROADMAP.md](docs/ROADMAP.md)
+Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 
-## Текущее состояние (WIP, не релиз v0.1)
+## Current status (WIP, not a v0.1 release)
 
-| Область | Статус |
+| Area | Status |
 |--------|--------|
 | Auth (JWT) | ✅ |
 | Catalog | ✅ |
@@ -31,7 +31,7 @@
 ## Quick start
 
 ```bash
-# При смене схемы (один раз):
+# After schema changes (once):
 # docker compose down -v && docker compose up -d
 
 docker compose up -d
@@ -60,7 +60,7 @@ PUT    /api/v1/users/me/addresses/{id}
 DELETE /api/v1/users/me/addresses/{id}
 ```
 
-Первый адрес или `default: true` становится адресом по умолчанию (один на пользователя).
+The first address or `default: true` becomes the default address (one per user).
 
 ### Profile API
 
@@ -74,7 +74,7 @@ POST   /api/v1/users/me/password  { "currentPassword", "newPassword" }  # 204
 
 ```
 POST   /api/v1/orders                 # { shippingAddress? | addressId?, customerNote? }
-GET    /api/v1/orders?page=0&size=20  # без sort (Swagger sort=string ломал JPA)
+GET    /api/v1/orders?page=0&size=20  # no sort param (Swagger sort=string broke JPA)
 GET    /api/v1/orders/{id}
 POST   /api/v1/orders/{id}/cancel
 POST   /api/v1/orders/{id}/pay     # mock payment → PAID
@@ -83,7 +83,7 @@ GET    /api/v1/orders/admin/{id}
 PUT    /api/v1/orders/admin/{id}/status  { "status": "CONFIRMED" }
 ```
 
-Статусы: `PENDING | CONFIRMED | PAID | SHIPPED | DELIVERED | CANCELLED`
+Statuses: `PENDING | CONFIRMED | PAID | SHIPPED | DELIVERED | CANCELLED`
 
 ### Client (shared Compose)
 
@@ -125,10 +125,10 @@ Android emulator API host: `10.0.2.2:8080`
 - CORS: `CORS_ORIGINS` / `qmarket.security.cors.allowed-origin-patterns`
 - Stock: atomic `UPDATE … WHERE stock >= qty` (DB row lock; no JPA `@Version`)
 
-### Тесты и качество (всегда по всему проекту)
+### Tests and quality (full project)
 
 ```bash
 ./gradlew test ktlintCheck --parallel
 ```
 
-Точечно только для отладки: `./gradlew :server:order:test`
+Single-module debug only: `./gradlew :server:order:test`
