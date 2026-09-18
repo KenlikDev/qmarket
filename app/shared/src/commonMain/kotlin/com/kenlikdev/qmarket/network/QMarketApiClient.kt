@@ -80,7 +80,7 @@ class QMarketApiClient(
         post("/api/v1/auth/refresh", request)
 
     suspend fun logout(refreshToken: String) {
-        runCatching {
+        runCatchingCancellable {
             postNoContent(
                 "/api/v1/auth/logout",
                 RefreshTokenRequestDto(refreshToken = refreshToken),
@@ -369,7 +369,7 @@ class QMarketApiClient(
 
     private suspend fun HttpResponse.ensureSuccess() {
         if (!status.isSuccess()) {
-            val text = runCatching { bodyAsText() }.getOrDefault("")
+            val text = runCatchingCancellable { bodyAsText() }.getOrDefault("")
             val error =
                 runCatching {
                     if (text.isNotBlank()) {
