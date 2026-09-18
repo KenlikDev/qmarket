@@ -3,6 +3,7 @@ agp = "9.1.1"
 android-compileSdk = "37"
 android-minSdk = "24"
 android-targetSdk = "37"
+androidx-security-crypto = "1.0.0"
 androidx-activity = "1.13.0"
 androidx-lifecycle = "2.11.0"
 composeMultiplatform = "1.11.1"
@@ -38,7 +39,6 @@ androidx-security-crypto = { module = "androidx.security:security-crypto", versi
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
-kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 jackson-module-kotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
