@@ -3,15 +3,30 @@ package com.kenlikdev.qmarket.validation
 object ClientInputValidation {
     fun isValidEmail(value: String): Boolean {
         val v = value.trim()
-        return v.contains("@") && v.substringAfter("@").contains(".")
+        val at = v.indexOf('@')
+        return at > 0 &&
+            at == v.lastIndexOf('@') &&
+            at < v.lastIndex &&
+            v.substring(at + 1).contains('.') &&
+            !v.substring(at + 1).startsWith('.') &&
+            !v.substring(at + 1).endsWith('.')
     }
 
     fun isValidPhoneInput(value: String): Boolean {
         val trimmed = value.trim()
         if (trimmed.isEmpty()) return true
-        if (trimmed.any { it.isLetter() }) return false
-        val digits = trimmed.filter { it.isDigit() }
-        return digits.length in 7..15
+
+        val hasPlus = trimmed.startsWith('+')
+        val body = trimmed.removePrefix("+")
+        if ('+' in body) return false
+
+        val digits =
+            body.filter { it.isDigit() }
+        if (digits.length !in 7..15) return false
+
+        return body.all {
+            it.isDigit() || it.isWhitespace() || it == '-' || it == '(' || it == ')' || it == '.'
+        } && (!hasPlus || trimmed.length > 1)
     }
 
     fun isValidPersonName(value: String): Boolean {
@@ -26,13 +41,20 @@ object ClientInputValidation {
 
     fun isValidPassword(value: String): Boolean = value.length in 8..100
 
-    fun filterPhoneInput(input: String): String =
-        input.filter { ch ->
-            ch.isDigit() ||
-                ch == '+' ||
-                ch.isWhitespace() ||
-                ch == '-' ||
-                ch == '(' ||
-                ch == ')'
-        }
+    fun filterPhoneInput(input: String): String {
+        val filtered =
+            input.filter { ch ->
+                ch.isDigit() ||
+                    ch == '+' ||
+                    ch.isWhitespace() ||
+                    ch == '-' ||
+                    ch == '(' ||
+                    ch == ')' ||
+                    ch == '.'
+            }
+        val plusIndex = filtered.indexOf('+')
+        if (plusIndex < 0) return filtered
+        return filtered.removeRange(plusIndex + 1, filtered.length)
+            .let { filtered.substring(0, plusIndex + 1) + filtered.substring(plusIndex + 1) }
+    }
 }
