@@ -90,14 +90,7 @@ class CatalogService(
         request.sortOrder?.let { category.sortOrder = it }
         request.active?.let { category.active = it }
         request.parentId?.let { parentId ->
-            category.parent =
-                if (parentId == category.id) {
-                    null
-                } else {
-                    categoryRepository
-                        .findById(parentId)
-                        .orElseThrow { NotFoundException("Parent category $parentId not found") }
-                }
+            category.parent = resolveParentCategory(category.id, parentId)
         }
 
         return categoryRepository.save(category).toResponse()
@@ -250,10 +243,11 @@ class CatalogService(
         request.description?.let { product.description = it }
         request.shortDescription?.let { product.shortDescription = it }
         request.sku?.let {
-            if (it != product.sku && productRepository.existsBySku(it)) {
-                throw ConflictException("Product with SKU '$it' already exists")
+            val newSku = it.trim().ifEmpty { null }
+            if (newSku != null && newSku != product.sku && productRepository.existsBySku(newSku)) {
+                throw ConflictException("Product with SKU '$newSku' already exists")
             }
-            product.sku = it.trim()
+            product.sku = newSku
         }
         request.price?.let { product.price = it }
         request.compareAtPrice?.let { product.compareAtPrice = it }
@@ -269,6 +263,41 @@ class CatalogService(
         }
 
         return productRepository.save(product).toResponse()
+    }
+
+
+    private fun resolveParentCategory(
+        categoryId: UUID?,
+        parentId: UUID,
+    ): Category {
+        if (categoryId == parentId) {
+            throw BadRequestException("A category cannot be its own parent")
+        }
+
+        var current =
+            categoryRepository
+                .findById(parentId)
+                .orElseThrow { NotFoundException("Parent category $parentId not found") }
+        val visited = mutableSetOf<UUID>()
+
+        while (true) {
+            val currentId =
+                requireNotNull(current.id) {
+                    "Category id is missing while validating hierarchy"
+                }
+            if (currentId == categoryId) {
+                throw BadRequestException("Category hierarchy would contain a cycle")
+            }
+            if (!visited.add(currentId)) {
+                throw BadRequestException("Category hierarchy already contains a cycle")
+            }
+
+            current = current.parent ?: break
+        }
+
+        return categoryRepository
+            .findById(parentId)
+            .orElseThrow { NotFoundException("Parent category $parentId not found") }
     }
 
     /**
