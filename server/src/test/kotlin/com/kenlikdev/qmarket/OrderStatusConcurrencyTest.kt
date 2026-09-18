@@ -1,18 +1,22 @@
 package com.kenlikdev.qmarket
 
+import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import com.kenlikdev.qmarket.order.service.OrderService
 import com.kenlikdev.qmarket.support.TestJson
+import jakarta.persistence.OptimisticLockException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
@@ -42,8 +46,13 @@ class OrderStatusConcurrencyTest {
     @Autowired
     private lateinit var orderRepository: OrderRepository
 
+    @Autowired
+    private lateinit var productRepository: ProductRepository
+
     private lateinit var token: String
     private lateinit var productId: String
+    private var originalStock: Int = 0
+    private val createdOrderIds = mutableListOf<UUID>()
 
     @BeforeEach
     fun setUp() {
@@ -65,11 +74,25 @@ class OrderStatusConcurrencyTest {
                 .response
                 .contentAsString
         productId = TestJson.firstContentId(productsJson)
+        originalStock =
+            productRepository
+                .findById(UUID.fromString(productId))
+                .orElseThrow()
+                .stockQuantity
 
         mockMvc.perform(
             delete("/api/v1/cart")
                 .header("Authorization", "Bearer $token"),
         )
+    }
+
+    @AfterEach
+    fun tearDown() {
+        createdOrderIds.forEach(orderRepository::deleteById)
+        productRepository.findById(UUID.fromString(productId)).ifPresent { product ->
+            product.stockQuantity = originalStock
+            productRepository.saveAndFlush(product)
+        }
     }
 
     @Test
@@ -92,6 +115,7 @@ class OrderStatusConcurrencyTest {
                 ).andExpect(status().isCreated)
                 .andReturn()
         val orderId = TestJson.id(create.response.contentAsString)
+        createdOrderIds += UUID.fromString(orderId)
         val userId = orderRepository.findById(UUID.fromString(orderId)).orElseThrow().userId
 
         val start = CountDownLatch(1)
@@ -108,9 +132,9 @@ class OrderStatusConcurrencyTest {
                 payOk.incrementAndGet()
             } catch (_: BadRequestException) {
                 rejected.incrementAndGet()
-            } catch (_: org.springframework.orm.ObjectOptimisticLockingFailureException) {
+            } catch (_: ObjectOptimisticLockingFailureException) {
                 rejected.incrementAndGet()
-            } catch (_: jakarta.persistence.OptimisticLockException) {
+            } catch (_: OptimisticLockException) {
                 rejected.incrementAndGet()
             } catch (_: Exception) {
                 rejected.incrementAndGet()
@@ -125,9 +149,9 @@ class OrderStatusConcurrencyTest {
                 cancelOk.incrementAndGet()
             } catch (_: BadRequestException) {
                 rejected.incrementAndGet()
-            } catch (_: org.springframework.orm.ObjectOptimisticLockingFailureException) {
+            } catch (_: ObjectOptimisticLockingFailureException) {
                 rejected.incrementAndGet()
-            } catch (_: jakarta.persistence.OptimisticLockException) {
+            } catch (_: OptimisticLockException) {
                 rejected.incrementAndGet()
             } catch (_: Exception) {
                 rejected.incrementAndGet()

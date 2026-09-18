@@ -37,11 +37,11 @@ class MutableTokenProvider(
     fun hasSession(): Boolean = !token.isNullOrBlank() || !refresh.isNullOrBlank()
 
     fun applyAuth(auth: AuthResponseDto) {
+        store.write(auth.accessToken, auth.refreshToken, auth.user.email)
         token = auth.accessToken
         refresh = auth.refreshToken
         email = auth.user.email
         roles = auth.user.roles
-        store.write(auth.accessToken, auth.refreshToken, auth.user.email)
     }
 
     fun applyRoles(newRoles: List<String>) {
@@ -49,10 +49,12 @@ class MutableTokenProvider(
     }
 
     fun clear() {
+        runCatching {
+            store.clear()
+        }
         token = null
         refresh = null
         email = null
         roles = emptyList()
-        store.clear()
     }
 }

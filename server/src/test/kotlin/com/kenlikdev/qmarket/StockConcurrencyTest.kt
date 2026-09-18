@@ -37,6 +37,7 @@ class StockConcurrencyTest {
             productRepository.findAll().firstOrNull()
                 ?: error("No seeded products — DataInitializer must run in test profile")
         val id = product.id ?: error("Product id null")
+        val originalStock = product.stockQuantity
 
         product.stockQuantity = 1
         productRepository.saveAndFlush(product)
@@ -86,5 +87,10 @@ class StockConcurrencyTest {
 
         val remaining = productRepository.findById(id).orElseThrow().stockQuantity
         assertEquals(0, remaining, "stock must be zero after exclusive claim")
+
+        productRepository.findById(id).orElseThrow().apply {
+            stockQuantity = originalStock
+            productRepository.saveAndFlush(this)
+        }
     }
 }

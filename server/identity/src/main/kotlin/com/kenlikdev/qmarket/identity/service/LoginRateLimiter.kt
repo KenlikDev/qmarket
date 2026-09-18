@@ -26,6 +26,12 @@ class LoginRateLimiter(
 
     private val failures = ConcurrentHashMap<String, ArrayDeque<Long>>()
 
+    init {
+        require(maxAttempts > 0) { "qmarket.auth.login-max-attempts must be greater than 0" }
+        require(windowSeconds > 0) { "qmarket.auth.login-window-seconds must be greater than 0" }
+        require(maxKeys > 0) { "qmarket.auth.login-rate-max-keys must be greater than 0" }
+    }
+
     fun assertAllowed(
         email: String,
         clientKey: String? = null,

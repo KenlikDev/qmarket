@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket.identity.service
 
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import com.kenlikdev.qmarket.common.validation.InputValidation
 import com.kenlikdev.qmarket.identity.domain.Address
 import com.kenlikdev.qmarket.identity.dto.AddressResponse
 import com.kenlikdev.qmarket.identity.dto.CreateAddressRequest
@@ -45,8 +46,8 @@ class AddressService(
             Address(
                 userId = userId,
                 label = request.label?.trim()?.ifEmpty { null },
-                recipientName = request.recipientName.trim(),
-                phone = request.phone?.trim()?.ifEmpty { null },
+                recipientName = normalizeRecipientName(request.recipientName),
+                phone = InputValidation.normalizeOptionalPhone(request.phone),
                 country = request.country.trim().ifEmpty { "RU" },
                 region = request.region?.trim()?.ifEmpty { null },
                 city = request.city.trim(),
@@ -69,8 +70,8 @@ class AddressService(
                 ?: throw NotFoundException("Address not found")
 
         request.label?.let { address.label = it.trim().ifEmpty { null } }
-        request.recipientName?.let { address.recipientName = it.trim() }
-        request.phone?.let { address.phone = it.trim().ifEmpty { null } }
+        request.recipientName?.let { address.recipientName = normalizeRecipientName(it) }
+        request.phone?.let { address.phone = InputValidation.normalizeOptionalPhone(it) }
         request.country?.let { address.country = it.trim().ifEmpty { "RU" } }
         request.region?.let { address.region = it.trim().ifEmpty { null } }
         request.city?.let { address.city = it.trim() }
@@ -106,6 +107,10 @@ class AddressService(
             }
         }
     }
+
+    private fun normalizeRecipientName(value: String): String =
+        InputValidation.normalizeOptionalName(value, "Recipient name")
+            ?: throw IllegalArgumentException("Recipient name must not be blank")
 
     private fun Address.toResponse(): AddressResponse =
         AddressResponse(
