@@ -4,6 +4,7 @@ import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import com.kenlikdev.qmarket.order.service.OrderService
+import jakarta.persistence.OptimisticLockException
 import com.kenlikdev.qmarket.support.TestJson
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
@@ -108,9 +110,9 @@ class OrderStatusConcurrencyTest {
                 payOk.incrementAndGet()
             } catch (_: BadRequestException) {
                 rejected.incrementAndGet()
-            } catch (_: org.springframework.orm.ObjectOptimisticLockingFailureException) {
+            } catch (_: ObjectOptimisticLockingFailureException) {
                 rejected.incrementAndGet()
-            } catch (_: jakarta.persistence.OptimisticLockException) {
+            } catch (_: OptimisticLockException) {
                 rejected.incrementAndGet()
             } catch (_: Exception) {
                 rejected.incrementAndGet()
