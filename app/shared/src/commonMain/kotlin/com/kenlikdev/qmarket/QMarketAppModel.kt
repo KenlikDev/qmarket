@@ -18,7 +18,6 @@ import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.ui.AppScreen
 import com.kenlikdev.qmarket.ui.CatalogFilterParams
 import com.kenlikdev.qmarket.ui.CheckoutIdempotency
-import com.kenlikdev.qmarket.api.UpdateOrderStatusRequestDto
 import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
@@ -51,14 +50,14 @@ class QMarketAppModel(
         if (restoredSession) AppScreen.Catalog else AppScreen.Login,
     )
     var email by mutableStateOf(tokens.sessionEmail() ?: "admin@qmarket.local")
-    var password by mutableStateOf("admin123")
+    var password by mutableStateOf("") // demo: use admin123 when testing locally
     var firstName by mutableStateOf("")
     var lastName by mutableStateOf("")
     var phone by mutableStateOf("")
     var currentPassword by mutableStateOf("")
     var newPassword by mutableStateOf("")
     var profile by mutableStateOf<ProfileDto?>(null)
-    var shippingAddress by mutableStateOf("Moscow, Tverskaya 1")
+    var shippingAddress by mutableStateOf("")
     var error by mutableStateOf<String?>(null)
     var statusMessage by mutableStateOf<String?>(null)
     var loading by mutableStateOf(false)

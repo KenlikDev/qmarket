@@ -289,7 +289,7 @@ class CatalogService(
 
     private fun Category.toResponse() =
         CategoryResponse(
-            id = id!!,
+            id = requireNotNull(id) { "Category id missing after persist" },
             name = name,
             slug = slug,
             description = description,
@@ -302,7 +302,7 @@ class CatalogService(
 
     private fun Product.toResponse() =
         ProductResponse(
-            id = id!!,
+            id = requireNotNull(id) { "Product id missing after persist" },
             name = name,
             slug = slug,
             description = description,

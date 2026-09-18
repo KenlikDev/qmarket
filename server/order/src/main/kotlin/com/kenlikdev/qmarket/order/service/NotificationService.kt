@@ -75,7 +75,7 @@ class NotificationService(
 
     private fun UserNotification.toResponse() =
         NotificationResponse(
-            id = id!!,
+            id = requireNotNull(id) { "Notification id missing after persist" },
             type = type,
             title = title,
             body = body,

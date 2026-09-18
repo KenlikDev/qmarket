@@ -219,7 +219,7 @@ class OrderService(
                 OrderIdempotencyKey(
                     userId = userId,
                     key = normalizedKey,
-                    orderId = saved.id!!,
+                    orderId = requireNotNull(saved.id) { "Order id missing after persist" },
                     requestHash = requestFingerprint(request),
                 ),
             )
@@ -519,11 +519,7 @@ class OrderService(
         }
 
         if (amountMinor != null) {
-            val expectedMinor =
-                order.totalAmount
-                    .setScale(2, java.math.RoundingMode.HALF_UP)
-                    .movePointRight(2)
-                    .longValueExact()
+            val expectedMinor = StripePaymentGateway.toMinorUnits(order.totalAmount)
             if (amountMinor != expectedMinor) {
                 throw BadRequestException(
                     "Payment amount mismatch for order $orderId: " +

@@ -455,9 +455,9 @@ class OrderServiceTest {
                 id = orderId,
                 userId = userId,
                 status = OrderStatus.PAID,
-                totalAmount = java.math.BigDecimal("10.00"),
+                totalAmount = BigDecimal("10.00"),
             )
-        every { orderRepository.findById(orderId) } returns java.util.Optional.of(order)
+        every { orderRepository.findById(orderId) } returns Optional.of(order)
         every { orderRepository.save(any()) } answers { firstArg() }
 
         orderService.updateStatus(orderId, UpdateOrderStatusRequest(status = OrderStatus.SHIPPED))
@@ -481,7 +481,7 @@ class OrderServiceTest {
                 id = orderId,
                 userId = userId,
                 status = OrderStatus.PENDING,
-                totalAmount = java.math.BigDecimal("10.00"),
+                totalAmount = BigDecimal("10.00"),
             )
         every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
         every { paymentGateway.charge(any(), any(), any(), any()) } returns
