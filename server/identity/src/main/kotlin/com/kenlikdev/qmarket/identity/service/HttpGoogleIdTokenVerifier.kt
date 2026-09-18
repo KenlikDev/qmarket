@@ -59,13 +59,7 @@ class HttpGoogleIdTokenVerifier(
             root.path("aud").asString(null)?.trim()
                 ?: throw UnauthorizedException("Google token missing aud")
 
-        val allowedAudiences =
-            props.clientIds
-                .asSequence()
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-                .toSet()
-        if (allowedAudiences.isNotEmpty() && audience !in allowedAudiences) {
+        if (audience !in props.normalizedClientIds()) {
             throw UnauthorizedException("Google token audience is not allowed")
         }
 
