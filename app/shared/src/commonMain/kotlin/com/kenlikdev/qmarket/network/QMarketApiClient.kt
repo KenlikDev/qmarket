@@ -32,15 +32,15 @@ import com.kenlikdev.qmarket.api.UpdateOrderStatusRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.plugins.auth.authProvider
 import io.ktor.client.plugins.auth.providers.BearerAuthProvider
-import io.ktor.client.call.body
-import io.ktor.client.request.header
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
-import io.ktor.client.request.post
 import io.ktor.client.request.patch
+import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -151,7 +151,7 @@ class QMarketApiClient(
     suspend fun createProduct(request: CreateProductRequestDto): ProductDto =
         post("/api/v1/products", request)
 
-    
+
     suspend fun listAdminProducts(
         page: Int = 0,
         size: Int = 50,
@@ -178,7 +178,6 @@ class QMarketApiClient(
         return response.parseBody()
     }
 
-
     suspend fun updateProduct(
         id: String,
         request: UpdateProductRequestDto,
@@ -203,7 +202,6 @@ class QMarketApiClient(
             }
         return response.parseBody()
     }
-
 
     suspend fun updateCategory(
         id: String,
