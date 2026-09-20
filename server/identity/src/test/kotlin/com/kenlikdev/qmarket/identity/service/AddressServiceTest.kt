@@ -4,7 +4,9 @@ import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.domain.Address
 import com.kenlikdev.qmarket.identity.dto.CreateAddressRequest
 import com.kenlikdev.qmarket.identity.dto.UpdateAddressRequest
+import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
+import com.kenlikdev.qmarket.identity.repository.UserRepository
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -17,13 +19,16 @@ import java.util.UUID
 
 class AddressServiceTest {
     private lateinit var addressRepository: AddressRepository
+    private lateinit var userRepository: UserRepository
     private lateinit var addressService: AddressService
     private val userId = UUID.randomUUID()
 
     @BeforeEach
     fun setUp() {
         addressRepository = mockk(relaxed = true)
-        addressService = AddressService(addressRepository)
+        userRepository = mockk(relaxed = true)
+        every { userRepository.findByIdForUpdate(userId) } returns User(id = userId, email = "user@example.com")
+        addressService = AddressService(addressRepository, userRepository)
     }
 
     @Test
