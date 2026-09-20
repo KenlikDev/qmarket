@@ -30,7 +30,7 @@ class CartService(
         request: AddCartItemRequest,
     ): CartResponse {
         val product = productCatalog.requireActive(request.productId)
-        val cart = findOrCreate(userId)
+        val cart = findOrCreateForUpdate(userId)
         cart.addItem(
             productId = product.id,
             quantity = request.quantity,
@@ -47,7 +47,7 @@ class CartService(
         request: UpdateCartItemRequest,
     ): CartResponse {
         val product = productCatalog.requireActive(productId)
-        val cart = requireCart(userId)
+        val cart = requireCartForUpdate(userId)
         cart.changeQuantity(
             productId = productId,
             quantity = request.quantity,
@@ -85,8 +85,16 @@ class CartService(
             ?: throw IllegalStateException("Cart row was not created for user $userId")
     }
 
+    private fun findOrCreateForUpdate(userId: UUID): Cart {
+        cartRepository.findByUserIdForUpdate(userId)?.let { return it }
+        cartRepository.insertIfMissing(userId)
+        return cartRepository.findByUserIdForUpdate(userId)
+            ?: throw IllegalStateException("Cart row was not created for user $userId")
+    }
 
-    private fun requireCart(userId: UUID): Cart = cartRepository.findByUserId(userId) ?: throw NotFoundException("Cart is empty")
+    private fun requireCartForUpdate(userId: UUID): Cart =
+        cartRepository.findByUserIdForUpdate(userId)
+            ?: throw NotFoundException("Cart is empty")
 
     private fun toResponse(cart: Cart): CartResponse {
         val productIds = cart.items.map { it.productId }.distinct()
