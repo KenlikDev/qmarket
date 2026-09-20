@@ -85,17 +85,19 @@ class StripeWebhookService(
             eventRepository.findByEventIdForUpdate(eventId)
                 ?: throw IllegalStateException("Stripe event row is missing after claim")
 
+        if (event.eventType != type) {
+            throw BadRequestException("Stripe event type does not match stored event")
+        }
+
         if (!claimed && event.status == StripeWebhookEvent.STATUS_PROCESSED) {
             return false
         }
 
         when (type) {
             "payment_intent.succeeded" -> {
-                val result = onPaymentIntentSucceeded(root)
+                        val result = onPaymentIntentSucceeded(root)
                 event.markProcessed(result.providerReference, result.orderId)
-                if (result.orderId != null) {
-                    metrics()?.orderPaidFromProvider()
-                }
+                metrics()?.orderPaidFromProvider()
             }
             else -> {
                 log.debug("Ignoring Stripe event type={}", type)
