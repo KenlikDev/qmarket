@@ -120,6 +120,7 @@ class QMarketAppModel(
         profile = null
         firstName = ""
         lastName = ""
+        password = ""
         phone = ""
         password = ""
         currentPassword = ""
@@ -130,6 +131,7 @@ class QMarketAppModel(
         paymentSession = null
         notifications = emptyList()
         notificationsUnread = 0L
+        paymentSession = null
         pendingCheckoutKey = null
         checkoutLocked = false
         detailQuantity = 1
@@ -266,6 +268,7 @@ class QMarketAppModel(
                 )
             tokens.applyAuth(auth)
             api.clearBearerTokenCache()
+            password = ""
             clearUserScopedUiState()
             applySession(auth.user.email)
             val page = api.listProducts(size = 50)
