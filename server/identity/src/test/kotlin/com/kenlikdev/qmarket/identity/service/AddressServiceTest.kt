@@ -2,9 +2,9 @@ package com.kenlikdev.qmarket.identity.service
 
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.domain.Address
+import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.dto.CreateAddressRequest
 import com.kenlikdev.qmarket.identity.dto.UpdateAddressRequest
-import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import io.mockk.every
@@ -27,7 +27,11 @@ class AddressServiceTest {
     fun setUp() {
         addressRepository = mockk(relaxed = true)
         userRepository = mockk(relaxed = true)
-        every { userRepository.findByIdForUpdate(userId) } returns User(id = userId, email = "user@example.com")
+        every { userRepository.findByIdForUpdate(userId) } returns
+            User(
+                id = userId,
+                email = "user@example.com",
+            )
         addressService = AddressService(addressRepository, userRepository)
     }
 
