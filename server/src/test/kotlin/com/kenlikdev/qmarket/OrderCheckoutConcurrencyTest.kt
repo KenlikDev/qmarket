@@ -50,7 +50,7 @@ class OrderCheckoutConcurrencyTest {
     private lateinit var userId: UUID
     private lateinit var productId: UUID
     private var originalStock: Int = 0
-    private var createdOrderId: UUID? = null
+    private val createdOrderIds = mutableSetOf<UUID>()
     private var initialOrderCount: Long = 0
 
     @BeforeEach
@@ -82,7 +82,7 @@ class OrderCheckoutConcurrencyTest {
 
     @AfterEach
     fun tearDown() {
-        createdOrderId?.let(orderRepository::deleteById)
+        synchronized(createdOrderIds) { createdOrderIds.toList() }.forEach(orderRepository::deleteById)
         cartRepository.findByUserId(userId)?.let { cart ->
             cart.clearItems()
             cartRepository.save(cart)
@@ -116,7 +116,7 @@ class OrderCheckoutConcurrencyTest {
                         )
                     successes.incrementAndGet()
                     orderIds.add(response.id.toString())
-                    createdOrderId = response.id
+                    synchronized(createdOrderIds) { createdOrderIds += response.id }
                 } catch (e: Exception) {
                     errors.add(e.javaClass.simpleName + ": " + (e.message ?: ""))
                 } finally {
@@ -157,10 +157,12 @@ class OrderCheckoutConcurrencyTest {
             pool.submit {
                 try {
                     start.await()
-                    orderService.createFromCart(
-                        userId,
-                        CreateOrderRequest(shippingAddress = "Lock Lane 1"),
-                    )
+                    val response =
+                        orderService.createFromCart(
+                            userId,
+                            CreateOrderRequest(shippingAddress = "Lock Lane 1"),
+                        )
+                    synchronized(createdOrderIds) { createdOrderIds += response.id }
                     successes.incrementAndGet()
                 } catch (e: Exception) {
                     errors.incrementAndGet()
