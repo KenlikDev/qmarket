@@ -29,7 +29,7 @@ open class GlobalExceptionHandler {
         ex: ApiException,
         request: HttpServletRequest,
     ): ResponseEntity<ErrorResponse> {
-        log.warn("API exception: {} - {}", ex.code, ex.message)
+        log.warn("API exception: code={}, status={}", ex.code, ex.status.value())
         return ResponseEntity.status(ex.status).body(
             ErrorResponse(
                 status = ex.status.value(),
@@ -180,7 +180,7 @@ open class GlobalExceptionHandler {
         ex: DataIntegrityViolationException,
         request: HttpServletRequest,
     ): ResponseEntity<ErrorResponse> {
-        log.warn("Data integrity violation: {}", ex.mostSpecificCause.message)
+        log.warn("Data integrity violation: {}", ex.javaClass.simpleName)
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
             ErrorResponse(
                 status = HttpStatus.CONFLICT.value(),
@@ -197,7 +197,7 @@ open class GlobalExceptionHandler {
         ex: Exception,
         request: HttpServletRequest,
     ): ResponseEntity<ErrorResponse> {
-        log.warn("Optimistic lock conflict: {}", ex.message)
+        log.warn("Optimistic lock conflict: {}", ex.javaClass.simpleName)
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
             ErrorResponse(
                 status = HttpStatus.CONFLICT.value(),
