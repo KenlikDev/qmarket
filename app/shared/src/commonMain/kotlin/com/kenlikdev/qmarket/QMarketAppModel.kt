@@ -122,7 +122,6 @@ class QMarketAppModel(
         lastName = ""
         password = ""
         phone = ""
-        password = ""
         currentPassword = ""
         newPassword = ""
         cart = null
@@ -131,7 +130,6 @@ class QMarketAppModel(
         paymentSession = null
         notifications = emptyList()
         notificationsUnread = 0L
-        paymentSession = null
         pendingCheckoutKey = null
         checkoutLocked = false
         detailQuantity = 1
