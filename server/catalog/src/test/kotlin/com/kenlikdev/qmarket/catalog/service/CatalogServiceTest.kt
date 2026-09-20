@@ -71,6 +71,23 @@ class CatalogServiceTest {
     }
 
     @Test
+    fun `getCategory rejects inactive category`() {
+        val id = UUID.randomUUID()
+        val category =
+            Category(
+                id = id,
+                name = "Hidden",
+                slug = "hidden",
+                active = false,
+            )
+        every { categoryRepository.findById(id) } returns Optional.of(category)
+
+        assertThrows<NotFoundException> {
+            catalogService.getCategory(id)
+        }
+    }
+
+    @Test
     fun `createProduct succeeds`() {
         val request =
             CreateProductRequest(
