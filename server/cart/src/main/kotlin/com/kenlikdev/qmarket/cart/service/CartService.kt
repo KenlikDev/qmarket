@@ -21,8 +21,8 @@ class CartService(
     private val cartRepository: CartRepository,
     private val productCatalog: ProductCatalog,
 ) {
-    @Transactional(readOnly = true)
-    fun getCart(userId: UUID): CartResponse = toResponse(findOrEmpty(userId))
+    @Transactional
+    fun getCart(userId: UUID): CartResponse = toResponse(findOrCreate(userId))
 
     @Transactional
     fun addItem(
@@ -85,7 +85,6 @@ class CartService(
             ?: throw IllegalStateException("Cart row was not created for user $userId")
     }
 
-    private fun findOrEmpty(userId: UUID): Cart = cartRepository.findByUserId(userId) ?: Cart(userId = userId)
 
     private fun requireCart(userId: UUID): Cart = cartRepository.findByUserId(userId) ?: throw NotFoundException("Cart is empty")
 
