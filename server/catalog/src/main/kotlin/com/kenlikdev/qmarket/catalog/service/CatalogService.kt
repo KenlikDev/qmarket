@@ -40,11 +40,16 @@ class CatalogService(
     }
 
     @Transactional(readOnly = true)
-    fun getCategory(id: UUID): CategoryResponse =
-        categoryRepository
-            .findById(id)
-            .orElseThrow { NotFoundException("Category $id not found") }
-            .toResponse()
+    fun getCategory(id: UUID): CategoryResponse {
+        val category =
+            categoryRepository
+                .findById(id)
+                .orElseThrow { NotFoundException("Category $id not found") }
+        if (!category.active) {
+            throw NotFoundException("Category $id not found")
+        }
+        return category.toResponse()
+    }
 
     @Transactional
     fun createCategory(request: CreateCategoryRequest): CategoryResponse {
