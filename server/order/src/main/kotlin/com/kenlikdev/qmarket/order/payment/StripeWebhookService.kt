@@ -44,9 +44,13 @@ class StripeWebhookService(
         val eventId =
             root.path("id").asString(null)?.trim()
                 ?: throw BadRequestException("Stripe webhook is missing event id")
+        if (eventId.length !in 1..64) {
+            throw BadRequestException("Stripe webhook event id has an invalid length")
+        }
+
         val type = root.path("type").asString(null)?.trim().orEmpty()
-        if (type.isEmpty()) {
-            throw BadRequestException("Stripe webhook is missing event type")
+        if (type.isEmpty() || type.length > 128) {
+            throw BadRequestException("Stripe webhook event type has an invalid length")
         }
 
         metrics()?.webhookReceived()
@@ -123,6 +127,9 @@ class StripeWebhookService(
                             eventType = type,
                         )
                     }
+                if (event.status == StripeWebhookEvent.STATUS_PROCESSED) {
+                    return@execute
+                }
                 event.markFailed(cause.message ?: cause.javaClass.simpleName)
                 eventRepository.save(event)
             }
@@ -178,7 +185,7 @@ class StripeWebhookService(
             }
 
         val amountNode = paymentIntent.get("amount")
-        if (amountNode == null || !amountNode.isNumber) {
+        if (amountNode == null || !amountNode.isIntegralNumber) {
             throw BadRequestException("Stripe PaymentIntent amount is missing")
         }
         val amountMinor = amountNode.asLong()
