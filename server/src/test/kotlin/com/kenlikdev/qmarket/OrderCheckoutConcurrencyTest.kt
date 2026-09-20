@@ -145,3 +145,45 @@ class OrderCheckoutConcurrencyTest {
         )
     }
 }
+
+    @Test
+    fun `concurrent createFromCart without key cannot create two orders`() {
+        val threads = 2
+        val start = CountDownLatch(1)
+        val done = CountDownLatch(threads)
+        val successes = AtomicInteger(0)
+        val errors = AtomicInteger(0)
+        val pool = Executors.newFixedThreadPool(threads)
+
+        repeat(threads) {
+            pool.submit {
+                try {
+                    start.await()
+                    orderService.createFromCart(
+                        userId,
+                        CreateOrderRequest(shippingAddress = "Lock Lane 1"),
+                    )
+                    successes.incrementAndGet()
+                } catch (e: Exception) {
+                    errors.incrementAndGet()
+                } finally {
+                    done.countDown()
+                }
+            }
+        }
+        start.countDown()
+
+        assertTrue(done.await(60, TimeUnit.SECONDS), "workers timed out")
+        pool.shutdown()
+
+        assertEquals(1, successes.get(), "exactly one checkout should consume the cart")
+        assertEquals(1, errors.get(), "the concurrent checkout should observe an empty cart")
+        assertEquals(
+            initialOrderCount + 1,
+            orderRepository
+                .findByUserIdOrderByCreatedAtDesc(
+                    userId,
+                    PageRequest.of(0, 100),
+                ).totalElements,
+        )
+    }
