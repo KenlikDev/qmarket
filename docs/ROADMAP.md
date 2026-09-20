@@ -26,7 +26,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Profile + shipping addresses
 - [x] Unit + controller slice + integration tests (incl. stock concurrency)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize
-- [x] Flyway SoT V1–V8, app `ddl-auto=validate`
+- [x] Flyway SoT V1–V11, app `ddl-auto=validate`
 - [x] `ProductCatalog` port + ArchUnit boundaries
 - [x] Atomic stock `UPDATE … WHERE stock >= qty`
 
@@ -45,7 +45,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Order detail screen (line items, pay/cancel/refresh)
 - [x] JWT Bearer + refresh on 401
 - [x] UI split: `ui/` screens + `App.kt` + `QMarketAppModel` (state/loaders outside composition root)
-- [x] Persistent session store (Android prefs / JVM file / iOS defaults / JS localStorage)
+- [x] Persistent session store (Android EncryptedSharedPreferences / JVM file / iOS Keychain / JS localStorage; Wasm in-memory)
 - [x] Compose UI tests (`runComposeUiTest` on Login/Register/Catalog/Cart/Profile/Orders/Addresses; JVM)
 - [x] Login rate limit (sliding window per email; 429 TOO_MANY_REQUESTS)
 
