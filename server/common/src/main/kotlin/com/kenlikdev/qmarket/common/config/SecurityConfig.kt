@@ -3,6 +3,7 @@ package com.kenlikdev.qmarket.common.config
 import com.kenlikdev.qmarket.common.exception.ErrorResponse
 import com.kenlikdev.qmarket.common.security.JwtAuthenticationFilter
 import com.kenlikdev.qmarket.common.security.JwtProperties
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import tools.jackson.databind.ObjectMapper
@@ -111,7 +112,7 @@ open class SecurityConfig(
     fun authenticationManager(config: AuthenticationConfiguration): AuthenticationManager = config.authenticationManager
 
     private fun writeSecurityError(
-        response: jakarta.servlet.http.HttpServletResponse,
+        response: HttpServletResponse,
         status: HttpStatus,
         code: String,
         message: String,
