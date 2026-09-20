@@ -2,6 +2,7 @@ package com.kenlikdev.qmarket.identity.repository
 
 import com.kenlikdev.qmarket.identity.domain.Role
 import com.kenlikdev.qmarket.identity.domain.User
+import jakarta.persistence.LockModeType
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
