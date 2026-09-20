@@ -47,7 +47,7 @@ class CartServiceTest {
     @Test
     fun `getCart creates an empty cart when none exists`() {
         val cart = Cart(id = UUID.randomUUID(), userId = userId)
-        every { cartRepository.findByUserId(userId) } returnsMany listOf(null, cart)
+        every { cartRepository.findByUserIdForUpdate(userId) } returnsMany listOf(null, cart)
         every { cartRepository.insertIfMissing(userId) } returns 1
         every { productCatalog.findByIds(any()) } returns emptyMap()
 
@@ -63,7 +63,7 @@ class CartServiceTest {
     @Test
     fun `addItem creates cart and adds product`() {
         every { productCatalog.requireActive(productId) } returns product
-        every { cartRepository.findByUserId(userId) } returns null
+        every { cartRepository.findByUserIdForUpdate(userId) } returns null
         every { cartRepository.insertIfMissing(userId) } returns 1
         every { cartRepository.save(any()) } answers { firstArg() }
         every { productCatalog.findByIds(any()) } returns mapOf(productId to product)
@@ -74,13 +74,13 @@ class CartServiceTest {
         assertEquals(1, result.items.size)
         assertEquals(productId, result.items[0].productId)
         verify(exactly = 1) { cartRepository.insertIfMissing(userId) }
-        verify(exactly = 2) { cartRepository.findByUserId(userId) }
+        verify(exactly = 2) { cartRepository.findByUserIdForUpdate(userId) }
     }
 
     @Test
     fun `addItem rejects quantity above stock`() {
         every { productCatalog.requireActive(productId) } returns product
-        every { cartRepository.findByUserId(userId) } returns null
+        every { cartRepository.findByUserIdForUpdate(userId) } returns null
         every { cartRepository.insertIfMissing(userId) } returns 1
         every { cartRepository.save(any()) } answers { firstArg() }
 
@@ -103,7 +103,7 @@ class CartServiceTest {
                 )
             }
         every { productCatalog.requireActive(productId) } returns product
-        every { cartRepository.findByUserId(userId) } returns cart
+        every { cartRepository.findByUserIdForUpdate(userId) } returns cart
         every { cartRepository.save(any()) } answers { firstArg() }
         every { productCatalog.findByIds(any()) } returns mapOf(productId to product)
 
@@ -126,7 +126,7 @@ class CartServiceTest {
                     ),
                 )
             }
-        every { cartRepository.findByUserId(userId) } returns cart
+        every { cartRepository.findByUserIdForUpdate(userId) } returns cart
         every { cartRepository.save(any()) } answers { firstArg() }
         every { productCatalog.findByIds(any()) } returns emptyMap()
 
@@ -139,7 +139,7 @@ class CartServiceTest {
     @Test
     fun `removeItem throws when product not in cart`() {
         val cart = Cart(id = UUID.randomUUID(), userId = userId)
-        every { cartRepository.findByUserId(userId) } returns cart
+        every { cartRepository.findByUserIdForUpdate(userId) } returns cart
 
         assertThrows<NotFoundException> {
             cartService.removeItem(userId, productId)
@@ -162,7 +162,7 @@ class CartServiceTest {
 
         every { productCatalog.requireActive(raceProductId) } returns raceProduct
         every { productCatalog.findByIds(any()) } returns mapOf(raceProductId to raceProduct)
-        every { cartRepository.findByUserId(userId) } returnsMany listOf(null, existing)
+        every { cartRepository.findByUserIdForUpdate(userId) } returnsMany listOf(null, existing)
         every { cartRepository.insertIfMissing(userId) } returns 0
         every { cartRepository.save(any()) } answers { firstArg() }
 
@@ -191,7 +191,7 @@ class CartServiceTest {
         val cart = Cart(id = UUID.randomUUID(), userId = userId)
 
         every { productCatalog.requireActive(productId) } returns raceProduct
-        every { cartRepository.findByUserId(userId) } returnsMany listOf(null, cart)
+        every { cartRepository.findByUserIdForUpdate(userId) } returnsMany listOf(null, cart)
         every { cartRepository.insertIfMissing(userId) } returns 1
         every { cartRepository.save(any()) } answers { firstArg() }
         every { productCatalog.findByIds(any()) } returns mapOf(productId to raceProduct)
