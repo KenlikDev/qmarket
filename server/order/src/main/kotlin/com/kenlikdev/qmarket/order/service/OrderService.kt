@@ -82,8 +82,9 @@ class OrderService(
             idempotency.loadReplay(userId, normalizedKey, request)?.let { return it }
         }
 
+        cartRepository.insertIfMissing(userId)
         val cart =
-            cartRepository.findByUserId(userId)
+            cartRepository.findByUserIdForUpdate(userId)
                 ?: throw BadRequestException("Cart is empty")
         if (cart.items.isEmpty()) {
             throw BadRequestException("Cart is empty")
