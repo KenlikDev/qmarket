@@ -47,7 +47,7 @@ class CartServiceTest {
     @Test
     fun `getCart creates an empty cart when none exists`() {
         val cart = Cart(id = UUID.randomUUID(), userId = userId)
-        every { cartRepository.findByUserIdForUpdate(userId) } returnsMany listOf(null, cart)
+        every { cartRepository.findByUserId(userId) } returnsMany listOf(null, cart)
         every { cartRepository.insertIfMissing(userId) } returns 1
         every { productCatalog.findByIds(any()) } returns emptyMap()
 
