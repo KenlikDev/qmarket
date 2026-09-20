@@ -17,17 +17,14 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 /**
  * Applies the common QMarket Ktor client configuration.
  *
- * Access-token refresh is serialized because refresh-token rotation makes the
- * operation stateful: concurrent refresh attempts using the same old token must
- * not race and cause a valid session to be cleared.
+ * Ktor serializes bearer-token refresh callbacks for a provider, so concurrent
+ * requests that receive 401 reuse the result of a single refresh operation.
+ * [oldTokens] is used as the refresh input to avoid racing with local storage
+ * updates made by another coroutine.
  */
 fun HttpClientConfig<*>.qMarketConfig(
     baseUrl: String,
@@ -53,10 +50,10 @@ fun HttpClientConfig<*>.qMarketConfig(
     }
 
     if (tokenProvider != null) {
-        val refreshMutex = Mutex()
-
         install(Auth) {
             bearer {
+                nonCancellableRefresh = true
+
                 loadTokens {
                     val access = tokenProvider.accessToken() ?: return@loadTokens null
                     BearerTokens(
@@ -66,42 +63,38 @@ fun HttpClientConfig<*>.qMarketConfig(
                 }
 
                 refreshTokens {
-                    refreshMutex.withLock {
-                        withContext(NonCancellable) {
-                            val currentRefresh =
-                                tokenProvider.refreshToken()
-                                    ?: return@withContext null
+                    val currentRefresh =
+                        oldTokens?.refreshToken
+                            ?.takeIf(String::isNotBlank)
+                            ?: return@refreshTokens null
 
-                            val response =
-                                client.post("/api/v1/auth/refresh") {
-                                    markAsRefreshTokenRequest()
-                                    contentType(ContentType.Application.Json)
-                                    setBody(
-                                        RefreshTokenRequestDto(
-                                            refreshToken = currentRefresh,
-                                        ),
-                                    )
-                                }
-
-                            if (response.status != HttpStatusCode.OK) {
-                                if (tokenProvider is MutableTokenProvider) {
-                                    tokenProvider.clear()
-                                }
-                                return@withContext null
-                            }
-
-                            val auth = response.body<AuthResponseDto>()
-
-                            if (tokenProvider is MutableTokenProvider) {
-                                tokenProvider.applyAuth(auth)
-                            }
-
-                            BearerTokens(
-                                accessToken = auth.accessToken,
-                                refreshToken = auth.refreshToken,
+                    val response =
+                        client.post("/api/v1/auth/refresh") {
+                            markAsRefreshTokenRequest()
+                            contentType(ContentType.Application.Json)
+                            setBody(
+                                RefreshTokenRequestDto(
+                                    refreshToken = currentRefresh,
+                                ),
                             )
                         }
+
+                    if (response.status != HttpStatusCode.OK) {
+                        if (tokenProvider is MutableTokenProvider) {
+                            tokenProvider.clear()
+                        }
+                        return@refreshTokens null
                     }
+
+                    val auth = response.body<AuthResponseDto>()
+                    if (tokenProvider is MutableTokenProvider) {
+                        tokenProvider.applyAuth(auth)
+                    }
+
+                    BearerTokens(
+                        accessToken = auth.accessToken,
+                        refreshToken = auth.refreshToken,
+                    )
                 }
 
                 sendWithoutRequest { request ->
