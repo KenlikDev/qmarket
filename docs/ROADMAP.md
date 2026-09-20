@@ -47,7 +47,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] UI split: `ui/` screens + `App.kt` + `QMarketAppModel` (state/loaders outside composition root)
 - [x] Persistent session store (Android EncryptedSharedPreferences / JVM file / iOS Keychain / JS localStorage; Wasm in-memory)
 - [x] Compose UI tests (`runComposeUiTest` on Login/Register/Catalog/Cart/Profile/Orders/Addresses; JVM)
-- [x] Login rate limit (sliding window per email; 429 TOO_MANY_REQUESTS)
+- [x] Login rate limit (sliding window per email + client key; 429 TOO_MANY_REQUESTS)
 
 ### Hardening (from architecture review)
 
