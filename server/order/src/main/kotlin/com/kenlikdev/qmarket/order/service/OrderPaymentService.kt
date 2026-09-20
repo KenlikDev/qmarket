@@ -79,7 +79,6 @@ class OrderPaymentService(
      * Create a Stripe PaymentIntent for client-side confirmation (Payment Element / mobile SDK).
      * Requires `qmarket.payment.provider=stripe`. Order stays PENDING until webhook or pay path.
      */
-    @Transactional(readOnly = true)
     fun createPaymentSession(
         userId: UUID,
         orderId: UUID,
