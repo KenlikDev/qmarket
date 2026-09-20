@@ -15,7 +15,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Seed admin + demo catalog | ✅ |
 | Unit / controller / integration tests | ✅ |
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
-| Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V5, app: `validate`, tests: Flyway |
+| Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V11, app: `validate`, tests: Flyway |
 | Payments | ✅ mock locally; Stripe PaymentIntent + webhook path available |
 | Profile (GET/PATCH /users/me) | ✅ |
 | Shipping addresses | ✅ |
@@ -24,7 +24,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart/orders; Bearer + refresh on 401 |
 | Clients UI | ✅ screens in `app/shared/.../ui/`; `App.kt` composition root |
-| Session persistence | ✅ platform SessionStore (Android EncryptedSharedPreferences / iOS Keychain / JVM file / JS localStorage) |
+| Session persistence | ✅ platform SessionStore (Android EncryptedSharedPreferences / iOS Keychain / JVM file / JS localStorage; Wasm in-memory) |
 | Compose UI tests (JVM) | ✅ Login / Register / Catalog / Cart |
 | Stock concurrency | ✅ atomic UPDATE + IT |
 
