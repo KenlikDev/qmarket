@@ -20,12 +20,6 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
-/**
- * Shared Ktor plugins for QMarket API.
- *
- * @param baseUrl e.g. `http://10.0.2.2:8080` (Android emulator) or `http://localhost:8080`
- * @param tokenProvider session holder; when set, Bearer auth refreshes access token on 401
- */
 fun HttpClientConfig<*>.qMarketConfig(
     baseUrl: String,
     tokenProvider: TokenProvider? = null,
@@ -74,9 +68,10 @@ fun HttpClientConfig<*>.qMarketConfig(
                         BearerTokens(auth.accessToken, auth.refreshToken)
                     }
                 }
-                // Ktor 3.5: return true to ATTACH bearer. Skip /api/v1/auth/** (login/register/refresh).
                 sendWithoutRequest { request ->
-                    !request.url.encodedPath.startsWith("/api/v1/auth/")
+                    request.url.pathSegments.firstOrNull() != "api" ||
+                        request.url.pathSegments.getOrNull(1) != "v1" ||
+                        request.url.pathSegments.getOrNull(2) != "auth"
                 }
             }
         }
