@@ -8,9 +8,9 @@ import com.kenlikdev.qmarket.identity.repository.UserRepository
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import com.kenlikdev.qmarket.order.service.OrderService
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
