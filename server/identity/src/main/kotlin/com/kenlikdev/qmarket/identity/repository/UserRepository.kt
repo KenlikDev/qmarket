@@ -5,10 +5,17 @@ import com.kenlikdev.qmarket.identity.domain.User
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface UserRepository : JpaRepository<User, UUID> {
     fun findByEmail(email: String): User?
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.id = :userId")
+    fun findByIdForUpdate(@Param("userId") userId: UUID): User?
 
     fun existsByEmail(email: String): Boolean
 
