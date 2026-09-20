@@ -42,7 +42,7 @@ class QMarketAppModel(
         if (restoredSession) AppScreen.Catalog else AppScreen.Login,
     )
     var email by mutableStateOf(tokens.sessionEmail() ?: DEMO_EMAIL)
-    var password by mutableStateOf("") // demo: use admin123 when testing locally
+    var password by mutableStateOf("")
     var firstName by mutableStateOf("")
     var lastName by mutableStateOf("")
     var phone by mutableStateOf("")
@@ -121,11 +121,13 @@ class QMarketAppModel(
         firstName = ""
         lastName = ""
         phone = ""
+        password = ""
         currentPassword = ""
         newPassword = ""
         cart = null
         detailProduct = null
         detailOrder = null
+        paymentSession = null
         notifications = emptyList()
         notificationsUnread = 0L
         pendingCheckoutKey = null
@@ -211,6 +213,7 @@ class QMarketAppModel(
 
     fun openOrder(order: OrderDto) {
         detailOrder = order
+        paymentSession = null
         screen = AppScreen.OrderDetail
         runApi {
             detailOrder = api.getOrder(order.id)
@@ -394,6 +397,7 @@ class QMarketAppModel(
     }
 
     fun payOrder(orderId: String) {
+        paymentSession = null
         runApi {
             val paid = api.payOrder(orderId)
             if (screen is AppScreen.OrderDone) {
@@ -411,6 +415,7 @@ class QMarketAppModel(
         private set
 
     fun startPaymentSession(orderId: String) {
+        paymentSession = null
         runApi {
             paymentSession = api.createPaymentSession(orderId)
             statusMessage = "Payment session ready (${paymentSession?.providerId})"
@@ -418,6 +423,7 @@ class QMarketAppModel(
     }
 
     fun cancelOrder(orderId: String) {
+        paymentSession = null
         runApi {
             val cancelled = api.cancelOrder(orderId)
             detailOrder = cancelled
