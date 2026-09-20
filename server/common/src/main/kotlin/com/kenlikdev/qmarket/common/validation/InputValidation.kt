@@ -40,7 +40,7 @@ object InputValidation {
         if ('+' in body) {
             throw BadRequestException("Phone may contain only one leading +")
         }
-        if (body.any { !it.isDigit() && !it.isWhitespace() && it !in "()-\." }) {
+        if (body.any { !it.isDigit() && !it.isWhitespace() && it !in "()-." }) {
             throw BadRequestException("Phone contains unsupported characters")
         }
 
