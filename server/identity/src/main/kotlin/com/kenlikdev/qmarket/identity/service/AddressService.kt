@@ -7,6 +7,7 @@ import com.kenlikdev.qmarket.identity.dto.AddressResponse
 import com.kenlikdev.qmarket.identity.dto.CreateAddressRequest
 import com.kenlikdev.qmarket.identity.dto.UpdateAddressRequest
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
+import com.kenlikdev.qmarket.identity.repository.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -14,6 +15,7 @@ import java.util.UUID
 @Service
 class AddressService(
     private val addressRepository: AddressRepository,
+    private val userRepository: UserRepository,
 ) {
     @Transactional(readOnly = true)
     fun list(userId: UUID): List<AddressResponse> =
@@ -37,6 +39,7 @@ class AddressService(
         userId: UUID,
         request: CreateAddressRequest,
     ): AddressResponse {
+        lockUser(userId)
         val makeDefault = request.default || addressRepository.countByUserId(userId) == 0L
         if (makeDefault) {
             addressRepository.clearDefaultForUser(userId)
@@ -65,6 +68,7 @@ class AddressService(
         addressId: UUID,
         request: UpdateAddressRequest,
     ): AddressResponse {
+        lockUser(userId)
         val address =
             addressRepository.findByIdAndUserId(addressId, userId)
                 ?: throw NotFoundException("Address not found")
@@ -94,6 +98,7 @@ class AddressService(
         userId: UUID,
         addressId: UUID,
     ) {
+        lockUser(userId)
         val address =
             addressRepository.findByIdAndUserId(addressId, userId)
                 ?: throw NotFoundException("Address not found")
@@ -106,6 +111,11 @@ class AddressService(
                 addressRepository.save(it)
             }
         }
+    }
+
+    private fun lockUser(userId: UUID) {
+        userRepository.findByIdForUpdate(userId)
+            ?: throw NotFoundException("User not found")
     }
 
     private fun normalizeRecipientName(value: String): String =
