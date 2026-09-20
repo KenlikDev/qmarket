@@ -9,10 +9,10 @@ import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
