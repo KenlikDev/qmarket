@@ -2,6 +2,7 @@ package com.kenlikdev.qmarket.order.service
 
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import com.kenlikdev.qmarket.common.exception.PaymentProviderException
 import com.kenlikdev.qmarket.common.util.Money
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.OrderResponse
@@ -125,7 +126,7 @@ class OrderPaymentService(
                 publishableKey = stripeProps.publishableKey,
             )
         } catch (ex: StripeApiException) {
-            throw BadRequestException("Stripe error: ${ex.message}")
+            throw PaymentProviderException(cause = ex)
         }
     }
 
