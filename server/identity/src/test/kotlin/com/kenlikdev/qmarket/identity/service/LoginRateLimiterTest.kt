@@ -56,7 +56,6 @@ class LoginRateLimiterTest {
         }
     }
 
-
     @Test
     fun `client key cannot bypass account limit`() {
         val lim = limiter(max = 2)
