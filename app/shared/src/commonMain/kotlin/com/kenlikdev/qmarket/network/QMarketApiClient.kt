@@ -1,7 +1,5 @@
 package com.kenlikdev.qmarket.network
 
-import com.kenlikdev.qmarket.runCatchingCancellable
-
 import com.kenlikdev.qmarket.api.AddCartItemRequestDto
 import com.kenlikdev.qmarket.api.AddressDto
 import com.kenlikdev.qmarket.api.AdminUserDto
@@ -33,6 +31,7 @@ import com.kenlikdev.qmarket.api.UpdateCategoryRequestDto
 import com.kenlikdev.qmarket.api.UpdateOrderStatusRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.UpdateProfileRequestDto
+import com.kenlikdev.qmarket.runCatchingCancellable
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.auth.authProvider
