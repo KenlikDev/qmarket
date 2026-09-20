@@ -144,8 +144,6 @@ class OrderCheckoutConcurrencyTest {
                 ).totalElements,
         )
     }
-}
-
     @Test
     fun `concurrent createFromCart without key cannot create two orders`() {
         val threads = 2
@@ -187,3 +185,4 @@ class OrderCheckoutConcurrencyTest {
                 ).totalElements,
         )
     }
+}
