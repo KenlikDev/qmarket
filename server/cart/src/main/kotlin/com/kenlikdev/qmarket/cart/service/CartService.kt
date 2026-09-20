@@ -124,7 +124,7 @@ class CartService(
         val totalItems = items.sumOf { it.quantity }
         val totalPrice = items.fold(BigDecimal.ZERO) { acc, i -> acc.add(i.lineTotal) }
         return CartResponse(
-            id = cart.id ?: UUID(0, 0),
+            id = requireNotNull(cart.id) { "Cart id is missing" },
             userId = cart.userId,
             items = items,
             totalItems = totalItems,
