@@ -18,6 +18,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 fun HttpClientConfig<*>.qMarketConfig(
@@ -39,6 +41,7 @@ fun HttpClientConfig<*>.qMarketConfig(
         contentType(ContentType.Application.Json)
     }
     if (tokenProvider != null) {
+        val refreshMutex = Mutex()
         install(Auth) {
             bearer {
                 loadTokens {
@@ -46,9 +49,10 @@ fun HttpClientConfig<*>.qMarketConfig(
                     BearerTokens(access, tokenProvider.refreshToken().orEmpty())
                 }
                 refreshTokens {
-                    withContext(NonCancellable) {
-                        val currentRefresh = tokenProvider.refreshToken() ?: return@withContext null
-                        val response =
+                    refreshMutex.withLock {
+                        withContext(NonCancellable) {
+                            val currentRefresh = tokenProvider.refreshToken() ?: return@withContext null
+                            val response =
                             client.post("/api/v1/auth/refresh") {
                                 markAsRefreshTokenRequest()
                                 contentType(ContentType.Application.Json)
@@ -65,7 +69,8 @@ fun HttpClientConfig<*>.qMarketConfig(
                         if (tokenProvider is MutableTokenProvider) {
                             tokenProvider.applyAuth(auth)
                         }
-                        BearerTokens(auth.accessToken, auth.refreshToken)
+                            BearerTokens(auth.accessToken, auth.refreshToken)
+                        }
                     }
                 }
                 sendWithoutRequest { request ->
