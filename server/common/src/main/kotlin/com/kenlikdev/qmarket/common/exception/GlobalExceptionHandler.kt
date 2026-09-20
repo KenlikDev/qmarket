@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.orm.ObjectOptimisticLockingFailureException
@@ -173,6 +174,23 @@ open class GlobalExceptionHandler {
                 path = request.requestURI,
             ),
         )
+
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun handleDataIntegrityViolation(
+        ex: DataIntegrityViolationException,
+        request: HttpServletRequest,
+    ): ResponseEntity<ErrorResponse> {
+        log.warn("Data integrity violation: {}", ex.mostSpecificCause.message)
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+            ErrorResponse(
+                status = HttpStatus.CONFLICT.value(),
+                error = HttpStatus.CONFLICT.reasonPhrase,
+                code = "DATA_CONFLICT",
+                message = "The request conflicts with existing data",
+                path = request.requestURI,
+            ),
+        )
+    }
 
     @ExceptionHandler(OptimisticLockException::class, ObjectOptimisticLockingFailureException::class)
     fun handleOptimisticLock(
