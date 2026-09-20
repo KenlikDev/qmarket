@@ -99,7 +99,7 @@ class StripeWebhookService(
 
         when (type) {
             "payment_intent.succeeded" -> {
-                        val result = onPaymentIntentSucceeded(root)
+                val result = onPaymentIntentSucceeded(root)
                 event.markProcessed(result.providerReference, result.orderId)
                 metrics()?.orderPaidFromProvider()
             }
