@@ -41,7 +41,7 @@ class QMarketAppModel(
     var screen by mutableStateOf<AppScreen>(
         if (restoredSession) AppScreen.Catalog else AppScreen.Login,
     )
-    var email by mutableStateOf(tokens.sessionEmail() ?: DEMO_EMAIL)
+    var email by mutableStateOf(tokens.sessionEmail().orEmpty())
     var password by mutableStateOf("")
     var firstName by mutableStateOf("")
     var lastName by mutableStateOf("")
@@ -440,10 +440,5 @@ class QMarketAppModel(
         runApi {
             detailOrder = api.getOrder(orderId)
         }
-    }
-
-    companion object {
-        /** Prefill for local demo login; not used in production builds. */
-        const val DEMO_EMAIL = "admin@qmarket.local"
     }
 }
