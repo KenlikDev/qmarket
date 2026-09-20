@@ -38,7 +38,10 @@ class HttpStripeApiClient(
                 mapOf(
                     "automatic_payment_methods[enabled]" to "true",
                 )
-        return postPaymentIntent(form)
+        return postPaymentIntent(
+            fields = form,
+            idempotencyKey = "qmarket-payment-intent-v1-$orderId",
+        )
     }
 
     private fun baseForm(
@@ -54,7 +57,10 @@ class HttpStripeApiClient(
             "metadata[user_id]" to userId.toString(),
         )
 
-    private fun postPaymentIntent(fields: Map<String, String>): StripePaymentIntentResult {
+    private fun postPaymentIntent(
+        fields: Map<String, String>,
+        idempotencyKey: String,
+    ): StripePaymentIntentResult {
         require(props.secretKey.isNotBlank()) {
             "qmarket.payment.stripe.secret-key is required when provider=stripe"
         }
@@ -70,7 +76,7 @@ class HttpStripeApiClient(
                 .timeout(Duration.ofSeconds(30))
                 .header("Authorization", "Bearer ${props.secretKey}")
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .header("Idempotency-Key", "qmarket-payment-intent-v1-$orderId")
+                .header("Idempotency-Key", idempotencyKey)
                 .POST(HttpRequest.BodyPublishers.ofString(form))
                 .build()
 
