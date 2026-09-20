@@ -1,9 +1,11 @@
 package com.kenlikdev.qmarket.common.config
 
+import com.kenlikdev.qmarket.common.exception.ErrorResponse
 import com.kenlikdev.qmarket.common.security.JwtAuthenticationFilter
 import com.kenlikdev.qmarket.common.security.JwtProperties
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import tools.jackson.databind.ObjectMapper
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
@@ -27,6 +29,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableConfigurationProperties(JwtProperties::class)
 open class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val objectMapper: ObjectMapper,
     @Value("\${qmarket.security.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*,http://10.0.2.2:*}")
     private val corsOriginPatterns: String,
     /**
@@ -75,7 +78,28 @@ open class SecurityConfig(
                     .permitAll()
                     .anyRequest()
                     .authenticated()
-            }.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            }
+            .exceptionHandling {
+                it.authenticationEntryPoint { request, response, _ ->
+                    writeSecurityError(
+                        response = response,
+                        status = HttpStatus.UNAUTHORIZED,
+                        code = "UNAUTHORIZED",
+                        message = "Authentication is required",
+                        path = request.requestURI,
+                    )
+                }
+                it.accessDeniedHandler { request, response, _ ->
+                    writeSecurityError(
+                        response = response,
+                        status = HttpStatus.FORBIDDEN,
+                        code = "FORBIDDEN",
+                        message = "Access denied",
+                        path = request.requestURI,
+                    )
+                }
+            }
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }
@@ -85,6 +109,28 @@ open class SecurityConfig(
 
     @Bean
     fun authenticationManager(config: AuthenticationConfiguration): AuthenticationManager = config.authenticationManager
+
+    private fun writeSecurityError(
+        response: jakarta.servlet.http.HttpServletResponse,
+        status: HttpStatus,
+        code: String,
+        message: String,
+        path: String,
+    ) {
+        response.status = status.value()
+        response.contentType = "application/json"
+        response.characterEncoding = Charsets.UTF_8.name()
+        objectMapper.writeValue(
+            response.writer,
+            ErrorResponse(
+                status = status.value(),
+                error = status.reasonPhrase,
+                code = code,
+                message = message,
+                path = path,
+            ),
+        )
+    }
 
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
