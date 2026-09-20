@@ -221,7 +221,7 @@ open class GlobalExceptionHandler {
                 code = code,
                 message = message,
                 path = path,
-                details = details?.takeIf(List<FieldErrorDetail>::isNotEmpty),
+                details = details?.takeIf { it.isNotEmpty() },
             ),
         )
 }
