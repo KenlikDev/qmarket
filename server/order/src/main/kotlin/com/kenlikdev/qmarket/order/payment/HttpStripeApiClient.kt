@@ -3,6 +3,7 @@ package com.kenlikdev.qmarket.order.payment
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import tools.jackson.databind.ObjectMapper
+import java.io.IOException
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -69,10 +70,29 @@ class HttpStripeApiClient(
                 .timeout(Duration.ofSeconds(30))
                 .header("Authorization", "Bearer ${props.secretKey}")
                 .header("Content-Type", "application/x-www-form-urlencoded")
+                .header("Idempotency-Key", "qmarket-payment-intent-v1-$orderId")
                 .POST(HttpRequest.BodyPublishers.ofString(form))
                 .build()
 
-        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        val response =
+            try {
+                httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+            } catch (ex: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw StripeApiException(
+                    message = "Stripe request was interrupted",
+                    statusCode = 503,
+                    responseBody = null,
+                    cause = ex,
+                )
+            } catch (ex: IOException) {
+                throw StripeApiException(
+                    message = "Stripe request failed",
+                    statusCode = 503,
+                    responseBody = null,
+                    cause = ex,
+                )
+            }
         val body = response.body()
         val root =
             try {
@@ -120,4 +140,5 @@ class StripeApiException(
     message: String,
     val statusCode: Int,
     val responseBody: String?,
-) : RuntimeException(message)
+    cause: Throwable? = null,
+) : RuntimeException(message, cause)
