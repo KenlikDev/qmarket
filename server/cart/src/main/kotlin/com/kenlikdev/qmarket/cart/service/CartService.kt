@@ -62,14 +62,14 @@ class CartService(
         userId: UUID,
         productId: UUID,
     ): CartResponse {
-        val cart = requireCart(userId)
+        val cart = requireCartForUpdate(userId)
         cart.removeItem(productId)
         return toResponse(cartRepository.save(cart))
     }
 
     @Transactional
     fun clear(userId: UUID): CartResponse {
-        val cart = requireCart(userId)
+        val cart = requireCartForUpdate(userId)
         cart.clearItems()
         return toResponse(cartRepository.save(cart))
     }
