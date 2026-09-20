@@ -82,7 +82,7 @@ class AuthService(
 
         if (!user.enabled) {
             loginRateLimiter.recordFailure(email, clientKey)
-            throw UnauthorizedException("Account is disabled")
+            throw UnauthorizedException("Invalid email or password")
         }
 
         if (!passwordEncoder.matches(request.password, user.passwordHash)) {
