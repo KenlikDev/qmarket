@@ -207,7 +207,7 @@ class OrderService(
             PageRequest.of(
                 page.coerceAtLeast(0),
                 size.coerceIn(1, 100),
-                Sort.by(Sort.Direction.DESC, "createdAt"),
+                Sort.by(Sort.Direction.DESC, "createdAt", "id"),
             )
         val result = orderRepository.findAll(pageable)
         return PageResponse(
