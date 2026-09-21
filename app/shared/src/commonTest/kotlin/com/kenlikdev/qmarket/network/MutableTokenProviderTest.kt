@@ -48,6 +48,13 @@ class MutableTokenProviderTest {
     }
 
     @Test
+    fun isAdminDoesNotTrustArbitraryAdminSuffix() {
+        val provider = MutableTokenProvider(InMemorySessionStore())
+        provider.applyRoles(listOf("NOT_ADMIN"))
+        assertFalse(provider.isAdmin())
+    }
+
+    @Test
     fun isAdminFromRoles() {
         val provider = MutableTokenProvider(InMemorySessionStore())
         assertFalse(provider.isAdmin())
