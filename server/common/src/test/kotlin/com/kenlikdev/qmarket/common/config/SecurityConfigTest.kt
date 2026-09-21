@@ -8,13 +8,15 @@ import org.junit.jupiter.api.Test
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import tools.jackson.databind.ObjectMapper
 
 class SecurityConfigTest {
     private val jwtFilter = mockk<JwtAuthenticationFilter>(relaxed = true)
+    private val objectMapper = mockk<ObjectMapper>(relaxed = true)
 
     @Test
     fun `passwordEncoder is BCrypt`() {
-        val config = SecurityConfig(jwtFilter, "http://localhost:*", true)
+        val config = SecurityConfig(jwtFilter, objectMapper, "http://localhost:*", true)
         val encoder = config.passwordEncoder()
         assertTrue(encoder is BCryptPasswordEncoder)
         val hash = encoder.encode("secret")
@@ -26,6 +28,7 @@ class SecurityConfigTest {
         val config =
             SecurityConfig(
                 jwtFilter,
+                objectMapper,
                 "http://localhost:*, http://127.0.0.1:*, https://app.example.com",
                 apiDocsPublic = true,
             )
@@ -46,7 +49,7 @@ class SecurityConfigTest {
 
     @Test
     fun `corsConfigurationSource ignores blank patterns`() {
-        val config = SecurityConfig(jwtFilter, "http://localhost:*,  ,", true)
+        val config = SecurityConfig(jwtFilter, objectMapper, "http://localhost:*,  ,", true)
         val source = config.corsConfigurationSource()
         val cors =
             requireNotNull(

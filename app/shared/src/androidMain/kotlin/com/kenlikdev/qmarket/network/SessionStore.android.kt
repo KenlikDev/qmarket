@@ -49,7 +49,9 @@ class AndroidEncryptedSessionStore(
     }
 
     override fun clear() {
-        prefs.edit().clear().apply()
+        check(prefs.edit().clear().commit()) {
+            "Unable to clear Android session storage"
+        }
     }
 
     private companion object {
@@ -80,12 +82,18 @@ class AndroidEncryptedSessionStore(
             val access = legacy.getString(KEY_ACCESS, null)
             val refresh = legacy.getString(KEY_REFRESH, null)
             if (access.isNullOrBlank() && refresh.isNullOrBlank()) return
-            encrypted.edit()
-                .putString(KEY_ACCESS, access)
-                .putString(KEY_REFRESH, refresh)
-                .putString(KEY_EMAIL, legacy.getString(KEY_EMAIL, null))
-                .apply()
-            legacy.edit().clear().apply()
+            check(
+                encrypted.edit()
+                    .putString(KEY_ACCESS, access)
+                    .putString(KEY_REFRESH, refresh)
+                    .putString(KEY_EMAIL, legacy.getString(KEY_EMAIL, null))
+                    .commit(),
+            ) {
+                "Unable to migrate Android session storage"
+            }
+            check(legacy.edit().clear().commit()) {
+                "Unable to clear legacy Android session storage"
+            }
         }
     }
 }

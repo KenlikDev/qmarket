@@ -50,6 +50,9 @@ class JpaProductCatalog(
                 productRepository.findById(id).orElseThrow {
                     NotFoundException("Product not found: $id")
                 }
+            if (!product.active) {
+                throw BadRequestException("Product is not available")
+            }
             throw BadRequestException(
                 "Insufficient stock for product ${product.slug}: " +
                     "available ${product.stockQuantity}, requested $quantity",

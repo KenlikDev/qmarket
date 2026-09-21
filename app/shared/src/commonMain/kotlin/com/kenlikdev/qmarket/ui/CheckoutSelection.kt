@@ -7,5 +7,5 @@ object CheckoutSelection {
     fun canCheckout(
         selectedAddressId: String?,
         shippingAddress: String,
-    ): Boolean = selectedAddressId != null || shippingAddress.isNotBlank()
+    ): Boolean = selectedAddressId?.isNotBlank() == true || shippingAddress.isNotBlank()
 }

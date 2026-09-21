@@ -6,7 +6,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 
 | Version | Focus | Status |
 |--------|--------|--------|
-| **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **Ready for release confirmation** |
+| **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **Implemented; release confirmation pending** |
 | **v0.2 Catalog & Auth polish** | OAuth optional, admin catalog UX | **WIP** (create product UI + rate limit done) |
 | **v0.3** | (merged into v0.1 client) reserved / skip | done via shared UI |
 | **v1.0 MVP** | Payments (1 provider), notifications, admin UI, search | pending |
@@ -26,7 +26,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Profile + shipping addresses
 - [x] Unit + controller slice + integration tests (incl. stock concurrency)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize
-- [x] Flyway SoT V1–V8, app `ddl-auto=validate`
+- [x] Flyway SoT V1–V12, app `ddl-auto=validate`
 - [x] `ProductCatalog` port + ArchUnit boundaries
 - [x] Atomic stock `UPDATE … WHERE stock >= qty`
 
@@ -45,9 +45,9 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Order detail screen (line items, pay/cancel/refresh)
 - [x] JWT Bearer + refresh on 401
 - [x] UI split: `ui/` screens + `App.kt` + `QMarketAppModel` (state/loaders outside composition root)
-- [x] Persistent session store (Android prefs / JVM file / iOS defaults / JS localStorage)
+- [x] Persistent session store (Android EncryptedSharedPreferences / JVM file / iOS Keychain / JS localStorage; Wasm in-memory)
 - [x] Compose UI tests (`runComposeUiTest` on Login/Register/Catalog/Cart/Profile/Orders/Addresses; JVM)
-- [x] Login rate limit (sliding window per email; 429 TOO_MANY_REQUESTS)
+- [x] Login rate limit (sliding window per email + client key; 429 TOO_MANY_REQUESTS)
 
 ### Hardening (from architecture review)
 
@@ -93,6 +93,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Prod: Swagger/OpenAPI off (`api-docs-public=false`, springdoc disabled)
 - [x] Prod: actuator exposure limited to health/info
 - [x] JwtProperties rejects known placeholder/dev secrets
+- [x] Database foreign-key integrity restored for user aggregates and product references
 
 ## v1.0 MVP (from plan)
 

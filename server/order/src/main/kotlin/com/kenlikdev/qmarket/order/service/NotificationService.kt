@@ -41,7 +41,7 @@ class NotificationService(
         size: Int,
     ): PageResponse<NotificationResponse> {
         val pageable = PageRequest.of(page.coerceAtLeast(0), size.coerceIn(1, 100))
-        val result = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+        val result = notificationRepository.findByUserIdOrderByCreatedAtDescIdDesc(userId, pageable)
         return PageResponse(
             content = result.content.map { it.toResponse() },
             page = result.number,

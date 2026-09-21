@@ -66,6 +66,7 @@ class AuthServiceTest {
         every { refreshTokenRepository.findByJti(any()) } returns null
         every { refreshTokenRepository.revokeFamily(any(), any()) } returns 0
         every { refreshTokenRepository.revokeIfActive(any(), any()) } returns 1
+        every { userRepository.findByIdForUpdate(any()) } returns null
 
         every { passwordEncoder.encode(any()) } returns "hashed"
         every { passwordEncoder.matches(any(), any()) } returns true
@@ -199,8 +200,8 @@ class AuthServiceTest {
         every { jwtService.isRefreshToken(claims) } returns true
         every { jwtService.getUserId(claims) } returns userId
         every { jwtService.getJti(claims) } returns jti
+        every { userRepository.findByIdForUpdate(userId) } returns user
         every { refreshTokenRepository.findByJti(jti) } returns stored
-        every { userRepository.findById(userId) } returns Optional.of(user)
 
         val result = authService.refresh(RefreshTokenRequest(refreshToken = "old-refresh"))
 
@@ -352,6 +353,20 @@ class AuthServiceTest {
         every { googleIdTokenVerifierProvider.getIfAvailable() } returns null
         assertThrows<BadRequestException> {
             authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
+        }
+    }
+
+    @Test
+    fun `refresh propagates repository infrastructure failures`() {
+        val claims = mockk<Claims>()
+        every { jwtService.parseClaims("refresh") } returns claims
+        every { jwtService.isRefreshToken(claims) } returns true
+        every { jwtService.getUserId(claims) } returns UUID.randomUUID()
+        every { jwtService.getJti(claims) } returns UUID.randomUUID()
+        every { refreshTokenRepository.findByJti(any()) } throws IllegalStateException("database unavailable")
+
+        assertThrows<IllegalStateException> {
+            authService.refresh(RefreshTokenRequest(refreshToken = "refresh"))
         }
     }
 }
