@@ -11,7 +11,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
-import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import java.util.UUID
 
@@ -42,13 +41,13 @@ class StripeWebhookService(
 
         val root = parsePayload(payload)
         val eventId =
-            root.path("id").asString(null)?.trim()
+            root.id?.trim()?.takeIf { it.isNotEmpty() }
                 ?: throw BadRequestException("Stripe webhook is missing event id")
         if (eventId.length !in 1..64) {
             throw BadRequestException("Stripe webhook event id has an invalid length")
         }
 
-        val type = root.path("type").asString(null)?.trim().orEmpty()
+        val type = root.type?.trim().orEmpty()
         if (type.isEmpty() || type.length > 128) {
             throw BadRequestException("Stripe webhook event type has an invalid length")
         }
@@ -159,22 +158,24 @@ class StripeWebhookService(
         }
     }
 
-    private fun parsePayload(payload: String): JsonNode =
+    private fun parsePayload(payload: String): StripeEventEnvelope =
         try {
-            objectMapper.readTree(payload)
+            objectMapper.readValue(payload, StripeEventEnvelope::class.java)
         } catch (ex: Exception) {
             log.warn("Unparseable Stripe webhook payload: {}", ex.message)
             throw BadRequestException("Invalid Stripe webhook payload")
         }
 
     private fun onPaymentIntentSucceeded(root: JsonNode): ProcessResult {
-        val paymentIntent = root.path("data").path("object")
+        val paymentIntent =
+            root.data?.getObject()
+                ?: throw BadRequestException("Stripe PaymentIntent object is missing")
         val intentId =
-            paymentIntent.path("id").asString(null)?.trim()
+            paymentIntent.id?.trim()?.takeIf { it.isNotEmpty() }
                 ?: throw BadRequestException("Stripe PaymentIntent id is missing")
 
         val orderIdString =
-            paymentIntent.path("metadata").path("order_id").asString(null)?.trim()
+            paymentIntent.orderIdMetadata()?.trim()?.takeIf { it.isNotEmpty() }
                 ?: throw BadRequestException("Stripe PaymentIntent metadata.order_id is missing")
 
         val orderId =
@@ -184,17 +185,15 @@ class StripeWebhookService(
                 throw BadRequestException("Stripe PaymentIntent metadata.order_id is invalid")
             }
 
-        val amountNode = paymentIntent.get("amount")
-        if (amountNode == null || !amountNode.isIntegralNumber) {
-            throw BadRequestException("Stripe PaymentIntent amount is missing")
-        }
-        val amountMinor = amountNode.asLong()
+        val amountMinor =
+            paymentIntent.amount
+                ?: throw BadRequestException("Stripe PaymentIntent amount is missing")
         if (amountMinor <= 0) {
             throw BadRequestException("Stripe PaymentIntent amount must be positive")
         }
 
         val currency =
-            paymentIntent.path("currency").asString(null)?.trim()?.lowercase()
+            paymentIntent.currency?.trim()?.lowercase()
                 ?: throw BadRequestException("Stripe PaymentIntent currency is missing")
         val expectedCurrency = props.defaultCurrency.trim().lowercase()
         if (expectedCurrency.isNotEmpty() && currency != expectedCurrency) {
