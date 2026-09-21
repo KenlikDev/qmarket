@@ -49,12 +49,13 @@ class MutableTokenProvider(
     }
 
     fun clear() {
-        runCatching {
+        try {
             store.clear()
+        } finally {
+            token = null
+            refresh = null
+            email = null
+            roles = emptyList()
         }
-        token = null
-        refresh = null
-        email = null
-        roles = emptyList()
     }
 }
