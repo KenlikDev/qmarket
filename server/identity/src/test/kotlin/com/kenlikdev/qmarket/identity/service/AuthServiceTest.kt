@@ -354,6 +354,7 @@ class AuthServiceTest {
             authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
         }
     }
+
     @Test
     fun `refresh propagates repository infrastructure failures`() {
         val claims = mockk<Claims>()
@@ -367,6 +368,4 @@ class AuthServiceTest {
             authService.refresh(RefreshTokenRequest(refreshToken = "refresh"))
         }
     }
-
-
 }
