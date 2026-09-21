@@ -97,8 +97,12 @@ class CatalogService(
         request.description?.let { category.description = it.trim() }
         request.sortOrder?.let { category.sortOrder = it }
         request.active?.let { category.active = it }
-        request.parentId?.let { parentId ->
-            category.parent = resolveParentCategory(category.id, parentId)
+        if (request.clearParent) {
+            category.parent = null
+        } else {
+            request.parentId?.let { parentId ->
+                category.parent = resolveParentCategory(category.id, parentId)
+            }
         }
 
         return categoryRepository.save(category).toResponse()
