@@ -74,7 +74,8 @@ class StockConcurrencyTest {
         product.stockQuantity = 1
         productRepository.saveAndFlush(product)
 
-        val threads = 12
+        try {
+            val threads = 12
         val success = AtomicInteger(0)
         val insufficient = AtomicInteger(0)
         val otherErrors = AtomicInteger(0)
@@ -119,10 +120,11 @@ class StockConcurrencyTest {
 
         val remaining = productRepository.findById(id).orElseThrow().stockQuantity
         assertEquals(0, remaining, "stock must be zero after exclusive claim")
-
-        productRepository.findById(id).orElseThrow().apply {
-            stockQuantity = originalStock
-            productRepository.saveAndFlush(this)
+        } finally {
+            productRepository.findById(id).orElseThrow().apply {
+                stockQuantity = originalStock
+                productRepository.saveAndFlush(this)
+            }
         }
     }
 }
