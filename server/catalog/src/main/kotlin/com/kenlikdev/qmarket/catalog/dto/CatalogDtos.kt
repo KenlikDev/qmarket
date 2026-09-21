@@ -34,6 +34,7 @@ data class UpdateCategoryRequest(
     @field:Size(max = 255)
     val description: String? = null,
     val parentId: UUID? = null,
+    val clearParent: Boolean = false,
     val sortOrder: Int? = null,
     val active: Boolean? = null,
 )
