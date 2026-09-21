@@ -88,7 +88,10 @@ class IosKeychainSessionStore : SessionStore {
             val result = alloc<CFTypeRefVar>()
             val status = SecItemCopyMatching(query, result.ptr)
 
-            if (status == errSecItemNotFound || status != errSecSuccess) return@withQuery null
+            if (status == errSecItemNotFound) return@withQuery null
+            if (status != errSecSuccess) {
+                throw keychainError("Keychain read failed", status)
+            }
 
             val cfType = result.value ?: return@withQuery null
             val cfData: CFDataRef = cfType.reinterpret()
