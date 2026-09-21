@@ -192,8 +192,9 @@ class OrderService(
     @Transactional(readOnly = true)
     fun getOrderAdmin(orderId: UUID): OrderResponse {
         val order =
-            orderRepository.findByIdForUpdate(orderId)
-                ?: throw NotFoundException("Order not found")
+            orderRepository
+                .findById(orderId)
+                .orElseThrow { NotFoundException("Order not found") }
         return OrderMapper.toResponse(order)
     }
 
@@ -224,9 +225,8 @@ class OrderService(
         request: UpdateOrderStatusRequest,
     ): OrderResponse {
         val order =
-            orderRepository
-                .findById(orderId)
-                .orElseThrow { NotFoundException("Order not found") }
+            orderRepository.findByIdForUpdate(orderId)
+                ?: throw NotFoundException("Order not found")
 
         // Snapshot items while session is open (LAZY collection)
         val lines = order.items.map { it.productId to it.quantity }
