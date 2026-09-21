@@ -95,23 +95,31 @@ class QMarketAppModel(
 
     fun runApi(block: suspend () -> Unit): Job =
         scope.launch {
-            activeRequestCount += 1
-            loading = true
-            error = null
-            statusMessage = null
-            try {
-                block()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: ApiException) {
-                error = e.message
-            } catch (e: Exception) {
-                error = e.message ?: e.toString()
-            } finally {
-                activeRequestCount = (activeRequestCount - 1).coerceAtLeast(0)
-                loading = activeRequestCount > 0
+            withRequestLoading {
+                error = null
+                statusMessage = null
+                try {
+                    block()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: ApiException) {
+                    error = e.message
+                } catch (e: Exception) {
+                    error = e.message ?: e.toString()
+                }
             }
         }
+
+    private suspend fun <T> withRequestLoading(block: suspend () -> T): T {
+        activeRequestCount += 1
+        loading = true
+        try {
+            return block()
+        } finally {
+            activeRequestCount = (activeRequestCount - 1).coerceAtLeast(0)
+            loading = activeRequestCount > 0
+        }
+    }
 
     private fun clearSessionState(): Exception? {
         var cleanupError: Exception? = null
@@ -161,9 +169,9 @@ class QMarketAppModel(
 
     suspend fun restoreSessionIfNeeded(restoredSession: Boolean) {
         if (!restoredSession) return
-        loading = true
-        error = null
-        try {
+        withRequestLoading {
+            error = null
+            try {
             val currentProfile = api.getProfile()
             tokens.applyRoles(currentProfile.roles)
             isAdmin = tokens.isAdmin()
@@ -200,8 +208,7 @@ class QMarketAppModel(
             isAdmin = tokens.isAdmin()
             screen = AppScreen.Catalog
             error = e.message ?: "Unable to restore session data"
-        } finally {
-            loading = false
+            }
         }
     }
 
