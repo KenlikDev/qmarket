@@ -97,5 +97,5 @@ qmarket:
     oauth:
       google:
         enabled: ${QMARKET_GOOGLE_OAUTH_ENABLED:false}
-        client-ids: []
+        client-ids: ${GOOGLE_CLIENT_IDS:}
         require-email-verified: true
