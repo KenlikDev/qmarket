@@ -33,7 +33,9 @@ ON CONFLICT (event_id) DO NOTHING
 
 Business work runs **after** claim; status is updated to `PROCESSED` only on success, or `FAILED` with error message on exception (Stripe can retry).
 
-## Follow-ups (P1 from review)
+## Current implementation
 
-- Typed JSON (Jackson DTO) instead of regex extraction
-- Amount/currency reconciliation against order before `markPaidFromProvider`
+- Webhook payloads are parsed with Jackson `JsonNode` validation.
+- PaymentIntent amount is reconciled against the order total before marking it paid.
+- Currency is validated against the configured Stripe currency.
+- Event status and failure state are persisted in PostgreSQL so redelivery can retry failed processing.
