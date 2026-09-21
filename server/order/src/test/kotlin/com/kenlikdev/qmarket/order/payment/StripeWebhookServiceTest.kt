@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
-import tools.jackson.databind.ObjectMapper
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.time.Instant
 import java.util.Optional
 import java.util.UUID
@@ -31,7 +31,7 @@ class StripeWebhookServiceTest {
             defaultCurrency = "usd",
             webhookToleranceSeconds = 300,
         )
-    private val objectMapper = ObjectMapper()
+    private val objectMapper = jacksonObjectMapper()
     private lateinit var orderService: OrderService
     private lateinit var eventRepository: StripeWebhookEventRepository
     private lateinit var paymentMetricsProvider: ObjectProvider<PaymentMetrics>
