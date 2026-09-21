@@ -29,8 +29,8 @@ class CartService(
         userId: UUID,
         request: AddCartItemRequest,
     ): CartResponse {
-        val product = productCatalog.requireActive(request.productId)
         val cart = findOrCreateForUpdate(userId)
+        val product = productCatalog.requireActive(request.productId)
         cart.addItem(
             productId = product.id,
             quantity = request.quantity,
@@ -46,8 +46,8 @@ class CartService(
         productId: UUID,
         request: UpdateCartItemRequest,
     ): CartResponse {
-        val product = productCatalog.requireActive(productId)
         val cart = requireCartForUpdate(userId)
+        val product = productCatalog.requireActive(productId)
         cart.changeQuantity(
             productId = productId,
             quantity = request.quantity,
