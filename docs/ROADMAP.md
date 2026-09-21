@@ -6,7 +6,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 
 | Version | Focus | Status |
 |--------|--------|--------|
-| **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **Ready for release confirmation** |
+| **v0.1 Foundation** | Backend + shared client shopper flow (auth→checkout→orders) | **Implemented; release confirmation pending** |
 | **v0.2 Catalog & Auth polish** | OAuth optional, admin catalog UX | **WIP** (create product UI + rate limit done) |
 | **v0.3** | (merged into v0.1 client) reserved / skip | done via shared UI |
 | **v1.0 MVP** | Payments (1 provider), notifications, admin UI, search | pending |
