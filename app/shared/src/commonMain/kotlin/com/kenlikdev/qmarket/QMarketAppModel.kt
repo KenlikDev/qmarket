@@ -156,16 +156,30 @@ class QMarketAppModel(
             screen = AppScreen.Catalog
         } catch (e: CancellationException) {
             throw e
+        } catch (e: ApiException) {
+            if (e.status == 401) {
+                tokens.clear()
+                api.clearBearerTokenCache()
+                clearUserScopedUiState()
+                loggedIn = false
+                isAdmin = false
+                userLabel = null
+                products = emptyList()
+                screen = AppScreen.Login
+                error = "Session expired — please sign in again"
+            } else {
+                loggedIn = true
+                userLabel = tokens.sessionEmail()
+                isAdmin = tokens.isAdmin()
+                screen = AppScreen.Catalog
+                error = e.message
+            }
         } catch (e: Exception) {
-            tokens.clear()
-            api.clearBearerTokenCache()
-            clearUserScopedUiState()
-            loggedIn = false
-            isAdmin = false
-            userLabel = null
-            products = emptyList()
-            screen = AppScreen.Login
-            error = e.message ?: "Session expired — please sign in again"
+            loggedIn = true
+            userLabel = tokens.sessionEmail()
+            isAdmin = tokens.isAdmin()
+            screen = AppScreen.Catalog
+            error = e.message ?: "Unable to restore session data"
         } finally {
             loading = false
         }
