@@ -4,6 +4,8 @@ import com.kenlikdev.qmarket.catalog.domain.Category
 import com.kenlikdev.qmarket.catalog.domain.Product
 import com.kenlikdev.qmarket.catalog.dto.CreateCategoryRequest
 import com.kenlikdev.qmarket.catalog.dto.CreateProductRequest
+import UpdateCategoryRequest
+import UpdateProductRequest
 import com.kenlikdev.qmarket.catalog.repository.CategoryRepository
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
@@ -141,7 +143,6 @@ class CatalogServiceTest {
         assertEquals("Test", result.content[0].name)
         assertEquals(1, result.totalElements)
     }
-
 
     @Test
     fun `updateCategory rejects self parent`() {
