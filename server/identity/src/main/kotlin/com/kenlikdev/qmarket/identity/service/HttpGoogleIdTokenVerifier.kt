@@ -3,6 +3,7 @@ package com.kenlikdev.qmarket.identity.service
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.common.exception.UpstreamServiceException
 import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
+import java.io.IOException
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import tools.jackson.databind.ObjectMapper
@@ -49,7 +50,7 @@ class HttpGoogleIdTokenVerifier(
             } catch (ex: InterruptedException) {
                 Thread.currentThread().interrupt()
                 throw UpstreamServiceException("Google authentication service is unavailable", ex)
-            } catch (ex: java.io.IOException) {
+            } catch (ex: IOException) {
                 throw UpstreamServiceException("Google authentication service is unavailable", ex)
             }
         if (response.statusCode() !in 200..299) {
