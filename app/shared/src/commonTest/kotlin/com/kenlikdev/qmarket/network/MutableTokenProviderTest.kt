@@ -4,10 +4,10 @@ import com.kenlikdev.qmarket.api.AuthResponseDto
 import com.kenlikdev.qmarket.api.UserDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.test.assertFailsWith
 
 class MutableTokenProviderTest {
     @Test
