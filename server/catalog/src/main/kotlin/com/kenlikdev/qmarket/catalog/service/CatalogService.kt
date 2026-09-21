@@ -144,7 +144,7 @@ class CatalogService(
             PageRequest.of(
                 page.coerceAtLeast(0),
                 size.coerceIn(1, 100),
-                Sort.by(direction, sortProperty),
+                Sort.by(direction, sortProperty).and(Sort.by(Sort.Direction.DESC, "id")),
             )
         val result =
             productRepository.search(
