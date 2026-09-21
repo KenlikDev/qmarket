@@ -110,12 +110,12 @@ class QMarketAppModel(
             }
         }
 
-    private fun clearSessionState(): Throwable? {
-        var cleanupError: Throwable? = null
+    private fun clearSessionState(): Exception? {
+        var cleanupError: Exception? = null
         try {
             tokens.clear()
-        } catch (throwable: Throwable) {
-            cleanupError = throwable
+        } catch (exception: Exception) {
+            cleanupError = exception
         } finally {
             api.clearBearerTokenCache()
             clearUserScopedUiState()
@@ -329,7 +329,11 @@ class QMarketAppModel(
     }
 
     fun browseAsGuest() {
-        clearSessionState()
+        val cleanupError = clearSessionState()
+        if (cleanupError != null) {
+            error = "Unable to clear the local session"
+            return
+        }
         loadCatalog()
     }
 
