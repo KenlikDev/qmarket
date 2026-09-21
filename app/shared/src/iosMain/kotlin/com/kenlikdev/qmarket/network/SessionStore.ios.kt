@@ -24,6 +24,7 @@ import platform.CoreFoundation.CFRelease
 import platform.CoreFoundation.CFStringCreateWithCString
 import platform.CoreFoundation.CFTypeRef
 import platform.CoreFoundation.CFTypeRefVar
+import platform.CoreFoundation.CFStringRef
 import platform.CoreFoundation.kCFAllocatorDefault
 import platform.CoreFoundation.kCFBooleanTrue
 import platform.CoreFoundation.kCFStringEncodingUTF8
@@ -34,6 +35,7 @@ import platform.Security.SecItemUpdate
 import platform.Security.errSecDuplicateItem
 import platform.Security.errSecItemNotFound
 import platform.Security.errSecSuccess
+import platform.Security.OSStatus
 import platform.Security.kSecAttrAccount
 import platform.Security.kSecAttrAccessible
 import platform.Security.kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
@@ -82,31 +84,30 @@ class IosKeychainSessionStore : SessionStore {
     }
 
     private fun read(account: String): String? = memScoped {
-        val query = createQuery(account, returnData = true) ?: return null
+        withQuery(account, returnData = true) { query ->
+            val result = alloc<CFTypeRefVar>()
+            val status = SecItemCopyMatching(query, result.ptr)
 
-        val result = alloc<CFTypeRefVar>()
-        val status = SecItemCopyMatching(query, result.ptr)
+            if (status == errSecItemNotFound) return@withQuery null
+            if (status != errSecSuccess) {
+                throw keychainError("Keychain read failed", status)
+            }
 
-        if (status == errSecItemNotFound) return null
-        if (status != errSecSuccess) return null
-
-        val cfType = result.value ?: return null
-        val cfData: CFDataRef = cfType.reinterpret()
-        val length = CFDataGetLength(cfData).toInt()
-        if (length <= 0) {
-            CFRelease(cfData)
-            return null
+            val cfType = result.value ?: return@withQuery null
+            val cfData: CFDataRef = cfType.reinterpret()
+            try {
+                val length = CFDataGetLength(cfData).toInt()
+                if (length <= 0) return@withQuery null
+                val src = CFDataGetBytePtr(cfData) ?: return@withQuery null
+                val bytes = ByteArray(length)
+                bytes.usePinned { pinned ->
+                    memcpy(pinned.addressOf(0), src, length.convert())
+                }
+                return@withQuery bytes.decodeToString().ifBlank { null }
+            } finally {
+                CFRelease(cfData)
+            }
         }
-        val src = CFDataGetBytePtr(cfData) ?: run {
-            CFRelease(cfData)
-            return null
-        }
-        val bytes = ByteArray(length)
-        bytes.usePinned { pinned ->
-            memcpy(pinned.addressOf(0), src, length.convert())
-        }
-        CFRelease(cfData)
-        return bytes.decodeToString().ifBlank { null }
     }
 
     private fun write(account: String, value: String) {
@@ -121,65 +122,132 @@ class IosKeychainSessionStore : SessionStore {
                     bytesPtr,
                     utf8.size.convert(),
                 )
-            } ?: return
+            } ?: throw IllegalStateException("Unable to create Keychain value data")
 
-        val query = createQuery(account, returnData = false)
-        if (query == null) {
-            CFRelease(cfData)
-            return
-        }
+        val attributes =
+            CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
+                ?: run {
+                    CFRelease(cfData)
+                    throw IllegalStateException("Unable to create Keychain update attributes")
+                }
 
-        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
-        if (attributes == null) {
-            CFRelease(cfData)
-            return
-        }
-        CFDictionaryAddValue(attributes, kSecValueData, cfData)
+        var status: OSStatus
+        try {
+            CFDictionaryAddValue(attributes, kSecValueData, cfData)
+            status =
+                withQuery(account, returnData = false) { query ->
+                    SecItemUpdate(query, attributes)
+                }
 
-        var status = SecItemUpdate(query, attributes)
-        if (status == errSecItemNotFound) {
-            val addQuery = CFDictionaryCreateMutable(kCFAllocatorDefault, 5, null, null)
-            if (addQuery != null) {
-                CFDictionaryAddValue(addQuery, kSecClass, kSecClassGenericPassword)
-                CFDictionaryAddValue(addQuery, kSecAttrService, SERVICE.cfString())
-                CFDictionaryAddValue(addQuery, kSecAttrAccount, account.cfString())
-                CFDictionaryAddValue(addQuery, kSecValueData, cfData)
-                CFDictionaryAddValue(
-                    addQuery,
-                    kSecAttrAccessible,
-                    kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-                )
-                status = SecItemAdd(addQuery, null)
+            if (status == errSecItemNotFound) {
+                status = add(account, cfData)
+            } else if (status != errSecSuccess) {
+                throw keychainError("Keychain update failed", status)
             }
+        } finally {
+            CFRelease(attributes)
+            CFRelease(cfData)
         }
 
-        CFRelease(cfData)
+        if (status != errSecSuccess) {
+            throw keychainError("Keychain write failed", status)
+        }
+    }
 
-        if (status != errSecSuccess && status != errSecDuplicateItem) {
-            // best-effort
+    private fun add(
+        account: String,
+        value: CFDataRef,
+    ): OSStatus {
+        val addQuery = CFDictionaryCreateMutable(kCFAllocatorDefault, 5, null, null)
+            ?: throw IllegalStateException("Unable to create Keychain add query")
+        return try {
+            addQuery.addStringValue(kSecAttrService, SERVICE)
+            addQuery.addStringValue(kSecAttrAccount, account)
+            CFDictionaryAddValue(addQuery, kSecClass, kSecClassGenericPassword)
+            CFDictionaryAddValue(addQuery, kSecValueData, value)
+            CFDictionaryAddValue(
+                addQuery,
+                kSecAttrAccessible,
+                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            )
+            var status = SecItemAdd(addQuery, null)
+            if (status == errSecDuplicateItem) {
+                status =
+                    withQuery(account, returnData = false) { query ->
+                        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
+                            ?: throw IllegalStateException("Unable to create Keychain update attributes")
+                        try {
+                            CFDictionaryAddValue(attributes, kSecValueData, value)
+                            SecItemUpdate(query, attributes)
+                        } finally {
+                            CFRelease(attributes)
+                        }
+                    }
+            }
+        } finally {
+            CFRelease(addQuery)
         }
     }
 
     private fun delete(account: String) {
-        val query = createQuery(account, returnData = false) ?: return
-        SecItemDelete(query)
+        val status =
+            withQuery(account, returnData = false) { query ->
+                SecItemDelete(query)
+            }
+        if (status != errSecSuccess && status != errSecItemNotFound) {
+            throw keychainError("Keychain delete failed", status)
+        }
     }
+
+    private fun keychainError(
+        message: String,
+        status: OSStatus,
+    ): IllegalStateException = IllegalStateException("$message (OSStatus $status)")
 
     private fun createQuery(account: String, returnData: Boolean): CFDictionaryRef? {
         val capacity = if (returnData) 5L else 3L
         val dict = CFDictionaryCreateMutable(kCFAllocatorDefault, capacity, null, null) ?: return null
-        CFDictionaryAddValue(dict, kSecClass, kSecClassGenericPassword)
-        CFDictionaryAddValue(dict, kSecAttrService, SERVICE.cfString())
-        CFDictionaryAddValue(dict, kSecAttrAccount, account.cfString())
-        if (returnData) {
-            CFDictionaryAddValue(dict, kSecReturnData, kCFBooleanTrue)
-            CFDictionaryAddValue(dict, kSecMatchLimit, kSecMatchLimitOne)
+        try {
+            dict.addStringValue(kSecAttrService, SERVICE)
+            dict.addStringValue(kSecAttrAccount, account)
+            CFDictionaryAddValue(dict, kSecClass, kSecClassGenericPassword)
+            if (returnData) {
+                CFDictionaryAddValue(dict, kSecReturnData, kCFBooleanTrue)
+                CFDictionaryAddValue(dict, kSecMatchLimit, kSecMatchLimitOne)
+            }
+            return dict
+        } catch (throwable: Throwable) {
+            CFRelease(dict)
+            throw throwable
         }
-        return dict
     }
 
-    private fun String.cfString(): CFTypeRef? =
-        CFStringCreateWithCString(kCFAllocatorDefault, this, kCFStringEncodingUTF8)
+    private inline fun <T> withQuery(
+        account: String,
+        returnData: Boolean,
+        block: (CFDictionaryRef) -> T,
+    ): T {
+        val query = createQuery(account, returnData) ?: error("Unable to create Keychain query")
+        return try {
+            block(query)
+        } finally {
+            CFRelease(query)
+        }
+    }
+
+    private fun CFDictionaryRef.addStringValue(
+        key: CFStringRef,
+        value: String,
+    ) {
+        val string =
+            CFStringCreateWithCString(kCFAllocatorDefault, value, kCFStringEncodingUTF8)
+                ?: throw IllegalStateException("Unable to create Keychain query string")
+        try {
+            CFDictionaryAddValue(this, key, string)
+        } finally {
+            CFRelease(string)
+        }
+    }
 
     private companion object {
         const val SERVICE = "com.kenlikdev.qmarket.session"

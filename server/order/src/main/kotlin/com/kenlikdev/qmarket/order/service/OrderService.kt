@@ -3,6 +3,7 @@ package com.kenlikdev.qmarket.order.service
 import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.BadRequestException
+import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
@@ -67,7 +68,7 @@ class OrderService(
         } catch (ex: DataIntegrityViolationException) {
             if (normalizedKey != null && idempotency.isKeyConstraint(ex)) {
                 idempotency.loadReplay(userId, normalizedKey, request)?.let { return it }
-                throw BadRequestException("Concurrent checkout conflict — retry with the same Idempotency-Key")
+                throw ConflictException("Concurrent checkout conflict — retry with the same Idempotency-Key")
             }
             throw ex
         }
@@ -82,8 +83,9 @@ class OrderService(
             idempotency.loadReplay(userId, normalizedKey, request)?.let { return it }
         }
 
+        cartRepository.insertIfMissing(userId)
         val cart =
-            cartRepository.findByUserId(userId)
+            cartRepository.findByUserIdForUpdate(userId)
                 ?: throw BadRequestException("Cart is empty")
         if (cart.items.isEmpty()) {
             throw BadRequestException("Cart is empty")
@@ -178,7 +180,7 @@ class OrderService(
                 page.coerceAtLeast(0),
                 size.coerceIn(1, 100),
             )
-        val result = orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+        val result = orderRepository.findByUserIdOrderByCreatedAtDescIdDesc(userId, pageable)
         return PageResponse(
             content = result.content.map { OrderMapper.toResponse(it) },
             page = result.number,
@@ -206,7 +208,7 @@ class OrderService(
             PageRequest.of(
                 page.coerceAtLeast(0),
                 size.coerceIn(1, 100),
-                Sort.by(Sort.Direction.DESC, "createdAt"),
+                Sort.by(Sort.Direction.DESC, "createdAt", "id"),
             )
         val result = orderRepository.findAll(pageable)
         return PageResponse(
@@ -224,9 +226,8 @@ class OrderService(
         request: UpdateOrderStatusRequest,
     ): OrderResponse {
         val order =
-            orderRepository
-                .findById(orderId)
-                .orElseThrow { NotFoundException("Order not found") }
+            orderRepository.findByIdForUpdate(orderId)
+                ?: throw NotFoundException("Order not found")
 
         // Snapshot items while session is open (LAZY collection)
         val lines = order.items.map { it.productId to it.quantity }
@@ -256,8 +257,9 @@ class OrderService(
         orderId: UUID,
     ): OrderResponse {
         val order =
-            orderRepository
-                .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
+            orderRepository.findByIdForUpdate(orderId)
+                ?.takeIf { it.userId == userId }
+                ?: throw NotFoundException("Order not found")
 
         // Status transition first (fails fast if already cancelled / paid)
         order.cancel()
@@ -299,8 +301,6 @@ class OrderService(
             amountMinor,
             currency,
         )
-
-    /** @deprecated Use [pay]; kept name-compatible for older tests — prefer [pay]. */
 
     private fun resolveShippingAddress(
         userId: UUID,

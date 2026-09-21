@@ -1,19 +1,25 @@
 package com.kenlikdev.qmarket.order.payment
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.order.domain.StripeWebhookEvent
 import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.repository.StripeWebhookEventRepository
 import com.kenlikdev.qmarket.order.service.OrderService
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
-import java.util.Optional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionStatus
+import tools.jackson.module.kotlin.jacksonObjectMapper
+import java.time.Instant
 import java.util.UUID
 
 class StripeWebhookServiceTest {
@@ -21,12 +27,15 @@ class StripeWebhookServiceTest {
         StripeProperties(
             secretKey = "sk_test",
             webhookSecret = "whsec_test",
+            defaultCurrency = "usd",
             webhookToleranceSeconds = 300,
         )
-    private val objectMapper = ObjectMapper()
+    private val objectMapper = jacksonObjectMapper()
     private lateinit var orderService: OrderService
     private lateinit var eventRepository: StripeWebhookEventRepository
     private lateinit var paymentMetricsProvider: ObjectProvider<PaymentMetrics>
+    private lateinit var transactionManager: PlatformTransactionManager
+    private lateinit var transactionStatus: TransactionStatus
     private lateinit var service: StripeWebhookService
 
     @BeforeEach
@@ -34,156 +43,222 @@ class StripeWebhookServiceTest {
         orderService = mockk()
         eventRepository = mockk(relaxed = true)
         paymentMetricsProvider = mockk()
+        transactionManager = mockk()
+        transactionStatus = mockk(relaxed = true)
+
         every { paymentMetricsProvider.getIfAvailable() } returns null
+        every { transactionManager.getTransaction(any()) } returns transactionStatus
+        every { transactionManager.commit(transactionStatus) } just runs
+        every { transactionManager.rollback(transactionStatus) } just runs
+
         service =
             StripeWebhookService(
-                props,
-                orderService,
-                eventRepository,
-                objectMapper,
-                paymentMetricsProvider,
+                props = props,
+                orderService = orderService,
+                eventRepository = eventRepository,
+                objectMapper = objectMapper,
+                paymentMetrics = paymentMetricsProvider,
+                transactionManager = transactionManager,
             )
-        every { eventRepository.tryClaim(any(), any()) } returns 1
-        every { eventRepository.findById(any()) } answers {
-            Optional.of(
-                StripeWebhookEvent(
-                    eventId = firstArg(),
-                    eventType = "payment_intent.succeeded",
-                    status = StripeWebhookEvent.STATUS_RECEIVED,
-                ),
-            )
-        }
-        every { eventRepository.save(any()) } answers { firstArg() }
     }
 
     private fun signedPayload(
         payload: String,
-        ts: Long = System.currentTimeMillis() / 1000,
+        timestamp: Long = Instant.now().epochSecond,
     ): String {
-        val v1 = StripeWebhookVerifier.hmacSha256Hex(props.webhookSecret, "$ts.$payload")
-        return "t=$ts,v1=$v1"
+        val signature =
+            StripeWebhookVerifier.hmacSha256Hex(
+                props.webhookSecret,
+                "$timestamp.$payload",
+            )
+        return "t=$timestamp,v1=$signature"
     }
 
+    private fun payload(
+        eventId: String,
+        orderId: UUID,
+        amount: Long = 2599,
+        currency: String = "usd",
+    ): String =
+        """
+        {
+          "id": "$eventId",
+          "type": "payment_intent.succeeded",
+          "data": {
+            "object": {
+              "id": "pi_$eventId",
+              "amount": $amount,
+              "currency": "$currency",
+              "status": "succeeded",
+              "metadata": {
+                "order_id": "$orderId"
+              }
+            }
+          }
+        }
+        """.trimIndent()
+
     @Test
-    fun `invalid signature throws`() {
+    fun invalidSignatureThrowsBeforeStartingTransaction() {
         assertThrows(UnauthorizedException::class.java) {
-            service.handle("""{"id":"evt_x","type":"payment_intent.succeeded"}""", "t=1,v1=deadbeef")
+            service.handle(
+                payload = """{"id":"evt_x","type":"payment_intent.succeeded"}""",
+                signatureHeader = "t=1,v1=deadbeef",
+            )
         }
+        verify(exactly = 0) { transactionManager.getTransaction(any()) }
     }
 
     @Test
-    fun `payment_intent succeeded marks order paid with amount`() {
+    fun successfulEventIsProcessedAndMarkedProcessedInTransaction() {
         val orderId = UUID.randomUUID()
-        val payload =
-            """
-            {
-              "id": "evt_${orderId.toString().take(8)}",
-              "type": "payment_intent.succeeded",
-              "data": {
-                "object": {
-                  "id": "pi_abc",
-                  "amount": 2599,
-                  "currency": "usd",
-                  "status": "succeeded",
-                  "metadata": {
-                    "order_id": "$orderId",
-                    "user_id": "${UUID.randomUUID()}"
-                  }
-                }
-              }
-            }
-            """.trimIndent()
+        val event =
+            StripeWebhookEvent(
+                eventId = "evt_success",
+                eventType = "payment_intent.succeeded",
+            )
+        val response = mockk<OrderResponse>(relaxed = true)
+
+        every { eventRepository.tryClaim("evt_success", "payment_intent.succeeded") } returns 1
+        every { eventRepository.findByEventIdForUpdate("evt_success") } returns event
         every {
-            orderService.markPaidFromProvider(orderId, "stripe", "pi_abc", 2599L, "usd")
-        } returns mockk<OrderResponse>(relaxed = true)
-
-        service.handle(payload, signedPayload(payload))
-
-        verify(exactly = 1) {
-            orderService.markPaidFromProvider(orderId, "stripe", "pi_abc", 2599L, "usd")
-        }
-        verify {
-            eventRepository.save(
-                match {
-                    it.status == StripeWebhookEvent.STATUS_PROCESSED &&
-                        it.orderId == orderId &&
-                        it.providerReference == "pi_abc"
-                },
+            orderService.markPaidFromProvider(
+                orderId,
+                "stripe",
+                "pi_evt_success",
+                2599L,
+                "usd",
             )
+        } returns response
+        every { eventRepository.save(any()) } answers { firstArg() }
+
+        val body = payload("evt_success", orderId)
+        service.handle(body, signedPayload(body))
+
+        assertEquals(StripeWebhookEvent.STATUS_PROCESSED, event.status)
+        assertEquals(orderId, event.orderId)
+        assertEquals("pi_evt_success", event.providerReference)
+        verify(exactly = 1) {
+            orderService.markPaidFromProvider(orderId, "stripe", "pi_evt_success", 2599L, "usd")
+        }
+        verify(exactly = 1) { transactionManager.commit(transactionStatus) }
+    }
+
+    @Test
+    fun alreadyProcessedEventIsIgnored() {
+        val orderId = UUID.randomUUID()
+        val event =
+            StripeWebhookEvent(
+                eventId = "evt_duplicate",
+                eventType = "payment_intent.succeeded",
+                status = StripeWebhookEvent.STATUS_PROCESSED,
+            )
+
+        every { eventRepository.tryClaim("evt_duplicate", "payment_intent.succeeded") } returns 0
+        every { eventRepository.findByEventIdForUpdate("evt_duplicate") } returns event
+
+        val body = payload("evt_duplicate", orderId)
+        service.handle(body, signedPayload(body))
+
+        verify(exactly = 0) {
+            orderService.markPaidFromProvider(any(), any(), any(), any(), any())
+        }
+        verify(exactly = 0) { eventRepository.save(any()) }
+    }
+
+    @Test
+    fun failedEventIsRetried() {
+        val orderId = UUID.randomUUID()
+        val event =
+            StripeWebhookEvent(
+                eventId = "evt_retry",
+                eventType = "payment_intent.succeeded",
+                status = StripeWebhookEvent.STATUS_FAILED,
+            )
+
+        every { eventRepository.tryClaim("evt_retry", "payment_intent.succeeded") } returns 0
+        every { eventRepository.findByEventIdForUpdate("evt_retry") } returns event
+        every {
+            orderService.markPaidFromProvider(
+                orderId,
+                "stripe",
+                "pi_evt_retry",
+                2599L,
+                "usd",
+            )
+        } returns mockk(relaxed = true)
+        every { eventRepository.save(any()) } answers { firstArg() }
+
+        val body = payload("evt_retry", orderId)
+        service.handle(body, signedPayload(body))
+
+        assertEquals(StripeWebhookEvent.STATUS_PROCESSED, event.status)
+        verify(exactly = 1) {
+            orderService.markPaidFromProvider(orderId, "stripe", "pi_evt_retry", 2599L, "usd")
         }
     }
 
     @Test
-    fun `duplicate PROCESSED event is ignored`() {
+    fun `signed succeeded event with non-succeeded intent is rejected`() {
         val orderId = UUID.randomUUID()
-        val payload =
-            """
-            {
-              "id": "evt_dup_once",
-              "type": "payment_intent.succeeded",
-              "data": {
-                "object": {
-                  "id": "pi_dup",
-                  "amount": 100,
-                  "currency": "usd",
-                  "metadata": { "order_id": "$orderId" }
-                }
-              }
-            }
-            """.trimIndent()
-        every { eventRepository.tryClaim("evt_dup_once", any()) } returns 0
-        every { eventRepository.findById("evt_dup_once") } returns
-            Optional.of(
-                StripeWebhookEvent(
-                    eventId = "evt_dup_once",
-                    eventType = "payment_intent.succeeded",
-                    status = StripeWebhookEvent.STATUS_PROCESSED,
-                ),
+        val event =
+            StripeWebhookEvent(
+                eventId = "evt_bad_status",
+                eventType = "payment_intent.succeeded",
             )
+        every { eventRepository.tryClaim("evt_bad_status", "payment_intent.succeeded") } returns 1
+        every { eventRepository.findByEventIdForUpdate("evt_bad_status") } returns event
 
-        service.handle(payload, signedPayload(payload))
+        val body = payload("evt_bad_status", orderId).replace(
+            "\"status\": \"succeeded\"",
+            "\"status\": \"processing\"",
+        )
 
+        assertThrows<BadRequestException> {
+            service.handle(body, signedPayload(body))
+        }
         verify(exactly = 0) {
             orderService.markPaidFromProvider(any(), any(), any(), any(), any())
         }
     }
 
     @Test
-    fun `FAILED event is retried`() {
+    fun processingFailureIsPersistedAsFailedAfterRollback() {
         val orderId = UUID.randomUUID()
-        val payload =
-            """
-            {
-              "id": "evt_retry",
-              "type": "payment_intent.succeeded",
-              "data": {
-                "object": {
-                  "id": "pi_retry",
-                  "amount": 500,
-                  "currency": "usd",
-                  "metadata": { "order_id": "$orderId" }
-                }
-              }
-            }
-            """.trimIndent()
-        every { eventRepository.tryClaim("evt_retry", any()) } returns 0
-        every { eventRepository.findById("evt_retry") } returns
-            Optional.of(
-                StripeWebhookEvent(
-                    eventId = "evt_retry",
-                    eventType = "payment_intent.succeeded",
-                    status = StripeWebhookEvent.STATUS_FAILED,
-                    errorMessage = "previous failure",
-                ),
+        val event =
+            StripeWebhookEvent(
+                eventId = "evt_failed",
+                eventType = "payment_intent.succeeded",
             )
+        every { eventRepository.tryClaim("evt_failed", "payment_intent.succeeded") } returns 1
+        every { eventRepository.findByEventIdForUpdate("evt_failed") } returns event
         every {
-            orderService.markPaidFromProvider(orderId, "stripe", "pi_retry", 500L, "usd")
-        } returns mockk(relaxed = true)
+            orderService.markPaidFromProvider(
+                orderId,
+                "stripe",
+                "pi_evt_failed",
+                2599L,
+                "usd",
+            )
+        } throws BadRequestException("order conflict")
+        every { eventRepository.findByEventIdForUpdate("evt_failed") } returns null
+        every { eventRepository.save(any()) } answers { firstArg() }
 
-        service.handle(payload, signedPayload(payload))
+        val body = payload("evt_failed", orderId)
+        assertThrows(BadRequestException::class.java) {
+            service.handle(body, signedPayload(body))
+        }
 
         verify(exactly = 1) {
-            orderService.markPaidFromProvider(orderId, "stripe", "pi_retry", 500L, "usd")
+            eventRepository.save(
+                match {
+                    it.eventId == "evt_failed" &&
+                        it.status == StripeWebhookEvent.STATUS_FAILED &&
+                        it.errorMessage == "order conflict"
+                },
+            )
         }
+        verify(exactly = 1) { transactionManager.rollback(transactionStatus) }
+        verify(atLeast = 1) { transactionManager.commit(transactionStatus) }
     }
 }

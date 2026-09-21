@@ -1,11 +1,18 @@
 package com.kenlikdev.qmarket.network
 
+import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.PosixFilePermission
+import java.util.EnumSet
 import java.util.Properties
 
 /**
- * Desktop/JVM: tokens in `~/.qmarket/session.properties` (user-private file).
+ * Desktop/JVM session store.
+ *
+ * Tokens are kept in a private user file and written atomically to avoid leaving
+ * a partially written credentials file after an interruption.
  */
 class FileSessionStore(
     private val file: Path =
@@ -42,15 +49,67 @@ class FileSessionStore(
 
     override fun clear() {
         props.clear()
-        if (Files.isRegularFile(file)) {
-            Files.deleteIfExists(file)
-        }
+        Files.deleteIfExists(file)
     }
 
     private fun persist() {
-        Files.createDirectories(file.parent)
-        Files.newOutputStream(file).use { out ->
-            props.store(out, "QMarket session — do not share")
+        val parent = file.parent ?: error("Session file must have a parent directory")
+        Files.createDirectories(parent)
+        restrictDirectoryPermissions(parent)
+
+        val temp =
+            Files.createTempFile(parent, ".session-", ".tmp")
+        try {
+            Files.newOutputStream(temp).use { out ->
+                props.store(out, "QMarket session — do not share")
+            }
+            restrictPermissions(temp)
+            try {
+                Files.move(
+                    temp,
+                    file,
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(
+                    temp,
+                    file,
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
+            }
+            restrictPermissions(file)
+        } finally {
+            Files.deleteIfExists(temp)
+        }
+    }
+
+    private fun restrictDirectoryPermissions(path: Path) {
+        try {
+            Files.setPosixFilePermissions(
+                path,
+                EnumSet.of(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE,
+                    PosixFilePermission.OWNER_EXECUTE,
+                ),
+            )
+        } catch (_: UnsupportedOperationException) {
+            // Non-POSIX filesystems use their platform's user permissions.
+        }
+    }
+
+    private fun restrictPermissions(path: Path) {
+        try {
+            Files.setPosixFilePermissions(
+                path,
+                EnumSet.of(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE,
+                ),
+            )
+        } catch (_: UnsupportedOperationException) {
+            // Non-POSIX filesystems use their platform's user permissions.
         }
     }
 

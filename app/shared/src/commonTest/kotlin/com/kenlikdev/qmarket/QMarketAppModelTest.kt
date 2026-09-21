@@ -17,6 +17,7 @@ import io.ktor.http.fullPath
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -39,6 +40,15 @@ class QMarketAppModelTest {
         MockEngine { request ->
             val path = request.url.fullPath
             when {
+                path.contains("/api/v1/auth/login") ->
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """{"accessToken":"new-access","refreshToken":"new-refresh","expiresIn":60,"user":{"id":"1","email":"new@test.local","roles":["ROLE_USER"]}}""",
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
                 path.contains("/api/v1/auth/logout") ->
                     respond(content = ByteReadChannel.Empty, status = HttpStatusCode.NoContent)
                 path.contains("/api/v1/categories") ->
@@ -157,6 +167,112 @@ class QMarketAppModelTest {
             assertNull(tokens.accessToken())
             assertNull(tokens.refreshToken())
             assertEquals(AppScreen.Login, model.screen)
+        }
+
+    @Test
+    fun restoreSessionPreservesSessionOnTransientApiFailure() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            tokens.applyAuth(authUser())
+            val engine =
+                MockEngine { request ->
+                    when {
+                        request.url.fullPath.contains("/api/v1/users/me") ->
+                            respond(
+                                content =
+                                    ByteReadChannel(
+                                        """{"id":"1","email":"u@test.local","roles":["ROLE_USER"]}""",
+                                    ),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        else ->
+                            respond(
+                                content =
+                                    ByteReadChannel(
+                                        """{"status":503,"error":"Service Unavailable","code":"INTERNAL_ERROR","message":"temporary outage"}""",
+                                    ),
+                                status = HttpStatusCode.ServiceUnavailable,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                    }
+                }
+            val client = httpClient(engine)
+            try {
+                val api = QMarketApiClient(client)
+                val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = true)
+
+                model.restoreSessionIfNeeded(restoredSession = true)
+
+                assertTrue(model.loggedIn)
+                assertEquals("u@test.local", model.userLabel)
+                assertEquals("a", tokens.accessToken())
+                assertEquals("temporary outage", model.error)
+                assertEquals(AppScreen.Catalog, model.screen)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun concurrentApiRequestsKeepLoadingUntilAllRequestsFinish() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            val firstGate = CompletableDeferred<Unit>()
+            val secondGate = CompletableDeferred<Unit>()
+
+            val first = model.runApi { firstGate.await() }
+            val second = model.runApi { secondGate.await() }
+
+            assertTrue(model.loading)
+
+            secondGate.complete(Unit)
+            second.join()
+            assertTrue(model.loading)
+
+            firstGate.complete(Unit)
+            first.join()
+            assertFalse(model.loading)
+        }
+
+    @Test
+    fun logoutCancelsOlderApiRequests() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            val gate = CompletableDeferred<Unit>()
+            val pending = model.runApi { gate.await() }
+
+            val logout = model.logout()
+            logout.join()
+
+            assertTrue(pending.isCancelled)
+            assertFalse(model.loggedIn)
+            assertEquals(AppScreen.Login, model.screen)
+        }
+
+    @Test
+    fun loginCancelsOlderApiRequestsBeforeChangingSession() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            tokens.applyAuth(authUser("old@test.local"))
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            val gate = CompletableDeferred<Unit>()
+            val pending = model.runApi { gate.await() }
+
+            model.email = "new@test.local"
+            model.password = "password123"
+            val login = model.login()
+            login.join()
+
+            assertTrue(pending.isCancelled)
+            assertEquals("new@test.local", model.userLabel)
+            assertEquals("new-access", tokens.accessToken())
+            assertEquals(AppScreen.Catalog, model.screen)
         }
 
     @Test

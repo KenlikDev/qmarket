@@ -2,9 +2,9 @@ package com.kenlikdev.qmarket.identity.service
 
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import kotlin.test.assertEquals
 
 class GoogleApiIdTokenVerifierTest {
     private val props =

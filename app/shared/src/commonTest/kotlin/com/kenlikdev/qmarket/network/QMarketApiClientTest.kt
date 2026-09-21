@@ -1,8 +1,8 @@
 package com.kenlikdev.qmarket.network
 
 import com.kenlikdev.qmarket.api.CreateProductRequestDto
-import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
+import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.QMarketJson
 import com.kenlikdev.qmarket.api.RefreshTokenRequestDto
 import io.ktor.client.HttpClient

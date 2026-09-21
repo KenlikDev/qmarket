@@ -25,7 +25,9 @@ import com.kenlikdev.qmarket.ui.CatalogFilterParams
 import com.kenlikdev.qmarket.ui.CheckoutIdempotency
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 
 /**
@@ -41,8 +43,8 @@ class QMarketAppModel(
     var screen by mutableStateOf<AppScreen>(
         if (restoredSession) AppScreen.Catalog else AppScreen.Login,
     )
-    var email by mutableStateOf(tokens.sessionEmail() ?: DEMO_EMAIL)
-    var password by mutableStateOf("") // demo: use admin123 when testing locally
+    var email by mutableStateOf(tokens.sessionEmail().orEmpty())
+    var password by mutableStateOf("")
     var firstName by mutableStateOf("")
     var lastName by mutableStateOf("")
     var phone by mutableStateOf("")
@@ -53,6 +55,8 @@ class QMarketAppModel(
     var error by mutableStateOf<String?>(null)
     var statusMessage by mutableStateOf<String?>(null)
     var loading by mutableStateOf(false)
+    private var activeRequestCount = 0
+    private val runningApiJobs = mutableSetOf<Job>()
     var products by mutableStateOf<List<ProductDto>>(emptyList())
     var detailProduct by mutableStateOf<ProductDto?>(null)
     var detailQuantity by mutableStateOf(1)
@@ -92,23 +96,65 @@ class QMarketAppModel(
     var addrStreet by mutableStateOf("")
     var addrPhone by mutableStateOf("")
 
-    fun runApi(block: suspend () -> Unit): Job =
-        scope.launch {
-            loading = true
-            error = null
-            statusMessage = null
-            try {
-                block()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: ApiException) {
-                error = e.message
-            } catch (e: Exception) {
-                error = e.message ?: e.toString()
-            } finally {
-                loading = false
+    fun runApi(block: suspend () -> Unit): Job {
+        val job =
+            scope.launch(start = CoroutineStart.LAZY) {
+                withRequestLoading {
+                    error = null
+                    statusMessage = null
+                    try {
+                        block()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: ApiException) {
+                        error = e.message
+                    } catch (e: Exception) {
+                        error = e.message ?: e.toString()
+                    }
+                }
             }
+        runningApiJobs += job
+        job.invokeOnCompletion { runningApiJobs -= job }
+        job.start()
+        return job
+    }
+
+    private suspend fun <T> withRequestLoading(block: suspend () -> T): T {
+        activeRequestCount += 1
+        loading = true
+        try {
+            return block()
+        } finally {
+            activeRequestCount = (activeRequestCount - 1).coerceAtLeast(0)
+            loading = activeRequestCount > 0
         }
+    }
+
+    private fun cancelRunningApiJobs(exceptJob: Job? = null) {
+        runningApiJobs
+            .toList()
+            .filter { it !== exceptJob && it.isActive }
+            .forEach(Job::cancel)
+    }
+
+    private fun clearSessionState(exceptJob: Job? = null): Exception? {
+        cancelRunningApiJobs(exceptJob)
+        var cleanupError: Exception? = null
+        try {
+            tokens.clear()
+        } catch (exception: Exception) {
+            cleanupError = exception
+        } finally {
+            api.clearBearerTokenCache()
+            clearUserScopedUiState()
+            loggedIn = false
+            isAdmin = false
+            userLabel = null
+            products = emptyList()
+            screen = AppScreen.Login
+        }
+        return cleanupError
+    }
 
     fun clearUserScopedUiState() {
         orders = emptyList()
@@ -120,12 +166,14 @@ class QMarketAppModel(
         profile = null
         firstName = ""
         lastName = ""
+        password = ""
         phone = ""
         currentPassword = ""
         newPassword = ""
         cart = null
         detailProduct = null
         detailOrder = null
+        paymentSession = null
         notifications = emptyList()
         notificationsUnread = 0L
         pendingCheckoutKey = null
@@ -138,39 +186,53 @@ class QMarketAppModel(
 
     suspend fun restoreSessionIfNeeded(restoredSession: Boolean) {
         if (!restoredSession) return
-        loading = true
-        error = null
-        try {
-            val page = api.listProducts(size = 50)
-            products = page.content
-            cart = runCatching { api.getCart() }.getOrNull()
-            runCatching { api.getProfile() }.onSuccess { p ->
-                tokens.applyRoles(p.roles)
+        withRequestLoading {
+            error = null
+            try {
+                val currentProfile = api.getProfile()
+                tokens.applyRoles(currentProfile.roles)
                 isAdmin = tokens.isAdmin()
+
+                val page = api.listProducts(size = 50)
+                products = page.content
+                cart = runCatchingCancellable { api.getCart() }.getOrNull()
+
+                loggedIn = true
+                userLabel = currentProfile.email
+                screen = AppScreen.Catalog
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ApiException) {
+                if (e.status == 401) {
+                    val cleanupError = clearSessionState()
+                    screen = AppScreen.Login
+                    error =
+                        if (cleanupError == null) {
+                            "Session expired — please sign in again"
+                        } else {
+                            "Session expired — local session cleanup failed"
+                        }
+                } else {
+                    loggedIn = true
+                    userLabel = tokens.sessionEmail()
+                    isAdmin = tokens.isAdmin()
+                    screen = AppScreen.Catalog
+                    error = e.message
+                }
+            } catch (e: Exception) {
+                loggedIn = true
+                userLabel = tokens.sessionEmail()
+                isAdmin = tokens.isAdmin()
+                screen = AppScreen.Catalog
+                error = e.message ?: "Unable to restore session data"
             }
-            loggedIn = true
-            userLabel = tokens.sessionEmail()
-            isAdmin = tokens.isAdmin()
-            screen = AppScreen.Catalog
-        } catch (e: Exception) {
-            tokens.clear()
-            api.clearBearerTokenCache()
-            clearUserScopedUiState()
-            loggedIn = false
-            isAdmin = false
-            userLabel = null
-            products = emptyList()
-            screen = AppScreen.Login
-            error = e.message ?: "Session expired — please sign in again"
-        } finally {
-            loading = false
         }
     }
 
     fun loadCatalog(navigate: Boolean = true) {
         runApi {
             catalogCategories =
-                runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+                runCatchingCancellable { api.listCategories() }.getOrElse { catalogCategories }
             val page =
                 api.listProducts(
                     size = 50,
@@ -198,7 +260,7 @@ class QMarketAppModel(
     fun loadCart() {
         runApi {
             cart = api.getCart()
-            addresses = runCatching { api.listAddresses() }.getOrElse { addresses }
+            addresses = runCatchingCancellable { api.listAddresses() }.getOrElse { addresses }
             if (selectedAddressId == null) {
                 selectedAddressId = addresses.firstOrNull { it.default }?.id
                     ?: addresses.firstOrNull()?.id
@@ -209,6 +271,7 @@ class QMarketAppModel(
 
     fun openOrder(order: OrderDto) {
         detailOrder = order
+        paymentSession = null
         screen = AppScreen.OrderDetail
         runApi {
             detailOrder = api.getOrder(order.id)
@@ -226,18 +289,18 @@ class QMarketAppModel(
     fun logout(): Job {
         val refresh = tokens.refreshToken()
         return runApi {
-            if (!refresh.isNullOrBlank()) {
-                api.logout(refresh)
+            try {
+                if (!refresh.isNullOrBlank()) {
+                    api.logout(refresh)
+                }
+            } finally {
+                val cleanupError = clearSessionState(currentCoroutineContext()[Job])
+                if (cleanupError != null) {
+                    throw cleanupError
+                }
+                error = null
+                screen = AppScreen.Login
             }
-            isAdmin = false
-            tokens.clear()
-            api.clearBearerTokenCache()
-            clearUserScopedUiState()
-            loggedIn = false
-            userLabel = null
-            products = emptyList()
-            error = null
-            screen = AppScreen.Login
         }
     }
 
@@ -247,8 +310,8 @@ class QMarketAppModel(
         isAdmin = tokens.isAdmin()
     }
 
-    fun login() {
-        runApi {
+    fun login(): Job = runApi {
+            cancelRunningApiJobs(currentCoroutineContext()[Job])
             val auth =
                 api.login(
                     LoginRequestDto(
@@ -258,19 +321,20 @@ class QMarketAppModel(
                 )
             tokens.applyAuth(auth)
             api.clearBearerTokenCache()
+            password = ""
             clearUserScopedUiState()
             applySession(auth.user.email)
             val page = api.listProducts(size = 50)
             products = page.content
-            cart = runCatching { api.getCart() }.getOrNull()
+            cart = runCatchingCancellable { api.getCart() }.getOrNull()
             notificationsUnread =
-                runCatching { api.notificationsUnreadCount().unread }.getOrDefault(0L)
+                runCatchingCancellable { api.notificationsUnreadCount().unread }.getOrDefault(0L)
             screen = AppScreen.Catalog
         }
     }
 
-    fun register() {
-        runApi {
+    fun register(): Job = runApi {
+            cancelRunningApiJobs(currentCoroutineContext()[Job])
             val auth =
                 api.register(
                     RegisterRequestDto(
@@ -286,17 +350,17 @@ class QMarketAppModel(
             applySession(auth.user.email)
             val page = api.listProducts(size = 50)
             products = page.content
-            cart = runCatching { api.getCart() }.getOrNull()
+            cart = runCatchingCancellable { api.getCart() }.getOrNull()
             screen = AppScreen.Catalog
         }
     }
 
     fun browseAsGuest() {
-        tokens.clear()
-        api.clearBearerTokenCache()
-        clearUserScopedUiState()
-        loggedIn = false
-        userLabel = null
+        val cleanupError = clearSessionState()
+        if (cleanupError != null) {
+            error = "Unable to clear the local session"
+            return
+        }
         loadCatalog()
     }
 
@@ -389,6 +453,7 @@ class QMarketAppModel(
     }
 
     fun payOrder(orderId: String) {
+        paymentSession = null
         runApi {
             val paid = api.payOrder(orderId)
             if (screen is AppScreen.OrderDone) {
@@ -406,6 +471,7 @@ class QMarketAppModel(
         private set
 
     fun startPaymentSession(orderId: String) {
+        paymentSession = null
         runApi {
             paymentSession = api.createPaymentSession(orderId)
             statusMessage = "Payment session ready (${paymentSession?.providerId})"
@@ -413,6 +479,7 @@ class QMarketAppModel(
     }
 
     fun cancelOrder(orderId: String) {
+        paymentSession = null
         runApi {
             val cancelled = api.cancelOrder(orderId)
             detailOrder = cancelled
@@ -428,10 +495,5 @@ class QMarketAppModel(
         runApi {
             detailOrder = api.getOrder(orderId)
         }
-    }
-
-    companion object {
-        /** Prefill for local demo login; not used in production builds. */
-        const val DEMO_EMAIL = "admin@qmarket.local"
     }
 }

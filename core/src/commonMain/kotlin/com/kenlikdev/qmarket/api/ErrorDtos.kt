@@ -11,4 +11,11 @@ data class ApiErrorDto(
     val code: String? = null,
     val message: String? = null,
     val path: String? = null,
+    val details: List<ApiErrorDetailDto>? = null,
+)
+
+@Serializable
+data class ApiErrorDetailDto(
+    val field: String,
+    val message: String,
 )

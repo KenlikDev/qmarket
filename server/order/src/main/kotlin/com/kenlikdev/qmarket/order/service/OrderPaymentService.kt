@@ -2,6 +2,7 @@ package com.kenlikdev.qmarket.order.service
 
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import com.kenlikdev.qmarket.common.exception.PaymentProviderException
 import com.kenlikdev.qmarket.common.util.Money
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.dto.OrderResponse
@@ -39,8 +40,9 @@ class OrderPaymentService(
         orderId: UUID,
     ): OrderResponse {
         val order =
-            orderRepository
-                .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
+            orderRepository.findByIdForUpdate(orderId)
+                ?.takeIf { it.userId == userId }
+                ?: throw NotFoundException("Order not found")
 
         // Fail closed before PSP if status cannot become PAID
         when (order.status) {
@@ -78,7 +80,6 @@ class OrderPaymentService(
      * Create a Stripe PaymentIntent for client-side confirmation (Payment Element / mobile SDK).
      * Requires `qmarket.payment.provider=stripe`. Order stays PENDING until webhook or pay path.
      */
-    @Transactional(readOnly = true)
     fun createPaymentSession(
         userId: UUID,
         orderId: UUID,
@@ -125,7 +126,7 @@ class OrderPaymentService(
                 publishableKey = stripeProps.publishableKey,
             )
         } catch (ex: StripeApiException) {
-            throw BadRequestException("Stripe error: ${ex.message}")
+            throw PaymentProviderException(cause = ex)
         }
     }
 
@@ -146,9 +147,8 @@ class OrderPaymentService(
         currency: String? = null,
     ): OrderResponse {
         val order =
-            orderRepository.findById(orderId).orElseThrow {
-                NotFoundException("Order not found: $orderId")
-            }
+            orderRepository.findByIdForUpdate(orderId)
+                ?: throw NotFoundException("Order not found: $orderId")
         when (order.status) {
             OrderStatus.PAID -> return OrderMapper.toResponse(order)
             OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit

@@ -4,6 +4,8 @@ import com.kenlikdev.qmarket.catalog.domain.Category
 import com.kenlikdev.qmarket.catalog.domain.Product
 import com.kenlikdev.qmarket.catalog.dto.CreateCategoryRequest
 import com.kenlikdev.qmarket.catalog.dto.CreateProductRequest
+import com.kenlikdev.qmarket.catalog.dto.UpdateCategoryRequest
+import com.kenlikdev.qmarket.catalog.dto.UpdateProductRequest
 import com.kenlikdev.qmarket.catalog.repository.CategoryRepository
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
@@ -71,6 +73,23 @@ class CatalogServiceTest {
     }
 
     @Test
+    fun `getCategory rejects inactive category`() {
+        val id = UUID.randomUUID()
+        val category =
+            Category(
+                id = id,
+                name = "Hidden",
+                slug = "hidden",
+                active = false,
+            )
+        every { categoryRepository.findById(id) } returns Optional.of(category)
+
+        assertThrows<NotFoundException> {
+            catalogService.getCategory(id)
+        }
+    }
+
+    @Test
     fun `createProduct succeeds`() {
         val request =
             CreateProductRequest(
@@ -126,6 +145,121 @@ class CatalogServiceTest {
     }
 
     @Test
+    fun `updateCategory rejects self parent`() {
+        val id = UUID.randomUUID()
+        val category =
+            Category(
+                id = id,
+                name = "Parent",
+                slug = "parent",
+            )
+        every { categoryRepository.findById(id) } returns Optional.of(category)
+
+        assertThrows<BadRequestException> {
+            catalogService.updateCategory(
+                id,
+                UpdateCategoryRequest(parentId = id),
+            )
+        }
+    }
+
+    @Test
+    fun `getProductBySlug normalizes slug`() {
+        val product =
+            Product(
+                id = UUID.randomUUID(),
+                name = "Phone",
+                slug = "phone",
+                price = BigDecimal("10.00"),
+            )
+        every { productRepository.findBySlug("phone") } returns Optional.of(product)
+
+        val result = catalogService.getProductBySlug(" PHONE ")
+
+        assertEquals(product.id, result.id)
+        verify(exactly = 1) { productRepository.findBySlug("phone") }
+    }
+
+    @Test
+    fun `updateProduct trims and can clear sku`() {
+        val id = UUID.randomUUID()
+        val product =
+            Product(
+                id = id,
+                name = "Phone",
+                slug = "phone",
+                sku = "OLD-SKU",
+                price = BigDecimal("10.00"),
+            )
+        every { productRepository.findById(id) } returns Optional.of(product)
+        every { productRepository.save(any()) } answers { firstArg() }
+
+        catalogService.updateProduct(
+            id,
+            UpdateProductRequest(sku = "   "),
+        )
+
+        assertEquals(null, product.sku)
+    }
+
+    @Test
+    fun `updateCategory can clear parent`() {
+        val id = UUID.randomUUID()
+        val parentId = UUID.randomUUID()
+        val category =
+            Category(
+                id = id,
+                name = "Phones",
+                slug = "phones",
+                parent =
+                    Category(
+                        id = parentId,
+                        name = "Electronics",
+                        slug = "electronics",
+                    ),
+            )
+        every { categoryRepository.findById(id) } returns Optional.of(category)
+        every { categoryRepository.save(any()) } answers { firstArg() }
+
+        catalogService.updateCategory(
+            id,
+            UpdateCategoryRequest(clearParent = true),
+        )
+
+        assertEquals(null, category.parent)
+        verify(exactly = 1) { categoryRepository.save(category) }
+    }
+
+    @Test
+    fun `updateProduct can clear category`() {
+        val id = UUID.randomUUID()
+        val categoryId = UUID.randomUUID()
+        val product =
+            Product(
+                id = id,
+                name = "Phone",
+                slug = "phone",
+                price = BigDecimal("10.00"),
+                category =
+                    Category(
+                        id = categoryId,
+                        name = "Electronics",
+                        slug = "electronics",
+                    ),
+            )
+        every { productRepository.findById(id) } returns Optional.of(product)
+        every { productRepository.save(any()) } answers { firstArg() }
+
+        catalogService.updateProduct(
+            id,
+            UpdateProductRequest(clearCategory = true),
+        )
+
+        assertEquals(null, product.category)
+        verify(exactly = 1) { productRepository.save(product) }
+    }
+
+    @Test
     fun `deleteProduct not found throws NotFoundException`() {
         val id = UUID.randomUUID()
         every { productRepository.findById(id) } returns Optional.empty()
@@ -155,6 +289,47 @@ class CatalogServiceTest {
         assertEquals(false, product.active)
         verify(exactly = 1) { productRepository.save(product) }
         verify(exactly = 0) { productRepository.deleteById(any()) }
+    }
+
+    @Test
+    fun `updateCategory rejects blank name`() {
+        val id = UUID.randomUUID()
+        every { categoryRepository.findById(id) } returns
+            Optional.of(
+                Category(
+                    id = id,
+                    name = "Electronics",
+                    slug = "electronics",
+                ),
+            )
+
+        assertThrows<BadRequestException> {
+            catalogService.updateCategory(
+                id,
+                UpdateCategoryRequest(name = "   "),
+            )
+        }
+    }
+
+    @Test
+    fun `updateProduct rejects blank name`() {
+        val id = UUID.randomUUID()
+        every { productRepository.findById(id) } returns
+            Optional.of(
+                Product(
+                    id = id,
+                    name = "Phone",
+                    slug = "phone",
+                    price = BigDecimal("10.00"),
+                ),
+            )
+
+        assertThrows<BadRequestException> {
+            catalogService.updateProduct(
+                id,
+                UpdateProductRequest(name = "   "),
+            )
+        }
     }
 
     @Test
