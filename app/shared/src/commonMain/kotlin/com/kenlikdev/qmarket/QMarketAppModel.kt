@@ -110,6 +110,24 @@ class QMarketAppModel(
             }
         }
 
+    private fun clearSessionState(): Throwable? {
+        var cleanupError: Throwable? = null
+        try {
+            tokens.clear()
+        } catch (throwable: Throwable) {
+            cleanupError = throwable
+        } finally {
+            api.clearBearerTokenCache()
+            clearUserScopedUiState()
+            loggedIn = false
+            isAdmin = false
+            userLabel = null
+            products = emptyList()
+            screen = AppScreen.Login
+        }
+        return cleanupError
+    }
+
     fun clearUserScopedUiState() {
         orders = emptyList()
         adminOrders = emptyList()
@@ -158,15 +176,14 @@ class QMarketAppModel(
             throw e
         } catch (e: ApiException) {
             if (e.status == 401) {
-                tokens.clear()
-                api.clearBearerTokenCache()
-                clearUserScopedUiState()
-                loggedIn = false
-                isAdmin = false
-                userLabel = null
-                products = emptyList()
+                val cleanupError = clearSessionState()
                 screen = AppScreen.Login
-                error = "Session expired — please sign in again"
+                error =
+                    if (cleanupError == null) {
+                        "Session expired — please sign in again"
+                    } else {
+                        "Session expired — local session cleanup failed"
+                    }
             } else {
                 loggedIn = true
                 userLabel = tokens.sessionEmail()
@@ -250,13 +267,10 @@ class QMarketAppModel(
                     api.logout(refresh)
                 }
             } finally {
-                isAdmin = false
-                tokens.clear()
-                api.clearBearerTokenCache()
-                clearUserScopedUiState()
-                loggedIn = false
-                userLabel = null
-                products = emptyList()
+                val cleanupError = clearSessionState()
+                if (cleanupError != null) {
+                    throw cleanupError
+                }
                 error = null
                 screen = AppScreen.Login
             }
@@ -315,11 +329,7 @@ class QMarketAppModel(
     }
 
     fun browseAsGuest() {
-        tokens.clear()
-        api.clearBearerTokenCache()
-        clearUserScopedUiState()
-        loggedIn = false
-        userLabel = null
+        clearSessionState()
         loadCatalog()
     }
 
