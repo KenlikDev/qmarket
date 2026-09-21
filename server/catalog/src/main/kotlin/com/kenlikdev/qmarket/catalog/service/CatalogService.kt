@@ -83,15 +83,17 @@ class CatalogService(
                 .findById(id)
                 .orElseThrow { NotFoundException("Category $id not found") }
 
-        request.name?.let { category.name = it.trim() }
+        request.name?.let {
+            category.name = com.kenlikdev.qmarket.common.validation.InputValidation.requireTrimmedNotBlank(it, "Category name")
+        }
         request.slug?.let {
-            val newSlug = it.trim().lowercase()
+            val newSlug = com.kenlikdev.qmarket.common.validation.InputValidation.requireTrimmedNotBlank(it, "Category slug").lowercase()
             if (newSlug != category.slug && categoryRepository.existsBySlug(newSlug)) {
                 throw ConflictException("Category with slug '$newSlug' already exists")
             }
             category.slug = newSlug
         }
-        request.description?.let { category.description = it }
+        request.description?.let { category.description = it.trim() }
         request.sortOrder?.let { category.sortOrder = it }
         request.active?.let { category.active = it }
         request.parentId?.let { parentId ->
@@ -238,16 +240,18 @@ class CatalogService(
                 .findById(id)
                 .orElseThrow { NotFoundException("Product $id not found") }
 
-        request.name?.let { product.name = it.trim() }
+        request.name?.let {
+            product.name = com.kenlikdev.qmarket.common.validation.InputValidation.requireTrimmedNotBlank(it, "Product name")
+        }
         request.slug?.let {
-            val newSlug = it.trim().lowercase()
+            val newSlug = com.kenlikdev.qmarket.common.validation.InputValidation.requireTrimmedNotBlank(it, "Product slug").lowercase()
             if (newSlug != product.slug && productRepository.existsBySlug(newSlug)) {
                 throw ConflictException("Product with slug '$newSlug' already exists")
             }
             product.slug = newSlug
         }
-        request.description?.let { product.description = it }
-        request.shortDescription?.let { product.shortDescription = it }
+        request.description?.let { product.description = it.trim() }
+        request.shortDescription?.let { product.shortDescription = it.trim() }
         request.sku?.let {
             val newSku = it.trim().ifEmpty { null }
             if (newSku != null && newSku != product.sku && productRepository.existsBySku(newSku)) {
