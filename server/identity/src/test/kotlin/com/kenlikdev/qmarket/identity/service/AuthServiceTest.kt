@@ -16,6 +16,7 @@ import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import io.jsonwebtoken.Claims
+import io.jsonwebtoken.JwtException
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -238,7 +239,7 @@ class AuthServiceTest {
 
     @Test
     fun `logout is best-effort on invalid token`() {
-        every { jwtService.parseClaims(any()) } throws RuntimeException("bad token")
+        every { jwtService.parseClaims(any()) } throws JwtException("bad token")
         authService.logout(RefreshTokenRequest(refreshToken = "not-a-jwt"))
         // must not throw UnexpectedRollbackException / any exception
     }
