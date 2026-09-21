@@ -15,6 +15,8 @@ import java.util.UUID
 interface UserRepository : JpaRepository<User, UUID> {
     fun findByEmail(email: String): User?
 
+    fun findByGoogleSubject(googleSubject: String): User?
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.id = :userId")
     fun findByIdForUpdate(@Param("userId") userId: UUID): User?
