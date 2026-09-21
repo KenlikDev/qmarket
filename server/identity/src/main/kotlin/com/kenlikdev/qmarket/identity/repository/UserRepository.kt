@@ -5,6 +5,7 @@ import com.kenlikdev.qmarket.identity.domain.User
 import jakarta.persistence.LockModeType
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
@@ -20,10 +21,14 @@ interface UserRepository : JpaRepository<User, UUID> {
 
     fun existsByEmail(email: String): Boolean
 
+    @EntityGraph(attributePaths = ["roles"])
+    fun findAllBy(pageable: Pageable): Page<User>
+
     /**
      * Case-insensitive search on email / first / last name.
      * Derived query avoids JPQL CONCAT+LOWER issues on PostgreSQL (lower(bytea)).
      */
+    @EntityGraph(attributePaths = ["roles"])
     fun findByEmailContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
         email: String,
         firstName: String,
