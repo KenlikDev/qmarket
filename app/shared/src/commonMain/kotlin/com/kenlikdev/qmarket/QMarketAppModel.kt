@@ -312,6 +312,7 @@ class QMarketAppModel(
 
     fun login() {
         runApi {
+            cancelRunningApiJobs(currentCoroutineContext()[Job])
             val auth =
                 api.login(
                     LoginRequestDto(
@@ -335,6 +336,7 @@ class QMarketAppModel(
 
     fun register() {
         runApi {
+            cancelRunningApiJobs(currentCoroutineContext()[Job])
             val auth =
                 api.register(
                     RegisterRequestDto(
