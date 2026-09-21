@@ -33,9 +33,9 @@ class CatalogService(
     fun listCategories(activeOnly: Boolean = true): List<CategoryResponse> {
         val categories =
             if (activeOnly) {
-                categoryRepository.findAllByActiveTrueOrderBySortOrderAsc()
+                categoryRepository.findAllByActiveTrueOrderBySortOrderAscIdAsc()
             } else {
-                categoryRepository.findAll(Sort.by("sortOrder"))
+                categoryRepository.findAll(Sort.by(Sort.Direction.ASC, "sortOrder").and(Sort.by(Sort.Direction.ASC, "id")))
             }
         return categories.map { it.toResponse() }
     }
