@@ -20,7 +20,6 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.time.Instant
-import java.util.Optional
 import java.util.UUID
 
 class StripeWebhookServiceTest {
@@ -242,7 +241,7 @@ class StripeWebhookServiceTest {
                 "usd",
             )
         } throws BadRequestException("order conflict")
-        every { eventRepository.findById("evt_failed") } returns Optional.empty()
+        every { eventRepository.findByEventIdForUpdate("evt_failed") } returns null
         every { eventRepository.save(any()) } answers { firstArg() }
 
         val body = payload("evt_failed", orderId)
