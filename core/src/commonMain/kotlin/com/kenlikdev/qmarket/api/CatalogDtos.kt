@@ -29,6 +29,7 @@ data class UpdateCategoryRequestDto(
     val slug: String? = null,
     val description: String? = null,
     val parentId: String? = null,
+    val clearParent: Boolean = false,
     val sortOrder: Int? = null,
     val active: Boolean? = null,
 )
