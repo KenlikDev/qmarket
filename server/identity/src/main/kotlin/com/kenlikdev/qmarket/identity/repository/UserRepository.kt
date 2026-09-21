@@ -22,7 +22,7 @@ interface UserRepository : JpaRepository<User, UUID> {
     fun existsByEmail(email: String): Boolean
 
     @EntityGraph(attributePaths = ["roles"])
-    fun findAllBy(pageable: Pageable): Page<User>
+    override fun findAll(pageable: Pageable): Page<User>
 
     /**
      * Case-insensitive search on email / first / last name.
