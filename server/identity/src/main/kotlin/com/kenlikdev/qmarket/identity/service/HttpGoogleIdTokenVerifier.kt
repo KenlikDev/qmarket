@@ -4,9 +4,6 @@ import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.common.exception.UpstreamServiceException
 import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
 import java.io.IOException
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.stereotype.Component
-import tools.jackson.databind.ObjectMapper
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -14,6 +11,9 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.time.Duration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.stereotype.Component
+import tools.jackson.databind.ObjectMapper
 
 @Component
 @ConditionalOnProperty(name = ["qmarket.security.oauth.google.enabled"], havingValue = "true")
