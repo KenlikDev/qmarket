@@ -18,8 +18,8 @@ import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import io.jsonwebtoken.JwtException
-import org.springframework.dao.DataAccessException
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.dao.DataAccessException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -40,6 +40,7 @@ class AuthService(
     private companion object {
         const val GOOGLE_SUBJECT_MAX_LENGTH = 255
     }
+
     @Transactional
     fun register(request: RegisterRequest): AuthResponse {
         val email = request.email.lowercase().trim()
