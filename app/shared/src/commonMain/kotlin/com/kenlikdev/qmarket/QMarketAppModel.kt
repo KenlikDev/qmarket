@@ -53,6 +53,7 @@ class QMarketAppModel(
     var error by mutableStateOf<String?>(null)
     var statusMessage by mutableStateOf<String?>(null)
     var loading by mutableStateOf(false)
+    private var activeRequestCount = 0
     var products by mutableStateOf<List<ProductDto>>(emptyList())
     var detailProduct by mutableStateOf<ProductDto?>(null)
     var detailQuantity by mutableStateOf(1)
@@ -94,6 +95,7 @@ class QMarketAppModel(
 
     fun runApi(block: suspend () -> Unit): Job =
         scope.launch {
+            activeRequestCount += 1
             loading = true
             error = null
             statusMessage = null
@@ -106,7 +108,8 @@ class QMarketAppModel(
             } catch (e: Exception) {
                 error = e.message ?: e.toString()
             } finally {
-                loading = false
+                activeRequestCount = (activeRequestCount - 1).coerceAtLeast(0)
+                loading = activeRequestCount > 0
             }
         }
 
