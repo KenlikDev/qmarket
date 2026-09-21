@@ -102,5 +102,6 @@ data class UpdateProductRequestDto(
     val active: Boolean? = null,
     val featured: Boolean? = null,
     val categoryId: String? = null,
+    val clearCategory: Boolean = false,
 )
 
