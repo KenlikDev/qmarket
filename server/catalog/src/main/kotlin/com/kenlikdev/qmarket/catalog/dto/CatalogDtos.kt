@@ -19,6 +19,7 @@ data class CreateCategoryRequest(
     @field:NotBlank @field:Size(max = 150)
     @field:Pattern(regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$", message = "Slug must contain lowercase letters, digits, and single hyphens only")
     val slug: String,
+    @field:Size(max = 255)
     val description: String? = null,
     val parentId: UUID? = null,
     val sortOrder: Int = 0,
