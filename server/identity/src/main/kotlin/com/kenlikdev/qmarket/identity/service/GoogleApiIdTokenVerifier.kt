@@ -42,6 +42,9 @@ class GoogleApiIdTokenVerifier(
         if (token.isEmpty()) {
             throw UnauthorizedException("Google idToken must not be blank")
         }
+        if (token.length > MAX_TOKEN_LENGTH) {
+            throw UnauthorizedException("Google idToken is too long")
+        }
 
         val verified =
             try {
@@ -73,5 +76,9 @@ class GoogleApiIdTokenVerifier(
             givenName = payload.givenName?.trim()?.ifBlank { null },
             familyName = payload.familyName?.trim()?.ifBlank { null },
         )
+    }
+
+    private companion object {
+        const val MAX_TOKEN_LENGTH = 16_384
     }
 }
