@@ -240,7 +240,7 @@ class AuthServiceTest {
 
     @Test
     fun `logout is best-effort on invalid token`() {
-        every { jwtService.parseClaims(any()) } throws RuntimeException("bad token")
+        every { jwtService.parseClaims(any()) } throws IllegalArgumentException("bad token")
         authService.logout(RefreshTokenRequest(refreshToken = "not-a-jwt"))
         // must not throw UnexpectedRollbackException / any exception
     }
