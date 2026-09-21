@@ -55,7 +55,7 @@ class FileSessionStore(
     private fun persist() {
         val parent = file.parent ?: error("Session file must have a parent directory")
         Files.createDirectories(parent)
-        restrictPermissions(parent)
+        restrictDirectoryPermissions(parent)
 
         val temp =
             Files.createTempFile(parent, ".session-", ".tmp")
@@ -81,6 +81,21 @@ class FileSessionStore(
             restrictPermissions(file)
         } finally {
             Files.deleteIfExists(temp)
+        }
+    }
+
+    private fun restrictDirectoryPermissions(path: Path) {
+        try {
+            Files.setPosixFilePermissions(
+                path,
+                EnumSet.of(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE,
+                    PosixFilePermission.OWNER_EXECUTE,
+                ),
+            )
+        } catch (_: UnsupportedOperationException) {
+            // Non-POSIX filesystems use their platform's user permissions.
         }
     }
 
