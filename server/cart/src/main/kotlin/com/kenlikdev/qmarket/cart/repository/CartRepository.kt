@@ -18,7 +18,9 @@ interface CartRepository : JpaRepository<Cart, UUID> {
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Cart c where c.userId = :userId")
-    fun findByUserIdForUpdate(@Param("userId") userId: UUID): Cart?
+    fun findByUserIdForUpdate(
+        @Param("userId") userId: UUID,
+    ): Cart?
 
     @Modifying
     @Query(
@@ -29,5 +31,7 @@ interface CartRepository : JpaRepository<Cart, UUID> {
         """,
         nativeQuery = true,
     )
-    fun insertIfMissing(@Param("userId") userId: UUID): Int
+    fun insertIfMissing(
+        @Param("userId") userId: UUID,
+    ): Int
 }
