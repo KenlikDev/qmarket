@@ -270,11 +270,15 @@ class CatalogService(
         request.stockQuantity?.let { product.stockQuantity = it }
         request.active?.let { product.active = it }
         request.featured?.let { product.featured = it }
-        request.categoryId?.let { catId ->
-            product.category =
-                categoryRepository
-                    .findById(catId)
-                    .orElseThrow { NotFoundException("Category $catId not found") }
+        if (request.clearCategory) {
+            product.category = null
+        } else {
+            request.categoryId?.let { catId ->
+                product.category =
+                    categoryRepository
+                        .findById(catId)
+                        .orElseThrow { NotFoundException("Category $catId not found") }
+            }
         }
 
         return productRepository.save(product).toResponse()
