@@ -168,7 +168,7 @@ class StripeWebhookService(
 
     private fun onPaymentIntentSucceeded(root: JsonNode): ProcessResult {
         val paymentIntent =
-            root.data?.getObject()
+            root.data?.`object`
                 ?: throw BadRequestException("Stripe PaymentIntent object is missing")
         val intentId =
             paymentIntent.id?.trim()?.takeIf { it.isNotEmpty() }
