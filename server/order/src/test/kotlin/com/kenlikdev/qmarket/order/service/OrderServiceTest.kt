@@ -173,19 +173,20 @@ class OrderServiceTest {
 
     @Test
     fun `updateStatus changes status`() {
+        val orderId = UUID.randomUUID()
         val order =
             Order(
-                id = UUID.randomUUID(),
+                id = orderId,
                 userId = userId,
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findById(order.id!!) } returns Optional.of(order)
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
         val result =
             orderService.updateStatus(
-                order.id!!,
+                orderId,
                 UpdateOrderStatusRequest(OrderStatus.CONFIRMED),
             )
 
