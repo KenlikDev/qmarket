@@ -101,6 +101,7 @@ data class UpdateProductRequest(
     val active: Boolean? = null,
     val featured: Boolean? = null,
     val categoryId: UUID? = null,
+    val clearCategory: Boolean = false,
 )
 
 data class ProductResponse(
