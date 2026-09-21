@@ -200,6 +200,30 @@ class StripeWebhookServiceTest {
     }
 
     @Test
+    fun `signed succeeded event with non-succeeded intent is rejected`() {
+        val orderId = UUID.randomUUID()
+        val event =
+            StripeWebhookEvent(
+                eventId = "evt_bad_status",
+                eventType = "payment_intent.succeeded",
+            )
+        every { eventRepository.tryClaim("evt_bad_status", "payment_intent.succeeded") } returns 1
+        every { eventRepository.findByEventIdForUpdate("evt_bad_status") } returns event
+
+        val body = payload("evt_bad_status", orderId).replace(
+            "\"status\": \"succeeded\"",
+            "\"status\": \"processing\"",
+        )
+
+        assertThrows<BadRequestException> {
+            service.handle(body, signedPayload(body))
+        }
+        verify(exactly = 0) {
+            orderService.markPaidFromProvider(any(), any(), any(), any(), any())
+        }
+    }
+
+    @Test
     fun processingFailureIsPersistedAsFailedAfterRollback() {
         val orderId = UUID.randomUUID()
         val event =
