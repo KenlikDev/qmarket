@@ -120,13 +120,13 @@ class StripeWebhookService(
         runCatching {
             transactionTemplate.execute {
                 val event =
-                    eventRepository.findById(eventId).orElseGet {
+                    eventRepository.findByEventIdForUpdate(eventId) ?: run {
                         StripeWebhookEvent(
                             eventId = eventId,
                             eventType = type,
                         )
                     }
-                if (event.status == StripeWebhookEvent.STATUS_PROCESSED) {
+                if (event.eventType != type || event.status == StripeWebhookEvent.STATUS_PROCESSED) {
                     return@execute
                 }
                 event.markFailed(cause.message ?: cause.javaClass.simpleName)
