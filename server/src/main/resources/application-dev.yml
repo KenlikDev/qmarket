@@ -8,6 +8,7 @@ qmarket:
     admin:
       password: admin123
   security:
+    api-docs-public: true
     jwt:
       # Local-only secret (never use in production)
       secret: qmarket-local-dev-jwt-secret-2026-keep-local-only-9d4a7f2c6b8e1a53
