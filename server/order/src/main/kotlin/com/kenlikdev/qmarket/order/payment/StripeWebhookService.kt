@@ -1,7 +1,5 @@
 package com.kenlikdev.qmarket.order.payment
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.order.domain.StripeWebhookEvent
@@ -11,13 +9,16 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
+import tools.jackson.databind.ObjectMapper
 import java.util.UUID
 
 /**
- * Stripe webhook handler with database-backed idempotency and Jackson [JsonNode] parsing.
+ * Stripe webhook handler with database-backed idempotency.
  *
- * Metrics (when [PaymentMetrics] is available): received / duplicate / processed / failed.
+ * Claim, business processing, and PROCESSED state are committed atomically.
+ * FAILED state is persisted in a separate transaction after a processing rollback.
  */
 @Service
 @ConditionalOnProperty(name = ["qmarket.payment.provider"], havingValue = "stripe")
@@ -27,13 +28,116 @@ class StripeWebhookService(
     private val eventRepository: StripeWebhookEventRepository,
     private val objectMapper: ObjectMapper,
     private val paymentMetrics: ObjectProvider<PaymentMetrics>,
+    transactionManager: PlatformTransactionManager,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
+    private val transactionTemplate = TransactionTemplate(transactionManager)
 
-    private fun metrics(): PaymentMetrics? = paymentMetrics.getIfAvailable()
-
-    @Transactional
     fun handle(
+        payload: String,
+        signatureHeader: String?,
+    ) {
+        validateSignature(payload, signatureHeader)
+
+        val root = parsePayload(payload)
+        val eventId =
+            root.id?.trim()?.takeIf { it.isNotEmpty() }
+                ?: throw BadRequestException("Stripe webhook is missing event id")
+        if (eventId.length !in 1..64) {
+            throw BadRequestException("Stripe webhook event id has an invalid length")
+        }
+
+        val type = root.type?.trim().orEmpty()
+        if (type.isEmpty() || type.length > 128) {
+            throw BadRequestException("Stripe webhook event type has an invalid length")
+        }
+
+        metrics()?.webhookReceived()
+        log.info("Stripe webhook received eventId={} type={}", eventId, type)
+
+        try {
+            val processed =
+                requireNotNull(
+                    transactionTemplate.execute {
+                        processInTransaction(eventId, type, root)
+                    },
+                ) { "Stripe webhook transaction returned no result" }
+
+            if (!processed) {
+                metrics()?.webhookDuplicate()
+                log.info("Ignoring already processed Stripe event {}", eventId)
+            } else {
+                metrics()?.webhookProcessed()
+                log.info("Stripe webhook processed eventId={} type={}", eventId, type)
+            }
+        } catch (ex: Exception) {
+            metrics()?.webhookFailed()
+            persistFailure(eventId, type, ex)
+            log.error("Failed processing Stripe event {}: {}", eventId, ex.message)
+            throw ex
+        }
+    }
+
+    private fun processInTransaction(
+        eventId: String,
+        type: String,
+        root: JsonNode,
+    ): Boolean {
+        val claimed = eventRepository.tryClaim(eventId, type) == 1
+        val event =
+            eventRepository.findByEventIdForUpdate(eventId)
+                ?: throw IllegalStateException("Stripe event row is missing after claim")
+
+        if (event.eventType != type) {
+            throw BadRequestException("Stripe event type does not match stored event")
+        }
+
+        if (!claimed && event.status == StripeWebhookEvent.STATUS_PROCESSED) {
+            return false
+        }
+
+        when (type) {
+            "payment_intent.succeeded" -> {
+                val result = onPaymentIntentSucceeded(root)
+                event.markProcessed(result.providerReference, result.orderId)
+                metrics()?.orderPaidFromProvider()
+            }
+            else -> {
+                log.debug("Ignoring Stripe event type={}", type)
+                event.markProcessed(providerReference = null, orderId = null)
+            }
+        }
+
+        eventRepository.save(event)
+        return true
+    }
+
+    private fun persistFailure(
+        eventId: String,
+        type: String,
+        cause: Exception,
+    ) {
+        runCatching {
+            transactionTemplate.execute {
+                val event =
+                    eventRepository.findByEventIdForUpdate(eventId) ?: run {
+                        StripeWebhookEvent(
+                            eventId = eventId,
+                            eventType = type,
+                        )
+                    }
+                if (event.eventType != type || event.status == StripeWebhookEvent.STATUS_PROCESSED) {
+                    return@execute
+                }
+                event.markFailed(cause.message ?: cause.javaClass.simpleName)
+                eventRepository.save(event)
+            }
+        }.onFailure {
+            log.error("Failed to persist Stripe event failure state {}", eventId, it)
+        }
+    }
+
+    private fun validateSignature(
         payload: String,
         signatureHeader: String?,
     ) {
@@ -41,7 +145,8 @@ class StripeWebhookService(
         if (secret.isBlank()) {
             throw BadRequestException("Stripe webhook secret is not configured")
         }
-        if (signatureHeader.isNullOrBlank() ||
+        if (
+            signatureHeader.isNullOrBlank() ||
             !StripeWebhookVerifier.verify(
                 payload = payload,
                 signatureHeader = signatureHeader,
@@ -51,105 +156,55 @@ class StripeWebhookService(
         ) {
             throw UnauthorizedException("Invalid Stripe webhook signature")
         }
-
-        val root: JsonNode =
-            try {
-                objectMapper.readTree(payload)
-            } catch (ex: Exception) {
-                log.warn("Unparseable Stripe webhook payload: {}", ex.message)
-                throw BadRequestException("Invalid Stripe webhook payload")
-            }
-
-        val eventId =
-            root.path("id").asText(null)
-                ?: run {
-                    log.warn("Stripe webhook without event id")
-                    return
-                }
-        val type = root.path("type").asText("unknown")
-
-        metrics()?.webhookReceived()
-        log.info("Stripe webhook received eventId={} type={}", eventId, type)
-
-        val claimed = eventRepository.tryClaim(eventId, type) == 1
-        if (!claimed) {
-            val existing = eventRepository.findById(eventId).orElse(null)
-            when (existing?.status) {
-                StripeWebhookEvent.STATUS_PROCESSED -> {
-                    metrics()?.webhookDuplicate()
-                    log.info("Ignoring already PROCESSED Stripe event {}", eventId)
-                    return
-                }
-                StripeWebhookEvent.STATUS_RECEIVED -> {
-                    metrics()?.webhookDuplicate()
-                    log.info("Stripe event {} already claimed (RECEIVED), skipping", eventId)
-                    return
-                }
-                StripeWebhookEvent.STATUS_FAILED -> {
-                    log.info("Retrying FAILED Stripe event {}", eventId)
-                }
-                else -> {
-                    metrics()?.webhookDuplicate()
-                    log.info("Ignoring duplicate Stripe event {}", eventId)
-                    return
-                }
-            }
-        }
-
-        val event =
-            eventRepository.findById(eventId).orElseGet {
-                StripeWebhookEvent(eventId = eventId, eventType = type).also { eventRepository.save(it) }
-            }
-
-        try {
-            when (type) {
-                "payment_intent.succeeded" -> {
-                    val result = onPaymentIntentSucceeded(root)
-                    event.markProcessed(result.providerReference, result.orderId)
-                    if (result.orderId != null) {
-                        metrics()?.orderPaidFromProvider()
-                    }
-                }
-                else -> {
-                    log.debug("Ignoring Stripe event type={}", type)
-                    event.markProcessed(providerReference = null, orderId = null)
-                }
-            }
-            eventRepository.save(event)
-            metrics()?.webhookProcessed()
-            log.info("Stripe webhook processed eventId={} type={}", eventId, type)
-        } catch (ex: Exception) {
-            metrics()?.webhookFailed()
-            log.error("Failed processing Stripe event {}: {}", eventId, ex.message)
-            event.markFailed(ex.message ?: ex.javaClass.simpleName)
-            eventRepository.save(event)
-            throw ex
-        }
     }
 
-    private data class ProcessResult(
-        val orderId: UUID?,
-        val providerReference: String?,
-    )
+    private fun parsePayload(payload: String): StripeEventEnvelope =
+        try {
+            objectMapper.readValue(payload, StripeEventEnvelope::class.java)
+        } catch (ex: Exception) {
+            log.warn("Unparseable Stripe webhook payload: {}", ex.message)
+            throw BadRequestException("Invalid Stripe webhook payload")
+        }
 
-    private fun onPaymentIntentSucceeded(root: JsonNode): ProcessResult {
-        val pi = root.path("data").path("object")
-        val intentId = pi.path("id").asText(null)
-        val orderIdStr =
-            pi.path("metadata").path("order_id").asText(null)
-                ?: run {
-                    log.warn("payment_intent.succeeded without metadata.order_id, pi={}", intentId)
-                    return ProcessResult(orderId = null, providerReference = intentId)
-                }
+    private fun onPaymentIntentSucceeded(root: StripeEventEnvelope): ProcessResult {
+        val paymentIntent =
+            root.data?.`object`
+                ?: throw BadRequestException("Stripe PaymentIntent object is missing")
+        val intentId =
+            paymentIntent.id?.trim()?.takeIf { it.isNotEmpty() }
+                ?: throw BadRequestException("Stripe PaymentIntent id is missing")
+
+        if (paymentIntent.status?.trim() != "succeeded") {
+            throw BadRequestException("Stripe PaymentIntent status is not succeeded")
+        }
+
+        val orderIdString =
+            paymentIntent.orderIdMetadata()?.trim()?.takeIf { it.isNotEmpty() }
+                ?: throw BadRequestException("Stripe PaymentIntent metadata.order_id is missing")
+
         val orderId =
-            runCatching { UUID.fromString(orderIdStr) }.getOrElse {
-                log.warn("Invalid order_id in Stripe metadata: {}", orderIdStr)
-                return ProcessResult(orderId = null, providerReference = intentId)
+            try {
+                UUID.fromString(orderIdString)
+            } catch (_: IllegalArgumentException) {
+                throw BadRequestException("Stripe PaymentIntent metadata.order_id is invalid")
             }
 
-        val amountNode = pi.get("amount")
-        val amountMinor = if (amountNode != null && amountNode.isNumber) amountNode.asLong() else null
-        val currency = pi.path("currency").asText(null)
+        val amountMinor =
+            paymentIntent.amount
+                ?: throw BadRequestException("Stripe PaymentIntent amount is missing")
+        if (amountMinor <= 0) {
+            throw BadRequestException("Stripe PaymentIntent amount must be positive")
+        }
+
+        val currency =
+            paymentIntent.currency?.trim()?.lowercase()
+                ?: throw BadRequestException("Stripe PaymentIntent currency is missing")
+        val expectedCurrency = props.defaultCurrency.trim().lowercase()
+        if (expectedCurrency.isNotEmpty() && currency != expectedCurrency) {
+            throw BadRequestException(
+                "Stripe PaymentIntent currency mismatch: expected $expectedCurrency, received $currency",
+            )
+        }
 
         orderService.markPaidFromProvider(
             orderId = orderId,
@@ -160,4 +215,11 @@ class StripeWebhookService(
         )
         return ProcessResult(orderId = orderId, providerReference = intentId)
     }
+
+    private data class ProcessResult(
+        val orderId: UUID,
+        val providerReference: String,
+    )
+
+    private fun metrics(): PaymentMetrics? = paymentMetrics.getIfAvailable()
 }

@@ -63,7 +63,7 @@ class OrderIntegrationTest {
     fun `orders require authentication`() {
         mockMvc
             .perform(get("/api/v1/orders"))
-            .andExpect(status().isForbidden)
+            .andExpect(status().isUnauthorized)
     }
 
     @Test

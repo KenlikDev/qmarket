@@ -5,17 +5,6 @@ import java.util.UUID
 /** Thin HTTP port over Stripe PaymentIntents (testable without network). */
 interface StripeApiClient {
     /**
-     * Server-side confirm path (test helper / legacy [StripePaymentGateway.charge]).
-     * Uses confirm=true + test PM — not for Payment Element.
-     */
-    fun createPaymentIntent(
-        amountMinor: Long,
-        currency: String,
-        orderId: UUID,
-        userId: UUID,
-    ): StripePaymentIntentResult
-
-    /**
      * Unconfirmed PaymentIntent for client-side confirmation (Payment Element / mobile SDK).
      * Returns [StripePaymentIntentResult.clientSecret].
      */

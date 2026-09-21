@@ -14,6 +14,7 @@ import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import com.kenlikdev.qmarket.common.validation.InputValidation
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
@@ -40,11 +41,16 @@ class CatalogService(
     }
 
     @Transactional(readOnly = true)
-    fun getCategory(id: UUID): CategoryResponse =
-        categoryRepository
-            .findById(id)
-            .orElseThrow { NotFoundException("Category $id not found") }
-            .toResponse()
+    fun getCategory(id: UUID): CategoryResponse {
+        val category =
+            categoryRepository
+                .findById(id)
+                .orElseThrow { NotFoundException("Category $id not found") }
+        if (!category.active) {
+            throw NotFoundException("Category $id not found")
+        }
+        return category.toResponse()
+    }
 
     @Transactional
     fun createCategory(request: CreateCategoryRequest): CategoryResponse {
@@ -78,26 +84,25 @@ class CatalogService(
                 .findById(id)
                 .orElseThrow { NotFoundException("Category $id not found") }
 
-        request.name?.let { category.name = it.trim() }
+        request.name?.let {
+            category.name = InputValidation.requireTrimmedNotBlank(it, "Category name")
+        }
         request.slug?.let {
-            val newSlug = it.trim().lowercase()
+            val newSlug = InputValidation.requireTrimmedNotBlank(it, "Category slug").lowercase()
             if (newSlug != category.slug && categoryRepository.existsBySlug(newSlug)) {
                 throw ConflictException("Category with slug '$newSlug' already exists")
             }
             category.slug = newSlug
         }
-        request.description?.let { category.description = it }
+        request.description?.let { category.description = it.trim() }
         request.sortOrder?.let { category.sortOrder = it }
         request.active?.let { category.active = it }
-        request.parentId?.let { parentId ->
-            category.parent =
-                if (parentId == category.id) {
-                    null
-                } else {
-                    categoryRepository
-                        .findById(parentId)
-                        .orElseThrow { NotFoundException("Parent category $parentId not found") }
-                }
+        if (request.clearParent) {
+            category.parent = null
+        } else {
+            request.parentId?.let { parentId ->
+                category.parent = resolveParentCategory(category.id, parentId)
+            }
         }
 
         return categoryRepository.save(category).toResponse()
@@ -146,7 +151,7 @@ class CatalogService(
             PageRequest.of(
                 page.coerceAtLeast(0),
                 size.coerceIn(1, 100),
-                Sort.by(direction, sortProperty),
+                Sort.by(direction, sortProperty).and(Sort.by(Sort.Direction.DESC, "id")),
             )
         val result =
             productRepository.search(
@@ -187,10 +192,11 @@ class CatalogService(
         slug: String,
         requireActive: Boolean = true,
     ): ProductResponse {
+        val normalizedSlug = slug.trim().lowercase()
         val product =
             productRepository
-                .findBySlug(slug)
-                .orElseThrow { NotFoundException("Product with slug '$slug' not found") }
+                .findBySlug(normalizedSlug)
+                .orElseThrow { NotFoundException("Product with slug '$normalizedSlug' not found") }
         if (requireActive && !product.active) {
             throw NotFoundException("Product with slug '$slug' not found")
         }
@@ -239,21 +245,24 @@ class CatalogService(
                 .findById(id)
                 .orElseThrow { NotFoundException("Product $id not found") }
 
-        request.name?.let { product.name = it.trim() }
+        request.name?.let {
+            product.name = InputValidation.requireTrimmedNotBlank(it, "Product name")
+        }
         request.slug?.let {
-            val newSlug = it.trim().lowercase()
+            val newSlug = InputValidation.requireTrimmedNotBlank(it, "Product slug").lowercase()
             if (newSlug != product.slug && productRepository.existsBySlug(newSlug)) {
                 throw ConflictException("Product with slug '$newSlug' already exists")
             }
             product.slug = newSlug
         }
-        request.description?.let { product.description = it }
-        request.shortDescription?.let { product.shortDescription = it }
+        request.description?.let { product.description = it.trim() }
+        request.shortDescription?.let { product.shortDescription = it.trim() }
         request.sku?.let {
-            if (it != product.sku && productRepository.existsBySku(it)) {
-                throw ConflictException("Product with SKU '$it' already exists")
+            val newSku = it.trim().ifEmpty { null }
+            if (newSku != null && newSku != product.sku && productRepository.existsBySku(newSku)) {
+                throw ConflictException("Product with SKU '$newSku' already exists")
             }
-            product.sku = it.trim()
+            product.sku = newSku
         }
         request.price?.let { product.price = it }
         request.compareAtPrice?.let { product.compareAtPrice = it }
@@ -261,14 +270,51 @@ class CatalogService(
         request.stockQuantity?.let { product.stockQuantity = it }
         request.active?.let { product.active = it }
         request.featured?.let { product.featured = it }
-        request.categoryId?.let { catId ->
-            product.category =
-                categoryRepository
-                    .findById(catId)
-                    .orElseThrow { NotFoundException("Category $catId not found") }
+        if (request.clearCategory) {
+            product.category = null
+        } else {
+            request.categoryId?.let { catId ->
+                product.category =
+                    categoryRepository
+                        .findById(catId)
+                        .orElseThrow { NotFoundException("Category $catId not found") }
+            }
         }
 
         return productRepository.save(product).toResponse()
+    }
+
+    private fun resolveParentCategory(
+        categoryId: UUID?,
+        parentId: UUID,
+    ): Category {
+        if (categoryId == parentId) {
+            throw BadRequestException("A category cannot be its own parent")
+        }
+
+        val parent =
+            categoryRepository
+                .findById(parentId)
+                .orElseThrow { NotFoundException("Parent category $parentId not found") }
+        var current = parent
+        val visited = mutableSetOf<UUID>()
+
+        while (true) {
+            val currentId =
+                requireNotNull(current.id) {
+                    "Category id is missing while validating hierarchy"
+                }
+            if (currentId == categoryId) {
+                throw BadRequestException("Category hierarchy would contain a cycle")
+            }
+            if (!visited.add(currentId)) {
+                throw BadRequestException("Category hierarchy already contains a cycle")
+            }
+
+            current = current.parent ?: break
+        }
+
+        return parent
     }
 
     /**

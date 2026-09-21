@@ -14,7 +14,7 @@ class OrderTest {
     @Test
     fun `cancel from pending`() {
         val order = pending()
-        assertTrue(order.cancel())
+        order.cancel()
         assertEquals(OrderStatus.CANCELLED, order.status)
     }
 

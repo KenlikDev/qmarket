@@ -10,6 +10,11 @@ import kotlin.test.assertTrue
  */
 class CheckoutSelectionTest {
     @Test
+    fun `blank selected address id cannot checkout`() {
+        assertFalse(CheckoutSelection.canCheckout("", ""))
+    }
+
+    @Test
     fun enabledWhenSavedAddressSelected() {
         assertTrue(
             CheckoutSelection.canCheckout(
