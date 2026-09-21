@@ -2,7 +2,7 @@ package com.kenlikdev.qmarket.identity.service
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier as GoogleApiVerifier
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
-import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.json.gson.GsonFactory
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -26,7 +26,7 @@ class GoogleApiIdTokenVerifier(
             GoogleApiVerifier
                 .Builder(
                     GoogleNetHttpTransport.newTrustedTransport(),
-                    JacksonFactory.getDefaultInstance(),
+                    GsonFactory.getDefaultInstance(),
                 )
                 .setAudience(props.normalizedClientIds())
                 .build()
