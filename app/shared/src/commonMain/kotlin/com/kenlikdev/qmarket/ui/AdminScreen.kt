@@ -356,7 +356,6 @@ fun AdminScreen(
                 }
             }
 
-
             Text(
                 "Users (${adminUsers.size})",
                 style = MaterialTheme.typography.titleMedium,
