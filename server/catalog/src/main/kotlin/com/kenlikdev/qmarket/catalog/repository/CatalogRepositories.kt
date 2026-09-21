@@ -17,7 +17,7 @@ interface CategoryRepository : JpaRepository<Category, UUID> {
 
     fun existsBySlug(slug: String): Boolean
 
-    fun findAllByActiveTrueOrderBySortOrderAsc(): List<Category>
+    fun findAllByActiveTrueOrderBySortOrderAscIdAsc(): List<Category>
 }
 
 interface ProductRepository : JpaRepository<Product, UUID> {
