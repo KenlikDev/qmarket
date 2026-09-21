@@ -26,6 +26,7 @@ import com.kenlikdev.qmarket.ui.CheckoutIdempotency
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 
 /**
@@ -54,6 +55,7 @@ class QMarketAppModel(
     var statusMessage by mutableStateOf<String?>(null)
     var loading by mutableStateOf(false)
     private var activeRequestCount = 0
+    private val runningApiJobs = mutableSetOf<Job>()
     var products by mutableStateOf<List<ProductDto>>(emptyList())
     var detailProduct by mutableStateOf<ProductDto?>(null)
     var detailQuantity by mutableStateOf(1)
@@ -93,22 +95,27 @@ class QMarketAppModel(
     var addrStreet by mutableStateOf("")
     var addrPhone by mutableStateOf("")
 
-    fun runApi(block: suspend () -> Unit): Job =
-        scope.launch {
-            withRequestLoading {
-                error = null
-                statusMessage = null
-                try {
-                    block()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: ApiException) {
-                    error = e.message
-                } catch (e: Exception) {
-                    error = e.message ?: e.toString()
+    fun runApi(block: suspend () -> Unit): Job {
+        val job =
+            scope.launch {
+                withRequestLoading {
+                    error = null
+                    statusMessage = null
+                    try {
+                        block()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: ApiException) {
+                        error = e.message
+                    } catch (e: Exception) {
+                        error = e.message ?: e.toString()
+                    }
                 }
             }
-        }
+        runningApiJobs += job
+        job.invokeOnCompletion { runningApiJobs -= job }
+        return job
+    }
 
     private suspend fun <T> withRequestLoading(block: suspend () -> T): T {
         activeRequestCount += 1
@@ -121,7 +128,15 @@ class QMarketAppModel(
         }
     }
 
-    private fun clearSessionState(): Exception? {
+    private fun cancelRunningApiJobs(exceptJob: Job? = null) {
+        runningApiJobs
+            .toList()
+            .filter { it !== exceptJob && it.isActive }
+            .forEach(Job::cancel)
+    }
+
+    private fun clearSessionState(exceptJob: Job? = null): Exception? {
+        cancelRunningApiJobs(exceptJob)
         var cleanupError: Exception? = null
         try {
             tokens.clear()
@@ -277,7 +292,7 @@ class QMarketAppModel(
                     api.logout(refresh)
                 }
             } finally {
-                val cleanupError = clearSessionState()
+                val cleanupError = clearSessionState(currentCoroutineContext()[Job])
                 if (cleanupError != null) {
                     throw cleanupError
                 }
