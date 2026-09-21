@@ -4,8 +4,8 @@ import com.kenlikdev.qmarket.catalog.domain.Category
 import com.kenlikdev.qmarket.catalog.domain.Product
 import com.kenlikdev.qmarket.catalog.dto.CreateCategoryRequest
 import com.kenlikdev.qmarket.catalog.dto.CreateProductRequest
-import UpdateCategoryRequest
-import UpdateProductRequest
+import com.kenlikdev.qmarket.catalog.dto.UpdateCategoryRequest
+import com.kenlikdev.qmarket.catalog.dto.UpdateProductRequest
 import com.kenlikdev.qmarket.catalog.repository.CategoryRepository
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
