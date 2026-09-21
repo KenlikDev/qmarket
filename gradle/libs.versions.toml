@@ -1,4 +1,5 @@
 [versions]
+googleApiClient = "2.9.0"
 agp = "9.1.1"
 android-compileSdk = "37"
 android-minSdk = "24"
@@ -99,6 +100,7 @@ testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+google-api-client = { module = "com.google.api-client:google-api-client", version.ref = "googleApiClient" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 
 [bundles]
