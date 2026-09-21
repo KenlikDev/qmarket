@@ -66,6 +66,7 @@ class AuthServiceTest {
         every { refreshTokenRepository.findByJti(any()) } returns null
         every { refreshTokenRepository.revokeFamily(any(), any()) } returns 0
         every { refreshTokenRepository.revokeIfActive(any(), any()) } returns 1
+        every { userRepository.findByIdForUpdate(any()) } returns null
 
         every { passwordEncoder.encode(any()) } returns "hashed"
         every { passwordEncoder.matches(any(), any()) } returns true
@@ -199,8 +200,8 @@ class AuthServiceTest {
         every { jwtService.isRefreshToken(claims) } returns true
         every { jwtService.getUserId(claims) } returns userId
         every { jwtService.getJti(claims) } returns jti
+        every { userRepository.findByIdForUpdate(userId) } returns user
         every { refreshTokenRepository.findByJti(jti) } returns stored
-        every { userRepository.findById(userId) } returns Optional.of(user)
 
         val result = authService.refresh(RefreshTokenRequest(refreshToken = "old-refresh"))
 
