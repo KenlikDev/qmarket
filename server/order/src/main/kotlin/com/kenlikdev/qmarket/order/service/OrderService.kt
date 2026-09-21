@@ -82,8 +82,9 @@ class OrderService(
             idempotency.loadReplay(userId, normalizedKey, request)?.let { return it }
         }
 
+        cartRepository.insertIfMissing(userId)
         val cart =
-            cartRepository.findByUserId(userId)
+            cartRepository.findByUserIdForUpdate(userId)
                 ?: throw BadRequestException("Cart is empty")
         if (cart.items.isEmpty()) {
             throw BadRequestException("Cart is empty")
@@ -178,7 +179,7 @@ class OrderService(
                 page.coerceAtLeast(0),
                 size.coerceIn(1, 100),
             )
-        val result = orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+        val result = orderRepository.findByUserIdOrderByCreatedAtDescIdDesc(userId, pageable)
         return PageResponse(
             content = result.content.map { OrderMapper.toResponse(it) },
             page = result.number,
@@ -206,7 +207,7 @@ class OrderService(
             PageRequest.of(
                 page.coerceAtLeast(0),
                 size.coerceIn(1, 100),
-                Sort.by(Sort.Direction.DESC, "createdAt"),
+                Sort.by(Sort.Direction.DESC, "createdAt", "id"),
             )
         val result = orderRepository.findAll(pageable)
         return PageResponse(
@@ -299,8 +300,6 @@ class OrderService(
             amountMinor,
             currency,
         )
-
-    /** @deprecated Use [pay]; kept name-compatible for older tests — prefer [pay]. */
 
     private fun resolveShippingAddress(
         userId: UUID,

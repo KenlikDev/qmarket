@@ -17,7 +17,9 @@ import com.kenlikdev.qmarket.identity.dto.UserResponse
 import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
+import io.jsonwebtoken.JwtException
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.dao.DataAccessException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -81,7 +83,7 @@ class AuthService(
 
         if (!user.enabled) {
             loginRateLimiter.recordFailure(email, clientKey)
-            throw UnauthorizedException("Account is disabled")
+            throw UnauthorizedException("Invalid email or password")
         }
 
         if (!passwordEncoder.matches(request.password, user.passwordHash)) {
@@ -89,60 +91,72 @@ class AuthService(
             throw UnauthorizedException("Invalid email or password")
         }
 
-        loginRateLimiter.clear(email, clientKey)
+        loginRateLimiter.clearAccount(email)
         return issueTokens(user, familyId = UUID.randomUUID())
     }
 
     @Transactional
     fun refresh(request: RefreshTokenRequest): AuthResponse {
-        try {
-            val claims = jwtService.parseClaims(request.refreshToken)
-            if (!jwtService.isRefreshToken(claims)) {
-                throw UnauthorizedException("Invalid refresh token")
-            }
-            val userId = jwtService.getUserId(claims)
-            val jti = jwtService.getJti(claims)
-            val stored =
-                refreshTokenRepository.findByJti(jti)
-                    ?: throw UnauthorizedException("Invalid refresh token")
-
-            if (stored.userId != userId) {
+        val claims =
+            try {
+                jwtService.parseClaims(request.refreshToken)
+            } catch (_: JwtException) {
                 throw UnauthorizedException("Invalid refresh token")
             }
 
-            if (stored.isExpired) {
-                stored.revoke()
-                refreshTokenRepository.save(stored)
-                throw UnauthorizedException("Refresh token expired")
-            }
-
-            if (stored.isRevoked) {
-                refreshTokenRepository.revokeFamily(stored.familyId, Instant.now())
-                throw UnauthorizedException("Refresh token reuse detected")
-            }
-
-            // Atomic consume: only one concurrent refresh may win (updated rows == 1).
-            // If we lose the race, do NOT revoke the family — the winner legitimately issued R2.
-            // Family revoke is reserved for true reuse: presenting an already-revoked jti (above).
-            val consumed = refreshTokenRepository.revokeIfActive(stored.jti, Instant.now())
-            if (consumed != 1) {
-                throw UnauthorizedException("Refresh token already used")
-            }
-
-            val user =
-                userRepository
-                    .findById(userId)
-                    .orElseThrow { UnauthorizedException("User not found") }
-            if (!user.enabled) {
-                throw UnauthorizedException("Account is disabled")
-            }
-
-            return issueTokens(user, familyId = stored.familyId)
-        } catch (ex: UnauthorizedException) {
-            throw ex
-        } catch (ex: Exception) {
+        if (!jwtService.isRefreshToken(claims)) {
             throw UnauthorizedException("Invalid refresh token")
         }
+
+        val userId =
+            try {
+                jwtService.getUserId(claims)
+            } catch (_: IllegalArgumentException) {
+                throw UnauthorizedException("Invalid refresh token")
+            }
+        val jti =
+            try {
+                jwtService.getJti(claims)
+            } catch (_: IllegalArgumentException) {
+                throw UnauthorizedException("Invalid refresh token")
+            }
+
+        val stored =
+            refreshTokenRepository.findByJti(jti)
+                ?: throw UnauthorizedException("Invalid refresh token")
+
+        if (stored.userId != userId) {
+            throw UnauthorizedException("Invalid refresh token")
+        }
+
+        if (stored.isExpired) {
+            stored.revoke()
+            refreshTokenRepository.save(stored)
+            throw UnauthorizedException("Refresh token expired")
+        }
+
+        if (stored.isRevoked) {
+            refreshTokenRepository.revokeFamily(stored.familyId, Instant.now())
+            throw UnauthorizedException("Refresh token reuse detected")
+        }
+
+        // Atomic consume: only one concurrent refresh may win (updated rows == 1).
+        // If we lose the race, do NOT revoke the family — the winner legitimately issued R2.
+        // Family revoke is reserved for true reuse: presenting an already-revoked jti (above).
+        val consumed = refreshTokenRepository.revokeIfActive(stored.jti, Instant.now())
+        if (consumed != 1) {
+            throw UnauthorizedException("Refresh token already used")
+        }
+
+        val user =
+            userRepository
+                .findById(userId)
+                .orElseThrow { UnauthorizedException("User not found") }
+        if (!user.enabled) {
+            throw UnauthorizedException("Account is disabled")
+        }
+
+        return issueTokens(user, familyId = stored.familyId)
     }
 
     /**
@@ -164,8 +178,12 @@ class AuthService(
                 stored.revoke()
                 refreshTokenRepository.save(stored)
             }
-        } catch (_: Exception) {
-            // best-effort: logout must not fail the client session clear
+        } catch (_: JwtException) {
+            // best-effort: invalid or expired token still means local logout succeeds
+        } catch (_: IllegalArgumentException) {
+            // best-effort: malformed token claims still mean local logout succeeds
+        } catch (_: DataAccessException) {
+            // best-effort: local session must be cleared even when token revocation cannot persist
         }
     }
 

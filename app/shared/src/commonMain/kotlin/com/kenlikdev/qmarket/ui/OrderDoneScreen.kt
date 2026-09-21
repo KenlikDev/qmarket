@@ -21,7 +21,7 @@ fun OrderDoneScreen(
     error: String?,
     statusMessage: String?,
     loading: Boolean,
-    onPay: () -> Unit,
+    onOpenOrder: () -> Unit,
     onMyOrders: () -> Unit,
     onBackToCatalog: () -> Unit,
     onOpenCart: () -> Unit,
@@ -41,11 +41,11 @@ fun OrderDoneScreen(
         Text("Total: ${order.totalAmount}")
         ErrorText(error)
         Button(
-            onClick = onPay,
-            enabled = !loading && order.status.name == "PENDING",
-            modifier = Modifier.padding(top = 16.dp).testTag("orderDonePay"),
+            onClick = onOpenOrder,
+            enabled = !loading,
+            modifier = Modifier.padding(top = 16.dp).testTag("orderDoneOpenOrder"),
         ) {
-            Text("Pay (mock)")
+            Text("View order")
         }
         statusMessage?.let {
             Text(it, color = MaterialTheme.colorScheme.primary)
