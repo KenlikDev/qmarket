@@ -40,8 +40,9 @@ class OrderPaymentService(
         orderId: UUID,
     ): OrderResponse {
         val order =
-            orderRepository
-                .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
+            orderRepository.findByIdForUpdate(orderId)
+                ?.takeIf { it.userId == userId }
+                ?: throw NotFoundException("Order not found")
 
         // Fail closed before PSP if status cannot become PAID
         when (order.status) {
@@ -146,9 +147,8 @@ class OrderPaymentService(
         currency: String? = null,
     ): OrderResponse {
         val order =
-            orderRepository.findById(orderId).orElseThrow {
-                NotFoundException("Order not found: $orderId")
-            }
+            orderRepository.findByIdForUpdate(orderId)
+                ?: throw NotFoundException("Order not found: $orderId")
         when (order.status) {
             OrderStatus.PAID -> return OrderMapper.toResponse(order)
             OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
