@@ -25,6 +25,7 @@ import com.kenlikdev.qmarket.ui.CatalogFilterParams
 import com.kenlikdev.qmarket.ui.CheckoutIdempotency
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
@@ -97,7 +98,7 @@ class QMarketAppModel(
 
     fun runApi(block: suspend () -> Unit): Job {
         val job =
-            scope.launch {
+            scope.launch(start = CoroutineStart.LAZY) {
                 withRequestLoading {
                     error = null
                     statusMessage = null
@@ -114,6 +115,7 @@ class QMarketAppModel(
             }
         runningApiJobs += job
         job.invokeOnCompletion { runningApiJobs -= job }
+        job.start()
         return job
     }
 
