@@ -71,7 +71,7 @@ class OrderCheckoutConcurrencyTest {
         }
         initialOrderCount =
             orderRepository
-                .findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 100))
+                .findByUserIdOrderByCreatedAtDescIdDesc(userId, PageRequest.of(0, 100))
                 .totalElements
 
         val cart = cartRepository.findByUserId(userId) ?: Cart(userId = userId)
@@ -138,7 +138,7 @@ class OrderCheckoutConcurrencyTest {
         assertEquals(
             initialOrderCount + 1,
             orderRepository
-                .findByUserIdOrderByCreatedAtDesc(
+                .findByUserIdOrderByCreatedAtDescIdDesc(
                     userId,
                     PageRequest.of(0, 100),
                 ).totalElements,
@@ -182,7 +182,7 @@ class OrderCheckoutConcurrencyTest {
         assertEquals(
             initialOrderCount + 1,
             orderRepository
-                .findByUserIdOrderByCreatedAtDesc(
+                .findByUserIdOrderByCreatedAtDescIdDesc(
                     userId,
                     PageRequest.of(0, 100),
                 ).totalElements,
