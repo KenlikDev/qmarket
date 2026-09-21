@@ -310,8 +310,7 @@ class QMarketAppModel(
         isAdmin = tokens.isAdmin()
     }
 
-    fun login() {
-        runApi {
+    fun login(): Job = runApi {
             cancelRunningApiJobs(currentCoroutineContext()[Job])
             val auth =
                 api.login(
@@ -334,8 +333,7 @@ class QMarketAppModel(
         }
     }
 
-    fun register() {
-        runApi {
+    fun register(): Job = runApi {
             cancelRunningApiJobs(currentCoroutineContext()[Job])
             val auth =
                 api.register(
