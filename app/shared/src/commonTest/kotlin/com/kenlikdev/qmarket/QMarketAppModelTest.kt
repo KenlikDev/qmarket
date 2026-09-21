@@ -159,6 +159,40 @@ class QMarketAppModelTest {
             assertEquals(AppScreen.Login, model.screen)
         }
 
+
+    @Test
+    fun restoreSessionPreservesSessionOnTransientApiFailure() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            tokens.applyAuth(authUser())
+            val engine =
+                MockEngine {
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """{"status":503,"error":"Service Unavailable","code":"INTERNAL_ERROR","message":"temporary outage"}""",
+                            ),
+                        status = HttpStatusCode.ServiceUnavailable,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                val api = QMarketApiClient(client)
+                val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = true)
+
+                model.restoreSessionIfNeeded(restoredSession = true)
+
+                assertTrue(model.loggedIn)
+                assertEquals("u@test.local", model.userLabel)
+                assertEquals("a", tokens.accessToken())
+                assertEquals("temporary outage", model.error)
+                assertEquals(AppScreen.Catalog, model.screen)
+            } finally {
+                client.close()
+            }
+        }
+
     @Test
     fun checkoutIsIgnoredWhileLockedOrLoading() =
         runBlocking {
