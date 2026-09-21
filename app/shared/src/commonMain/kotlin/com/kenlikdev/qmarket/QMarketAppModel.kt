@@ -172,42 +172,42 @@ class QMarketAppModel(
         withRequestLoading {
             error = null
             try {
-            val currentProfile = api.getProfile()
-            tokens.applyRoles(currentProfile.roles)
-            isAdmin = tokens.isAdmin()
+                val currentProfile = api.getProfile()
+                tokens.applyRoles(currentProfile.roles)
+                isAdmin = tokens.isAdmin()
 
-            val page = api.listProducts(size = 50)
-            products = page.content
-            cart = runCatchingCancellable { api.getCart() }.getOrNull()
+                val page = api.listProducts(size = 50)
+                products = page.content
+                cart = runCatchingCancellable { api.getCart() }.getOrNull()
 
-            loggedIn = true
-            userLabel = currentProfile.email
-            screen = AppScreen.Catalog
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: ApiException) {
-            if (e.status == 401) {
-                val cleanupError = clearSessionState()
-                screen = AppScreen.Login
-                error =
-                    if (cleanupError == null) {
-                        "Session expired — please sign in again"
-                    } else {
-                        "Session expired — local session cleanup failed"
-                    }
-            } else {
+                loggedIn = true
+                userLabel = currentProfile.email
+                screen = AppScreen.Catalog
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ApiException) {
+                if (e.status == 401) {
+                    val cleanupError = clearSessionState()
+                    screen = AppScreen.Login
+                    error =
+                        if (cleanupError == null) {
+                            "Session expired — please sign in again"
+                        } else {
+                            "Session expired — local session cleanup failed"
+                        }
+                } else {
+                    loggedIn = true
+                    userLabel = tokens.sessionEmail()
+                    isAdmin = tokens.isAdmin()
+                    screen = AppScreen.Catalog
+                    error = e.message
+                }
+            } catch (e: Exception) {
                 loggedIn = true
                 userLabel = tokens.sessionEmail()
                 isAdmin = tokens.isAdmin()
                 screen = AppScreen.Catalog
-                error = e.message
-            }
-        } catch (e: Exception) {
-            loggedIn = true
-            userLabel = tokens.sessionEmail()
-            isAdmin = tokens.isAdmin()
-            screen = AppScreen.Catalog
-            error = e.message ?: "Unable to restore session data"
+                error = e.message ?: "Unable to restore session data"
             }
         }
     }
