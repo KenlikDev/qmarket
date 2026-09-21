@@ -18,6 +18,7 @@ import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import io.jsonwebtoken.JwtException
+import org.springframework.dao.DataAccessException
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -177,8 +178,12 @@ class AuthService(
                 stored.revoke()
                 refreshTokenRepository.save(stored)
             }
-        } catch (_: Exception) {
-            // best-effort: logout must not fail the client session clear
+        } catch (_: JwtException) {
+            // best-effort: invalid or expired token still means local logout succeeds
+        } catch (_: IllegalArgumentException) {
+            // best-effort: malformed token claims still mean local logout succeeds
+        } catch (_: DataAccessException) {
+            // best-effort: local session must be cleared even when token revocation cannot persist
         }
     }
 
