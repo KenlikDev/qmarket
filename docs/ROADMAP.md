@@ -26,7 +26,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Profile + shipping addresses
 - [x] Unit + controller slice + integration tests (incl. stock concurrency)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize
-- [x] Flyway SoT V1–V12, app `ddl-auto=validate`
+- [x] Flyway SoT V1–V14, app `ddl-auto=validate`
 - [x] `ProductCatalog` port + ArchUnit boundaries
 - [x] Atomic stock `UPDATE … WHERE stock >= qty`
 
@@ -47,7 +47,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] UI split: `ui/` screens + `App.kt` + `QMarketAppModel` (state/loaders outside composition root)
 - [x] Persistent session store (Android EncryptedSharedPreferences / JVM file / iOS Keychain / JS localStorage; Wasm in-memory)
 - [x] Compose UI tests (`runComposeUiTest` on Login/Register/Catalog/Cart/Profile/Orders/Addresses; JVM)
-- [x] Login rate limit (sliding window per email + client key; 429 TOO_MANY_REQUESTS)
+- [x] Login rate limit (sliding window with independent account and client-source limits; 429 TOO_MANY_REQUESTS)
 
 ### Hardening (from architecture review)
 
@@ -69,7 +69,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Admin: create / update / delete product UI + category assign (shared client, ROLE_ADMIN)
 - [x] Admin: categories UI (list/create/edit/delete in Admin screen)
 - [x] Admin: orders list + status transitions UI
-- [x] Google OAuth (ID token -> JWT; POST /api/v1/auth/oauth/google, feature-flagged)
+- [x] Google OAuth (official ID-token verification, stable Google subject binding, POST /api/v1/auth/oauth/google, feature-flagged)
 
 ### v1.0 started
 
@@ -93,7 +93,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Prod: Swagger/OpenAPI off (`api-docs-public=false`, springdoc disabled)
 - [x] Prod: actuator exposure limited to health/info
 - [x] JwtProperties rejects known placeholder/dev secrets
-- [x] Database foreign-key integrity restored for user aggregates and product references
+- [x] Database foreign-key integrity restored for user aggregates and product references; Google subject identity persisted in V14
 
 ## v1.0 MVP (from plan)
 
