@@ -52,7 +52,7 @@ fun HttpClientConfig<*>.qMarketConfig(
     if (tokenProvider != null) {
         install(Auth) {
             bearer {
-                nonCancellableRefresh = true
+                nonCancellableRefresh = false
 
                 loadTokens {
                     val access = tokenProvider.accessToken() ?: return@loadTokens null
