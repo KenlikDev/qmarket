@@ -21,7 +21,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:?DB_HOST must be set}:${DB_PORT:5432}/${DB_NAME:qmarket}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:qmarket}
     username: ${DB_USER:?DB_USER must be set}
     password: ${DB_PASSWORD:?DB_PASSWORD must be set}
   flyway:
