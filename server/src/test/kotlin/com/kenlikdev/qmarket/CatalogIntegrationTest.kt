@@ -99,6 +99,32 @@ class CatalogIntegrationTest {
             .andExpect(jsonPath("$.price").value(9.99))
     }
 
+
+    @Test
+    fun `admin catalog listings require admin authorization`() {
+        mockMvc
+            .perform(get("/api/v1/products/admin"))
+            .andExpect(status().isForbidden)
+
+        mockMvc
+            .perform(get("/api/v1/categories/admin"))
+            .andExpect(status().isForbidden)
+
+        mockMvc
+            .perform(
+                get("/api/v1/products/admin")
+                    .header("Authorization", "Bearer $adminToken"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.content").isArray)
+
+        mockMvc
+            .perform(
+                get("/api/v1/categories/admin")
+                    .header("Authorization", "Bearer $adminToken"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$").isArray)
+    }
+
     @Test
     fun `list products accepts price and sort filters`() {
         mockMvc

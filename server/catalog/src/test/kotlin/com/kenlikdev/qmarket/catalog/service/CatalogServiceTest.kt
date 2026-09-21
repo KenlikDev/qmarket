@@ -125,6 +125,65 @@ class CatalogServiceTest {
         assertEquals(1, result.totalElements)
     }
 
+
+    @Test
+    fun `updateCategory rejects self parent`() {
+        val id = UUID.randomUUID()
+        val category =
+            Category(
+                id = id,
+                name = "Parent",
+                slug = "parent",
+            )
+        every { categoryRepository.findById(id) } returns Optional.of(category)
+
+        assertThrows<BadRequestException> {
+            catalogService.updateCategory(
+                id,
+                com.kenlikdev.qmarket.catalog.dto.UpdateCategoryRequest(parentId = id),
+            )
+        }
+    }
+
+    @Test
+    fun `getProductBySlug normalizes slug`() {
+        val product =
+            Product(
+                id = UUID.randomUUID(),
+                name = "Phone",
+                slug = "phone",
+                price = BigDecimal("10.00"),
+            )
+        every { productRepository.findBySlug("phone") } returns Optional.of(product)
+
+        val result = catalogService.getProductBySlug(" PHONE ")
+
+        assertEquals(product.id, result.id)
+        verify(exactly = 1) { productRepository.findBySlug("phone") }
+    }
+
+    @Test
+    fun `updateProduct trims and can clear sku`() {
+        val id = UUID.randomUUID()
+        val product =
+            Product(
+                id = id,
+                name = "Phone",
+                slug = "phone",
+                sku = "OLD-SKU",
+                price = BigDecimal("10.00"),
+            )
+        every { productRepository.findById(id) } returns Optional.of(product)
+        every { productRepository.save(any()) } answers { firstArg() }
+
+        catalogService.updateProduct(
+            id,
+            com.kenlikdev.qmarket.catalog.dto.UpdateProductRequest(sku = "   "),
+        )
+
+        assertEquals(null, product.sku)
+    }
+
     @Test
     fun `deleteProduct not found throws NotFoundException`() {
         val id = UUID.randomUUID()

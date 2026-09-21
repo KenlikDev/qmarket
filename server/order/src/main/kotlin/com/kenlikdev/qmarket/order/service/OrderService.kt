@@ -300,8 +300,6 @@ class OrderService(
             currency,
         )
 
-    /** @deprecated Use [pay]; kept name-compatible for older tests — prefer [pay]. */
-
     private fun resolveShippingAddress(
         userId: UUID,
         request: CreateOrderRequest,

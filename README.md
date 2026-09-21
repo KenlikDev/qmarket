@@ -16,7 +16,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Unit / controller / integration tests | ✅ |
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
 | Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V5, app: `validate`, tests: Flyway |
-| Payments (mock) | ✅ POST /api/v1/orders/{id}/pay |
+| Payments | ✅ mock locally; Stripe PaymentIntent + webhook path available |
 | Profile (GET/PATCH /users/me) | ✅ |
 | Shipping addresses | ✅ |
 | catalog-api (ProductCatalog port) | ✅ |
@@ -77,7 +77,7 @@ POST   /api/v1/orders                 # { shippingAddress? | addressId?, custome
 GET    /api/v1/orders?page=0&size=20  # no sort param (Swagger sort=string broke JPA)
 GET    /api/v1/orders/{id}
 POST   /api/v1/orders/{id}/cancel
-POST   /api/v1/orders/{id}/pay     # mock payment → PAID
+POST   /api/v1/orders/{id}/pay     # local mock gateway; production uses Stripe client payment flow
 GET    /api/v1/orders/admin/all
 GET    /api/v1/orders/admin/{id}
 PUT    /api/v1/orders/admin/{id}/status  { "status": "CONFIRMED" }
@@ -104,7 +104,7 @@ Android emulator API host: `10.0.2.2:8080`
 1c. Addresses (list/add/delete; use on checkout)
 2. Add to cart (requires login)
 3. Cart → checkout with shipping address
-4. Optional mock pay on order confirmation
+4. Complete payment using the configured provider (mock locally; Stripe PaymentIntent in production)
 5. My orders — list, pay, cancel (PENDING)
 
 ### Production notes
@@ -123,7 +123,7 @@ Android emulator API host: `10.0.2.2:8080`
   Alternative without profile: `QMARKET_SEED_ENABLED=true`
   Demo admin: `admin@qmarket.local` / `admin123`
 - CORS: `CORS_ORIGINS` / `qmarket.security.cors.allowed-origin-patterns`
-- Stock: atomic `UPDATE … WHERE stock >= qty` (DB row lock; no JPA `@Version`)
+- Stock: atomic `UPDATE … WHERE stock >= qty` with database-side concurrency control
 
 ### Tests and quality (full project)
 

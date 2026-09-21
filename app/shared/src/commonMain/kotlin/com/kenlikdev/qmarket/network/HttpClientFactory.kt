@@ -17,13 +17,9 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
-/**
- * Shared Ktor plugins for QMarket API.
- *
- * @param baseUrl e.g. `http://10.0.2.2:8080` (Android emulator) or `http://localhost:8080`
- * @param tokenProvider session holder; when set, Bearer auth refreshes access token on 401
- */
 fun HttpClientConfig<*>.qMarketConfig(
     baseUrl: String,
     tokenProvider: TokenProvider? = null,
@@ -50,28 +46,32 @@ fun HttpClientConfig<*>.qMarketConfig(
                     BearerTokens(access, tokenProvider.refreshToken().orEmpty())
                 }
                 refreshTokens {
-                    val currentRefresh = tokenProvider.refreshToken() ?: return@refreshTokens null
-                    val response =
-                        client.post("/api/v1/auth/refresh") {
-                            markAsRefreshTokenRequest()
-                            contentType(ContentType.Application.Json)
-                            setBody(RefreshTokenRequestDto(refreshToken = currentRefresh))
+                    withContext(NonCancellable) {
+                        val currentRefresh = tokenProvider.refreshToken() ?: return@withContext null
+                        val response =
+                            client.post("/api/v1/auth/refresh") {
+                                markAsRefreshTokenRequest()
+                                contentType(ContentType.Application.Json)
+                                setBody(RefreshTokenRequestDto(refreshToken = currentRefresh))
+                            }
+                        if (response.status != HttpStatusCode.OK) {
+                            if (tokenProvider is MutableTokenProvider) {
+                                tokenProvider.clear()
+                            }
+                            return@withContext null
                         }
-                    if (response.status != HttpStatusCode.OK) {
+
+                        val auth = response.body<AuthResponseDto>()
                         if (tokenProvider is MutableTokenProvider) {
-                            tokenProvider.clear()
+                            tokenProvider.applyAuth(auth)
                         }
-                        return@refreshTokens null
+                        BearerTokens(auth.accessToken, auth.refreshToken)
                     }
-                    val auth = response.body<AuthResponseDto>()
-                    if (tokenProvider is MutableTokenProvider) {
-                        tokenProvider.applyAuth(auth)
-                    }
-                    BearerTokens(auth.accessToken, auth.refreshToken)
                 }
-                // Ktor 3.5: return true to ATTACH bearer. Skip /api/v1/auth/** (login/register/refresh).
                 sendWithoutRequest { request ->
-                    "auth" !in request.url.pathSegments
+                    request.url.pathSegments.firstOrNull() != "api" ||
+                        request.url.pathSegments.getOrNull(1) != "v1" ||
+                        request.url.pathSegments.getOrNull(2) != "auth"
                 }
             }
         }

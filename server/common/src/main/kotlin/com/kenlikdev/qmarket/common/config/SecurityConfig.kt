@@ -65,6 +65,12 @@ open class SecurityConfig(
                 auth
                     .requestMatchers("/actuator/**")
                     .hasAnyRole("ADMIN", "MANAGER")
+                    .requestMatchers(
+                        HttpMethod.GET,
+                        "/api/v1/products/admin/**",
+                        "/api/v1/categories/admin/**",
+                    )
+                    .hasAnyRole("ADMIN", "MANAGER")
                     .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**")
                     .permitAll()
                     .anyRequest()

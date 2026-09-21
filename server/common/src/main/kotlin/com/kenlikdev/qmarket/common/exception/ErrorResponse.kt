@@ -15,5 +15,4 @@ data class ErrorResponse(
 data class FieldErrorDetail(
     val field: String,
     val message: String,
-    val rejectedValue: Any? = null,
 )

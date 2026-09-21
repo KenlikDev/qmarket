@@ -75,6 +75,9 @@ qmarket:
   seed:
     # Off by default (safe for accidental prod). Enable locally: QMARKET_SEED_ENABLED=true
     enabled: ${QMARKET_SEED_ENABLED:false}
+    admin:
+      email: ${QMARKET_SEED_ADMIN_EMAIL:admin@qmarket.local}
+      password: ${QMARKET_SEED_ADMIN_PASSWORD:}
   auth:
     # Failed login sliding window (per email). Successful login clears the counter.
     login-max-attempts: ${QMARKET_LOGIN_MAX_ATTEMPTS:5}

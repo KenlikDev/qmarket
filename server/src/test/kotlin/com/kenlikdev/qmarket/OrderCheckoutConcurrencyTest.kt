@@ -8,12 +8,14 @@ import com.kenlikdev.qmarket.identity.repository.UserRepository
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import com.kenlikdev.qmarket.order.service.OrderService
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.data.domain.PageRequest
 import org.springframework.test.context.ActiveProfiles
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -47,6 +49,9 @@ class OrderCheckoutConcurrencyTest {
 
     private lateinit var userId: UUID
     private lateinit var productId: UUID
+    private var originalStock: Int = 0
+    private var createdOrderId: UUID? = null
+    private var initialOrderCount: Long = 0
 
     @BeforeEach
     fun setUp() {
@@ -58,11 +63,34 @@ class OrderCheckoutConcurrencyTest {
             productRepository.findAll().firstOrNull { it.active }
                 ?: error("seed product missing")
         productId = product.id ?: error("product id null")
+        originalStock = product.stockQuantity
+        if (originalStock < 1) {
+            product.stockQuantity = 10
+            productRepository.saveAndFlush(product)
+            originalStock = 10
+        }
+        initialOrderCount =
+            orderRepository
+                .findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 100))
+                .totalElements
 
         val cart = cartRepository.findByUserId(userId) ?: Cart(userId = userId)
         cart.items.clear()
         cart.items.add(CartItem(cart = cart, productId = productId, quantity = 1))
         cartRepository.save(cart)
+    }
+
+    @AfterEach
+    fun tearDown() {
+        createdOrderId?.let(orderRepository::deleteById)
+        cartRepository.findByUserId(userId)?.let { cart ->
+            cart.clearItems()
+            cartRepository.save(cart)
+        }
+        productRepository.findById(productId).ifPresent { product ->
+            product.stockQuantity = originalStock
+            productRepository.saveAndFlush(product)
+        }
     }
 
     @Test
@@ -88,6 +116,7 @@ class OrderCheckoutConcurrencyTest {
                         )
                     successes.incrementAndGet()
                     orderIds.add(response.id.toString())
+                    createdOrderId = response.id
                 } catch (e: Exception) {
                     errors.add(e.javaClass.simpleName + ": " + (e.message ?: ""))
                 } finally {
@@ -107,12 +136,11 @@ class OrderCheckoutConcurrencyTest {
         assertEquals(threads, successes.get(), "all workers should get the same order response")
         assertEquals(1, orderIds.size, "exactly one order id")
         assertEquals(
-            1,
+            initialOrderCount + 1,
             orderRepository
                 .findByUserIdOrderByCreatedAtDesc(
                     userId,
-                    org.springframework.data.domain.PageRequest
-                        .of(0, 20),
+                    PageRequest.of(0, 100),
                 ).totalElements,
         )
     }

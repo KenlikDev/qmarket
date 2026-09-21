@@ -15,7 +15,7 @@ import com.kenlikdev.qmarket.ui.AppScreen
 
 fun QMarketAppModel.openAdmin() {
     runApi {
-        categories = api.listCategories(activeOnly = false)
+        categories = api.listAdminCategories()
         adminOrders = api.listAdminOrders().content
         adminUsers =
             api.listAdminUsers(q = adminUserQuery.trim().ifBlank { null }).content
@@ -40,8 +40,8 @@ fun QMarketAppModel.createCategory() {
         )
         adminCategoryName = ""
         adminCategorySlug = ""
-        categories = api.listCategories(activeOnly = false)
-        catalogCategories = runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+        categories = api.listAdminCategories()
+        catalogCategories = runCatchingCancellable { api.listCategories() }.getOrElse { catalogCategories }
         statusMessage = "Category created"
     }
 }
@@ -59,8 +59,8 @@ fun QMarketAppModel.updateCategory() {
         editingCategoryId = null
         adminCategoryName = ""
         adminCategorySlug = ""
-        categories = api.listCategories(activeOnly = false)
-        catalogCategories = runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+        categories = api.listAdminCategories()
+        catalogCategories = runCatchingCancellable { api.listCategories() }.getOrElse { catalogCategories }
         statusMessage = "Category updated"
     }
 }
@@ -73,8 +73,8 @@ fun QMarketAppModel.deleteCategory(id: String) {
             adminCategoryName = ""
             adminCategorySlug = ""
         }
-        categories = api.listCategories(activeOnly = false)
-        catalogCategories = runCatching { api.listCategories(activeOnly = true) }.getOrElse { catalogCategories }
+        categories = api.listAdminCategories()
+        catalogCategories = runCatchingCancellable { api.listCategories() }.getOrElse { catalogCategories }
         statusMessage = "Category deleted"
     }
 }
@@ -115,7 +115,7 @@ fun QMarketAppModel.saveProduct() {
         adminProductStock = "10"
         adminProductFeatured = false
         adminProductCategoryId = null
-        products = api.listProducts(size = 50).content
+        products = api.listAdminProducts(size = 50).content
     }
 }
 
@@ -126,7 +126,7 @@ fun QMarketAppModel.deleteProduct(product: ProductDto) {
         if (editingProductId == product.id) {
             editingProductId = null
         }
-        products = api.listProducts(size = 50).content
+        products = api.listAdminProducts(size = 50).content
     }
 }
 

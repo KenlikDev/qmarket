@@ -1,5 +1,8 @@
 # Production overrides — activate with spring.profiles.active=prod
 qmarket:
+  # Production must never fall back to the always-successful mock gateway.
+  payment:
+    provider: ${QMARKET_PAYMENT_PROVIDER:stripe}
   seed:
     enabled: false
   security:
