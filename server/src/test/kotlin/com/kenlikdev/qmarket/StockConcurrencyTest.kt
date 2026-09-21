@@ -5,6 +5,7 @@ import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
@@ -30,6 +31,37 @@ class StockConcurrencyTest {
 
     @Autowired
     private lateinit var productRepository: ProductRepository
+
+    @Test
+    fun `decreaseStock does not change stock for inactive product`() {
+        val product =
+            productRepository.findAll().firstOrNull()
+                ?: error("No seeded products — DataInitializer must run in test profile")
+        val id = product.id ?: error("Product id null")
+        val originalStock = product.stockQuantity
+        val originalActive = product.active
+
+        try {
+            product.active = false
+            productRepository.saveAndFlush(product)
+
+            assertThrows<BadRequestException> {
+                productCatalog.decreaseStock(id, 1)
+            }
+
+            assertEquals(
+                originalStock,
+                productRepository.findById(id).orElseThrow().stockQuantity,
+                "inactive product stock must not be decremented",
+            )
+        } finally {
+            productRepository.findById(id).orElseThrow().apply {
+                active = originalActive
+                stockQuantity = originalStock
+                productRepository.saveAndFlush(this)
+            }
+        }
+    }
 
     @Test
     fun `concurrent decreaseStock never oversells last unit`() {
