@@ -122,13 +122,14 @@ class IosKeychainSessionStore : SessionStore {
                     bytesPtr,
                     utf8.size.convert(),
                 )
-            } ?: return
+            } ?: throw IllegalStateException("Unable to create Keychain value data")
 
-        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
-        if (attributes == null) {
-            CFRelease(cfData)
-            return
-        }
+        val attributes =
+            CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
+                ?: run {
+                    CFRelease(cfData)
+                    throw IllegalStateException("Unable to create Keychain update attributes")
+                }
 
         var status: OSStatus
         try {
