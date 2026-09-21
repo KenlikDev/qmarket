@@ -91,6 +91,7 @@ fun QMarketAppModel.saveProduct() {
                     stockQuantity = adminProductStock.trim().toIntOrNull() ?: 0,
                     featured = adminProductFeatured,
                     categoryId = adminProductCategoryId,
+                    clearCategory = adminProductCategoryId == null,
                 ),
             )
             statusMessage = "Created product"
