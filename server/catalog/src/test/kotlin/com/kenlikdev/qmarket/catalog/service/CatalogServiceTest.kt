@@ -203,6 +203,63 @@ class CatalogServiceTest {
     }
 
     @Test
+    fun `updateCategory can clear parent`() {
+        val id = UUID.randomUUID()
+        val parentId = UUID.randomUUID()
+        val category =
+            Category(
+                id = id,
+                name = "Phones",
+                slug = "phones",
+                parent =
+                    Category(
+                        id = parentId,
+                        name = "Electronics",
+                        slug = "electronics",
+                    ),
+            )
+        every { categoryRepository.findById(id) } returns Optional.of(category)
+        every { categoryRepository.save(any()) } answers { firstArg() }
+
+        catalogService.updateCategory(
+            id,
+            UpdateCategoryRequest(clearParent = true),
+        )
+
+        assertEquals(null, category.parent)
+        verify(exactly = 1) { categoryRepository.save(category) }
+    }
+
+    @Test
+    fun `updateProduct can clear category`() {
+        val id = UUID.randomUUID()
+        val categoryId = UUID.randomUUID()
+        val product =
+            Product(
+                id = id,
+                name = "Phone",
+                slug = "phone",
+                price = BigDecimal("10.00"),
+                category =
+                    Category(
+                        id = categoryId,
+                        name = "Electronics",
+                        slug = "electronics",
+                    ),
+            )
+        every { productRepository.findById(id) } returns Optional.of(product)
+        every { productRepository.save(any()) } answers { firstArg() }
+
+        catalogService.updateProduct(
+            id,
+            UpdateProductRequest(clearCategory = true),
+        )
+
+        assertEquals(null, product.category)
+        verify(exactly = 1) { productRepository.save(product) }
+    }
+
+    @Test
     fun `deleteProduct not found throws NotFoundException`() {
         val id = UUID.randomUUID()
         every { productRepository.findById(id) } returns Optional.empty()
