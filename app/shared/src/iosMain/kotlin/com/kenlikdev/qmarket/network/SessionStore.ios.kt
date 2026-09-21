@@ -171,16 +171,17 @@ class IosKeychainSessionStore : SessionStore {
             )
             val status = SecItemAdd(addQuery, null)
             if (status == errSecDuplicateItem) {
-                withQuery(account, returnData = false) { query ->
-                    val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
-                        ?: throw IllegalStateException("Unable to create Keychain update attributes")
-                    try {
-                        CFDictionaryAddValue(attributes, kSecValueData, value)
-                        SecItemUpdate(query, attributes)
-                    } finally {
-                        CFRelease(attributes)
+                status =
+                    withQuery(account, returnData = false) { query ->
+                        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
+                            ?: throw IllegalStateException("Unable to create Keychain update attributes")
+                        try {
+                            CFDictionaryAddValue(attributes, kSecValueData, value)
+                            SecItemUpdate(query, attributes)
+                        } finally {
+                            CFRelease(attributes)
+                        }
                     }
-                }
             } else {
                 status
             }
