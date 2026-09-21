@@ -188,7 +188,7 @@ class QMarketAppModelTest {
                             )
                     }
                 }
-            val client = clientWith(engine)
+            val client = httpClient(engine)
             try {
                 val api = QMarketApiClient(client)
                 val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = true)
