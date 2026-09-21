@@ -169,7 +169,7 @@ class IosKeychainSessionStore : SessionStore {
                 kSecAttrAccessible,
                 kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
             )
-            val status = SecItemAdd(addQuery, null)
+            var status = SecItemAdd(addQuery, null)
             if (status == errSecDuplicateItem) {
                 status =
                     withQuery(account, returnData = false) { query ->
@@ -182,8 +182,6 @@ class IosKeychainSessionStore : SessionStore {
                             CFRelease(attributes)
                         }
                     }
-            } else {
-                status
             }
         } finally {
             CFRelease(addQuery)
