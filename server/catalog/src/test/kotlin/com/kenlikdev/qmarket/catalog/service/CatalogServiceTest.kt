@@ -158,7 +158,7 @@ class CatalogServiceTest {
         assertThrows<BadRequestException> {
             catalogService.updateCategory(
                 id,
-                com.kenlikdev.qmarket.catalog.dto.UpdateCategoryRequest(parentId = id),
+                UpdateCategoryRequest(parentId = id),
             )
         }
     }
@@ -196,7 +196,7 @@ class CatalogServiceTest {
 
         catalogService.updateProduct(
             id,
-            com.kenlikdev.qmarket.catalog.dto.UpdateProductRequest(sku = "   "),
+            UpdateProductRequest(sku = "   "),
         )
 
         assertEquals(null, product.sku)
@@ -249,7 +249,7 @@ class CatalogServiceTest {
         assertThrows<BadRequestException> {
             catalogService.updateCategory(
                 id,
-                com.kenlikdev.qmarket.catalog.dto.UpdateCategoryRequest(name = "   "),
+                UpdateCategoryRequest(name = "   "),
             )
         }
     }
@@ -270,7 +270,7 @@ class CatalogServiceTest {
         assertThrows<BadRequestException> {
             catalogService.updateProduct(
                 id,
-                com.kenlikdev.qmarket.catalog.dto.UpdateProductRequest(name = "   "),
+                UpdateProductRequest(name = "   "),
             )
         }
     }
