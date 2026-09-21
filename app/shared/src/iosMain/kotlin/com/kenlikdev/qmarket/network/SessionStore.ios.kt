@@ -239,13 +239,13 @@ class IosKeychainSessionStore : SessionStore {
         key: CFStringRef,
         value: String,
     ) {
-        val string = CFStringCreateWithCString(kCFAllocatorDefault, value, kCFStringEncodingUTF8)
-        if (string != null) {
-            try {
-                CFDictionaryAddValue(this, key, string)
-            } finally {
-                CFRelease(string)
-            }
+        val string =
+            CFStringCreateWithCString(kCFAllocatorDefault, value, kCFStringEncodingUTF8)
+                ?: throw IllegalStateException("Unable to create Keychain query string")
+        try {
+            CFDictionaryAddValue(this, key, string)
+        } finally {
+            CFRelease(string)
         }
     }
 
