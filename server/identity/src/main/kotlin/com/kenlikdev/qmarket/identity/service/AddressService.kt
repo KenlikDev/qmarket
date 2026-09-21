@@ -78,8 +78,8 @@ class AddressService(
         request.phone?.let { address.phone = InputValidation.normalizeOptionalPhone(it) }
         request.country?.let { address.country = it.trim().ifEmpty { "RU" } }
         request.region?.let { address.region = it.trim().ifEmpty { null } }
-        request.city?.let { address.city = it.trim() }
-        request.streetLine1?.let { address.streetLine1 = it.trim() }
+        request.city?.let { address.city = InputValidation.requireTrimmedNotBlank(it, "City") }
+        request.streetLine1?.let { address.streetLine1 = InputValidation.requireTrimmedNotBlank(it, "Street address") }
         request.streetLine2?.let { address.streetLine2 = it.trim().ifEmpty { null } }
         request.postalCode?.let { address.postalCode = it.trim().ifEmpty { null } }
 
