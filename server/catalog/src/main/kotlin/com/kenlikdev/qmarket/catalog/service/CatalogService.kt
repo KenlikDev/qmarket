@@ -11,6 +11,7 @@ import com.kenlikdev.qmarket.catalog.dto.UpdateCategoryRequest
 import com.kenlikdev.qmarket.catalog.dto.UpdateProductRequest
 import com.kenlikdev.qmarket.catalog.repository.CategoryRepository
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
+import com.kenlikdev.qmarket.common.validation.InputValidation
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
@@ -84,10 +85,10 @@ class CatalogService(
                 .orElseThrow { NotFoundException("Category $id not found") }
 
         request.name?.let {
-            category.name = com.kenlikdev.qmarket.common.validation.InputValidation.requireTrimmedNotBlank(it, "Category name")
+            category.name = InputValidation.requireTrimmedNotBlank(it, "Category name")
         }
         request.slug?.let {
-            val newSlug = com.kenlikdev.qmarket.common.validation.InputValidation.requireTrimmedNotBlank(it, "Category slug").lowercase()
+            val newSlug = InputValidation.requireTrimmedNotBlank(it, "Category slug").lowercase()
             if (newSlug != category.slug && categoryRepository.existsBySlug(newSlug)) {
                 throw ConflictException("Category with slug '$newSlug' already exists")
             }
@@ -241,10 +242,10 @@ class CatalogService(
                 .orElseThrow { NotFoundException("Product $id not found") }
 
         request.name?.let {
-            product.name = com.kenlikdev.qmarket.common.validation.InputValidation.requireTrimmedNotBlank(it, "Product name")
+            product.name = InputValidation.requireTrimmedNotBlank(it, "Product name")
         }
         request.slug?.let {
-            val newSlug = com.kenlikdev.qmarket.common.validation.InputValidation.requireTrimmedNotBlank(it, "Product slug").lowercase()
+            val newSlug = InputValidation.requireTrimmedNotBlank(it, "Product slug").lowercase()
             if (newSlug != product.slug && productRepository.existsBySlug(newSlug)) {
                 throw ConflictException("Product with slug '$newSlug' already exists")
             }
