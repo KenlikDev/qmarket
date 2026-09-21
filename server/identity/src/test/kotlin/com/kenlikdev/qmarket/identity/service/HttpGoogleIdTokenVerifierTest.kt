@@ -1,15 +1,17 @@
 package com.kenlikdev.qmarket.identity.service
 
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
+import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.net.http.HttpClient
 
 class HttpGoogleIdTokenVerifierTest {
     private val props =
-        com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties(
+        GoogleOAuthProperties(
             enabled = true,
             clientIds = listOf("google-client-id"),
         )
@@ -25,7 +27,7 @@ class HttpGoogleIdTokenVerifierTest {
             )
 
         val exception =
-            org.junit.jupiter.api.assertThrows<UnauthorizedException> {
+            assertThrows<UnauthorizedException> {
                 verifier.verify("x".repeat(16_385))
             }
 
