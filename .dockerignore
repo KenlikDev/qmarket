@@ -12,3 +12,7 @@ captures
 .externalNativeBuild
 .cxx
 node_modules
+.env
+.env.*
+*.pem
+*.key
