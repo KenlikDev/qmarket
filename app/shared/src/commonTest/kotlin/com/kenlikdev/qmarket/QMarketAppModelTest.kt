@@ -17,6 +17,7 @@ import io.ktor.http.fullPath
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -202,6 +203,29 @@ class QMarketAppModelTest {
             } finally {
                 client.close()
             }
+        }
+
+    @Test
+    fun concurrentApiRequestsKeepLoadingUntilAllRequestsFinish() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            val firstGate = CompletableDeferred<Unit>()
+            val secondGate = CompletableDeferred<Unit>()
+
+            val first = model.runApi { firstGate.await() }
+            val second = model.runApi { secondGate.await() }
+
+            assertTrue(model.loading)
+
+            secondGate.complete(Unit)
+            second.join()
+            assertTrue(model.loading)
+
+            firstGate.complete(Unit)
+            first.join()
+            assertFalse(model.loading)
         }
 
     @Test
