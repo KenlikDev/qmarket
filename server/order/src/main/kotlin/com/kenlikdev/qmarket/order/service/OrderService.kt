@@ -192,9 +192,8 @@ class OrderService(
     @Transactional(readOnly = true)
     fun getOrderAdmin(orderId: UUID): OrderResponse {
         val order =
-            orderRepository
-                .findById(orderId)
-                .orElseThrow { NotFoundException("Order not found") }
+            orderRepository.findByIdForUpdate(orderId)
+                ?: throw NotFoundException("Order not found")
         return OrderMapper.toResponse(order)
     }
 
@@ -257,8 +256,9 @@ class OrderService(
         orderId: UUID,
     ): OrderResponse {
         val order =
-            orderRepository
-                .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
+            orderRepository.findByIdForUpdate(orderId)
+                ?.takeIf { it.userId == userId }
+                ?: throw NotFoundException("Order not found")
 
         // Status transition first (fails fast if already cancelled / paid)
         order.cancel()
