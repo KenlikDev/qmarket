@@ -143,16 +143,16 @@ class QMarketAppModel(
         loading = true
         error = null
         try {
+            val currentProfile = api.getProfile()
+            tokens.applyRoles(currentProfile.roles)
+            isAdmin = tokens.isAdmin()
+
             val page = api.listProducts(size = 50)
             products = page.content
             cart = runCatchingCancellable { api.getCart() }.getOrNull()
-            runCatchingCancellable { api.getProfile() }.onSuccess { p ->
-                tokens.applyRoles(p.roles)
-                isAdmin = tokens.isAdmin()
-            }
+
             loggedIn = true
-            userLabel = tokens.sessionEmail()
-            isAdmin = tokens.isAdmin()
+            userLabel = currentProfile.email
             screen = AppScreen.Catalog
         } catch (e: CancellationException) {
             throw e
