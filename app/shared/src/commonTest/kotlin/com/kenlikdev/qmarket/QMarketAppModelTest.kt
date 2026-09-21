@@ -159,7 +159,6 @@ class QMarketAppModelTest {
             assertEquals(AppScreen.Login, model.screen)
         }
 
-
     @Test
     fun restoreSessionPreservesSessionOnTransientApiFailure() =
         runBlocking {
