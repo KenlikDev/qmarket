@@ -26,7 +26,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Profile + shipping addresses
 - [x] Unit + controller slice + integration tests (incl. stock concurrency)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize
-- [x] Flyway SoT V1–V11, app `ddl-auto=validate`
+- [x] Flyway SoT V1–V12, app `ddl-auto=validate`
 - [x] `ProductCatalog` port + ArchUnit boundaries
 - [x] Atomic stock `UPDATE … WHERE stock >= qty`
 
@@ -93,6 +93,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Prod: Swagger/OpenAPI off (`api-docs-public=false`, springdoc disabled)
 - [x] Prod: actuator exposure limited to health/info
 - [x] JwtProperties rejects known placeholder/dev secrets
+- [x] Database foreign-key integrity restored for user aggregates and product references
 
 ## v1.0 MVP (from plan)
 
