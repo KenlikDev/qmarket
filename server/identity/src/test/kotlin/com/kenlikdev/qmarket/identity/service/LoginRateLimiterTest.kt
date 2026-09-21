@@ -47,6 +47,32 @@ class LoginRateLimiterTest {
     }
 
     @Test
+    fun `email limit survives client key rotation`() {
+        val lim = limiter(max = 2)
+        val email = "user@test.com"
+
+        lim.recordFailure(email, "10.0.0.1")
+        lim.recordFailure(email, "10.0.0.2")
+
+        assertThrows<TooManyRequestsException> {
+            lim.assertAllowed(email, "10.0.0.3")
+        }
+    }
+
+    @Test
+    fun `client limit applies across different accounts`() {
+        val lim = limiter(max = 2)
+        val client = "10.0.0.1"
+
+        lim.recordFailure("one@test.com", client)
+        lim.recordFailure("two@test.com", client)
+
+        assertThrows<TooManyRequestsException> {
+            lim.assertAllowed("three@test.com", client)
+        }
+    }
+
+    @Test
     fun `keys are case-insensitive`() {
         val lim = limiter(max = 1)
 
