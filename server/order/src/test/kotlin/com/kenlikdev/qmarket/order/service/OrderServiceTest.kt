@@ -308,7 +308,7 @@ class OrderServiceTest {
                     ),
                 )
             }
-        every { orderRepository.findById(orderId) } returns Optional.of(order)
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 2) } returns Unit
 
@@ -332,7 +332,7 @@ class OrderServiceTest {
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findById(orderId) } returns Optional.of(order)
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
 
         assertThrows<BadRequestException> {
             orderService.updateStatus(
@@ -473,7 +473,7 @@ class OrderServiceTest {
                 status = OrderStatus.PAID,
                 totalAmount = BigDecimal("10.00"),
             )
-        every { orderRepository.findById(orderId) } returns Optional.of(order)
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
         orderService.updateStatus(orderId, UpdateOrderStatusRequest(status = OrderStatus.SHIPPED))
