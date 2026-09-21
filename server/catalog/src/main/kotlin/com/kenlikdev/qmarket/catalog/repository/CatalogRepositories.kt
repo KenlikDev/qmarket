@@ -60,6 +60,7 @@ interface ProductRepository : JpaRepository<Product, UUID> {
                 version = version + 1,
                 updated_at = NOW()
             WHERE id = :id
+              AND is_active = TRUE
               AND stock_quantity >= :quantity
             """,
         nativeQuery = true,
