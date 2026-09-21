@@ -3,6 +3,7 @@ package com.kenlikdev.qmarket.order.service
 import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.BadRequestException
+import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
@@ -67,7 +68,7 @@ class OrderService(
         } catch (ex: DataIntegrityViolationException) {
             if (normalizedKey != null && idempotency.isKeyConstraint(ex)) {
                 idempotency.loadReplay(userId, normalizedKey, request)?.let { return it }
-                throw BadRequestException("Concurrent checkout conflict — retry with the same Idempotency-Key")
+                throw ConflictException("Concurrent checkout conflict — retry with the same Idempotency-Key")
             }
             throw ex
         }
