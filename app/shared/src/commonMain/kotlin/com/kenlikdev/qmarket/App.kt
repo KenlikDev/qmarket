@@ -436,7 +436,7 @@ fun App() {
                         error = m.error,
                         statusMessage = m.statusMessage,
                         loading = m.loading,
-                        onPay = { m.payOrder(current.order.id) },
+                        onOpenOrder = { m.openOrder(current.order) },
                         onMyOrders = { m.loadOrders() },
                         onBackToCatalog = { m.loadCatalog() },
                         onOpenCart = { m.loadCart() },
