@@ -308,7 +308,7 @@ class OrderServiceTest {
                     ),
                 )
             }
-        every { orderRepository.findByIdForUpdate(orderId).let { Optional.ofNullable(it) } } returns Optional.of(order)
+        every { orderRepository.findById(orderId) } returns Optional.of(order)
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 2) } returns Unit
 
@@ -332,7 +332,7 @@ class OrderServiceTest {
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findByIdForUpdate(orderId).let { Optional.ofNullable(it) } } returns Optional.of(order)
+        every { orderRepository.findById(orderId) } returns Optional.of(order)
 
         assertThrows<BadRequestException> {
             orderService.updateStatus(
@@ -388,7 +388,7 @@ class OrderServiceTest {
             )
         every { idempotencyKeyRepository.findByUserIdAndKey(userId, "key-1") } returns
             OrderIdempotencyKey(userId = userId, key = "key-1", orderId = orderId, requestHash = "")
-        every { orderRepository.findByIdForUpdate(orderId).let { Optional.ofNullable(it) } } returns Optional.of(existing)
+        every { orderRepository.findById(orderId) } returns Optional.of(existing)
 
         val result =
             orderService.createFromCart(
@@ -473,7 +473,7 @@ class OrderServiceTest {
                 status = OrderStatus.PAID,
                 totalAmount = BigDecimal("10.00"),
             )
-        every { orderRepository.findByIdForUpdate(orderId).let { Optional.ofNullable(it) } } returns Optional.of(order)
+        every { orderRepository.findById(orderId) } returns Optional.of(order)
         every { orderRepository.save(any()) } answers { firstArg() }
 
         orderService.updateStatus(orderId, UpdateOrderStatusRequest(status = OrderStatus.SHIPPED))
