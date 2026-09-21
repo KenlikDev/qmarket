@@ -11,10 +11,10 @@
 - Orders and products use optimistic locking; stock changes remain atomic database updates.
 - Concurrent state and uniqueness conflicts are exposed as stable HTTP 409 responses.
 - Public catalog endpoints do not expose inactive products or internal cost price.
-- Login failures are rate-limited with bounded in-process storage and optional client-key partitioning.
+- Login failures are rate-limited with bounded in-process storage using independent account and client-source limits.
 - JWT configuration rejects missing or known placeholder secrets.
 - Production disables anonymous Swagger/OpenAPI access, limits actuator exposure, and requires database/JWT credentials.
-- Production error responses and SQL logging use safe defaults.
+- Production error responses and database integrity logging use safe defaults.
 - Android session storage uses encrypted preferences; iOS uses Keychain; JVM/JS/Wasm use target-appropriate stores.
 - Password fields are masked in the shared Compose UI, and transient session-restore failures no longer destroy a valid local session.
 
