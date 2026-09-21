@@ -333,21 +333,6 @@ class CatalogService(
         }
     }
 
-    private fun normalizeRequiredText(
-        raw: String,
-        field: String,
-        maxLength: Int,
-    ): String {
-        val value = raw.trim()
-        if (value.isEmpty()) {
-            throw BadRequestException("$field must not be blank")
-        }
-        if (value.length > maxLength) {
-            throw BadRequestException("$field must be at most $maxLength characters")
-        }
-        return value
-    }
-
     private fun Category.toResponse() =
         CategoryResponse(
             id = requireNotNull(id) { "Category id missing after persist" },
