@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket.identity.service
 
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
+import com.kenlikdev.qmarket.common.exception.UpstreamServiceException
 import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
@@ -26,6 +27,9 @@ class HttpGoogleIdTokenVerifier(
         if (token.isEmpty()) {
             throw UnauthorizedException("Google idToken must not be blank")
         }
+        if (token.length > MAX_ID_TOKEN_LENGTH) {
+            throw UnauthorizedException("Google idToken is too long")
+        }
 
         val uri =
             URI.create(
@@ -39,7 +43,15 @@ class HttpGoogleIdTokenVerifier(
                 .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build()
-        val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        val response =
+            try {
+                httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+            } catch (ex: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw UpstreamServiceException("Google authentication service is unavailable", ex)
+            } catch (ex: java.io.IOException) {
+                throw UpstreamServiceException("Google authentication service is unavailable", ex)
+            }
         if (response.statusCode() !in 200..299) {
             throw UnauthorizedException("Invalid Google ID token")
         }
@@ -48,8 +60,8 @@ class HttpGoogleIdTokenVerifier(
         val root =
             try {
                 objectMapper.readTree(body)
-            } catch (_: Exception) {
-                throw UnauthorizedException("Invalid Google token response")
+            } catch (exception: Exception) {
+                throw UpstreamServiceException("Google authentication service returned an invalid response", exception)
             }
 
         val email =
@@ -79,5 +91,9 @@ class HttpGoogleIdTokenVerifier(
             givenName = root.path("given_name").asString(null),
             familyName = root.path("family_name").asString(null),
         )
+    }
+
+    companion object {
+        private const val MAX_ID_TOKEN_LENGTH = 16_384
     }
 }
