@@ -264,7 +264,6 @@ class AuthService(
         }
         return if (dirty) userRepository.save(user) else user
     }
-    }
 
     private fun issueTokens(
         user: User,
