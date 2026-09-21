@@ -166,15 +166,27 @@ class QMarketAppModelTest {
             val tokens = MutableTokenProvider(InMemorySessionStore())
             tokens.applyAuth(authUser())
             val engine =
-                MockEngine {
-                    respond(
-                        content =
-                            ByteReadChannel(
-                                """{"status":503,"error":"Service Unavailable","code":"INTERNAL_ERROR","message":"temporary outage"}""",
-                            ),
-                        status = HttpStatusCode.ServiceUnavailable,
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                    )
+                MockEngine { request ->
+                    when {
+                        request.url.fullPath.contains("/api/v1/users/me") ->
+                            respond(
+                                content =
+                                    ByteReadChannel(
+                                        """{"id":"1","email":"u@test.local","roles":["ROLE_USER"]}""",
+                                    ),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        else ->
+                            respond(
+                                content =
+                                    ByteReadChannel(
+                                        """{"status":503,"error":"Service Unavailable","code":"INTERNAL_ERROR","message":"temporary outage"}""",
+                                    ),
+                                status = HttpStatusCode.ServiceUnavailable,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                    }
                 }
             val client = clientWith(engine)
             try {
