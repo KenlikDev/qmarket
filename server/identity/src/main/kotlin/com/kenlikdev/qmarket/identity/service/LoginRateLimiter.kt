@@ -50,7 +50,9 @@ class LoginRateLimiter(
             val q = failures.computeIfAbsent(key) { ArrayDeque() }
             synchronized(q) {
                 pruneDeque(q, now)
-                q.addLast(now)
+                if (q.size < maxAttempts) {
+                    q.addLast(now)
+                }
             }
         }
         boundMapSize()
