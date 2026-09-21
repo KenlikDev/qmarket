@@ -58,11 +58,9 @@ class LoginRateLimiter(
         boundMapSize()
     }
 
-    fun clear(
-        email: String,
-        clientKey: String? = null,
-    ) {
-        keysFor(email, clientKey).forEach { failures.remove(it) }
+    /** Clear failed attempts for one account after a successful authentication. */
+    fun clearAccount(email: String) {
+        failures.remove("email:" + email.trim().lowercase())
     }
 
     private fun keysFor(
@@ -72,8 +70,8 @@ class LoginRateLimiter(
         val normalizedEmail = email.trim().lowercase()
         val normalizedClientKey = clientKey?.trim()?.takeIf { it.isNotEmpty() }
         return buildList {
-            add("email:$normalizedEmail")
-            normalizedClientKey?.let { add("client:$it") }
+            add("email:" + normalizedEmail)
+            normalizedClientKey?.let { add("client:" + it) }
         }
     }
 
@@ -88,7 +86,6 @@ class LoginRateLimiter(
             }
         }
     }
-
     private fun pruneKey(key: String) {
         val q = failures[key] ?: return
         val now = clock.millis()
