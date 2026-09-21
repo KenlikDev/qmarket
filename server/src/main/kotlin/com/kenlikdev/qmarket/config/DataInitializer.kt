@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.util.Locale
 
 @Component
 @ConditionalOnProperty(name = ["qmarket.seed.enabled"], havingValue = "true", matchIfMissing = false)
@@ -59,8 +60,12 @@ class DataInitializer(
     }
 
     private fun seedAdmin() {
-        if (userRepository.existsByEmail(adminEmail)) {
-            log.info("Admin user already exists: {}", adminEmail)
+        val normalizedEmail = adminEmail.trim().lowercase(Locale.ROOT)
+        require(normalizedEmail.isNotBlank()) {
+            "qmarket.seed.admin.email must not be blank when seed is enabled"
+        }
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            log.info("Admin user already exists: {}", normalizedEmail)
             return
         }
 
@@ -75,7 +80,7 @@ class DataInitializer(
 
         val admin =
             User(
-                email = adminEmail,
+                email = normalizedEmail,
                 passwordHash = passwordEncoder.encode(adminPassword) ?: error("encode failed"),
                 firstName = "Admin",
                 lastName = "QMarket",
@@ -84,7 +89,7 @@ class DataInitializer(
                 roles = mutableSetOf(adminRole, userRole),
             )
         userRepository.save(admin)
-        log.info("Seeded admin user: {} (password from seed config, not logged)", adminEmail)
+        log.info("Seeded admin user: {} (password from seed config, not logged)", normalizedEmail)
     }
 
     private fun seedCatalog() {
