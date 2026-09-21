@@ -234,6 +234,47 @@ class CatalogServiceTest {
     }
 
     @Test
+    fun `updateCategory rejects blank name`() {
+        val id = UUID.randomUUID()
+        every { categoryRepository.findById(id) } returns
+            Optional.of(
+                Category(
+                    id = id,
+                    name = "Electronics",
+                    slug = "electronics",
+                ),
+            )
+
+        assertThrows<BadRequestException> {
+            catalogService.updateCategory(
+                id,
+                com.kenlikdev.qmarket.catalog.dto.UpdateCategoryRequest(name = "   "),
+            )
+        }
+    }
+
+    @Test
+    fun `updateProduct rejects blank name`() {
+        val id = UUID.randomUUID()
+        every { productRepository.findById(id) } returns
+            Optional.of(
+                Product(
+                    id = id,
+                    name = "Phone",
+                    slug = "phone",
+                    price = BigDecimal("10.00"),
+                ),
+            )
+
+        assertThrows<BadRequestException> {
+            catalogService.updateProduct(
+                id,
+                com.kenlikdev.qmarket.catalog.dto.UpdateProductRequest(name = "   "),
+            )
+        }
+    }
+
+    @Test
     fun `searchProducts rejects minPrice greater than maxPrice`() {
         assertThrows<BadRequestException> {
             catalogService.searchProducts(
