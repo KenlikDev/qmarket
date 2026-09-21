@@ -53,8 +53,7 @@ class GoogleApiIdTokenVerifier(
                 throw UnauthorizedException("Unable to verify Google ID token")
             } catch (_: GeneralSecurityException) {
                 throw UnauthorizedException("Unable to verify Google ID token")
-            }
-                ?: throw UnauthorizedException("Invalid Google ID token")
+            } ?: throw UnauthorizedException("Invalid Google ID token")
 
         val payload = verified.payload
         val email =
