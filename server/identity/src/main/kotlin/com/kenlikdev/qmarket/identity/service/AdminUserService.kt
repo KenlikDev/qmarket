@@ -30,7 +30,7 @@ class AdminUserService(
         val query = q?.trim()?.takeIf { it.isNotEmpty() }
         val result =
             if (query == null) {
-                userRepository.findAll(pageable)
+                userRepository.findAllBy(pageable)
             } else {
                 userRepository.findByEmailContainingIgnoreCaseOrFirstNameContainingIgnoreCaseOrLastNameContainingIgnoreCase(
                     query,
