@@ -120,6 +120,10 @@ class AuthService(
                 throw UnauthorizedException("Invalid refresh token")
             }
 
+        val user =
+            userRepository.findByIdForUpdate(userId)
+                ?: throw UnauthorizedException("Invalid refresh token")
+
         val stored =
             refreshTokenRepository.findByJti(jti)
                 ?: throw UnauthorizedException("Invalid refresh token")
@@ -147,10 +151,6 @@ class AuthService(
             throw UnauthorizedException("Refresh token already used")
         }
 
-        val user =
-            userRepository
-                .findById(userId)
-                .orElseThrow { UnauthorizedException("User not found") }
         if (!user.enabled) {
             throw UnauthorizedException("Account is disabled")
         }
