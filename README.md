@@ -35,11 +35,11 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 # docker compose down -v && docker compose up -d
 
 docker compose up -d
-./gradlew :server:bootRun
+./gradlew :server:bootRun --args="--spring.profiles.active=dev"
 ```
 
-- Swagger: http://localhost:8080/swagger-ui.html (Authorize = JWT accessToken)
-- Admin: `admin@qmarket.local` / `admin123`
+- Swagger (dev profile): http://localhost:8080/swagger-ui.html (Authorize = JWT accessToken)
+- Local demo admin (when the `dev` profile is active): `admin@qmarket.local` / password from `QMARKET_SEED_ADMIN_PASSWORD` (defaults to `admin123` in the dev profile)
 
 ### Catalog filters
 
@@ -94,7 +94,7 @@ Statuses: `PENDING | CONFIRMED | PAID | SHIPPED | DELIVERED | CANCELLED`
 ./gradlew :app:desktopApp:run
 ```
 
-Default login: `admin@qmarket.local` / `admin123`  
+Local demo login (dev profile): `admin@qmarket.local` / `admin123`  
 Android emulator API host: `10.0.2.2:8080`
 
 ### Client flow
