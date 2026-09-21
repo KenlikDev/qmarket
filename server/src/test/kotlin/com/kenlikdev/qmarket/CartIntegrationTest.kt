@@ -55,7 +55,7 @@ class CartIntegrationTest {
     fun `cart requires authentication`() {
         mockMvc
             .perform(get("/api/v1/cart"))
-            .andExpect(status().isForbidden)
+            .andExpect(status().isUnauthorized)
     }
 
     @Test

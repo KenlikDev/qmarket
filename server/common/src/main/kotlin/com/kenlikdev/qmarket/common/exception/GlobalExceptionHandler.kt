@@ -2,17 +2,23 @@ package com.kenlikdev.qmarket.common.exception
 
 import jakarta.persistence.OptimisticLockException
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.core.AuthenticationException
 import org.springframework.validation.FieldError
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.method.annotation.HandlerMethodValidationException
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 
 @RestControllerAdvice
 open class GlobalExceptionHandler {
@@ -23,7 +29,7 @@ open class GlobalExceptionHandler {
         ex: ApiException,
         request: HttpServletRequest,
     ): ResponseEntity<ErrorResponse> {
-        log.warn("API exception: {} - {}", ex.code, ex.message)
+        log.warn("API exception: code={}, status={}", ex.code, ex.status.value())
         return ResponseEntity.status(ex.status).body(
             ErrorResponse(
                 status = ex.status.value(),
@@ -47,8 +53,8 @@ open class GlobalExceptionHandler {
                         FieldErrorDetail(
                             field = error.field,
                             message = error.defaultMessage ?: "Invalid value",
-                            rejectedValue = error.rejectedValue,
                         )
+
                     else ->
                         FieldErrorDetail(
                             field = error.objectName,
@@ -56,17 +62,88 @@ open class GlobalExceptionHandler {
                         )
                 }
             }
-        return ResponseEntity.badRequest().body(
-            ErrorResponse(
-                status = HttpStatus.BAD_REQUEST.value(),
-                error = HttpStatus.BAD_REQUEST.reasonPhrase,
-                code = "VALIDATION_ERROR",
-                message = "Validation failed",
-                path = request.requestURI,
-                details = details,
-            ),
+
+        return badRequest(
+            code = "VALIDATION_ERROR",
+            message = "Validation failed",
+            path = request.requestURI,
+            details = details,
         )
     }
+
+    /**
+     * Spring MVC uses method-level validation for constrained controller parameters.
+     * Both object validation and executable-parameter validation must be mapped to
+     * the API's stable 400 response shape.
+     */
+    @ExceptionHandler(HandlerMethodValidationException::class)
+    fun handleMethodValidation(
+        ex: HandlerMethodValidationException,
+        request: HttpServletRequest,
+    ): ResponseEntity<ErrorResponse> =
+        badRequest(
+            code = "VALIDATION_ERROR",
+            message = "Validation failed",
+            path = request.requestURI,
+            details = ex.parameterValidationResults.flatMap { result ->
+                result.resolvableErrors.map { error ->
+                    FieldErrorDetail(
+                        field = result.methodParameter.parameterName ?: "parameter",
+                        message = error.defaultMessage ?: "Invalid value",
+                    )
+                }
+            },
+        )
+
+    @ExceptionHandler(ConstraintViolationException::class)
+    fun handleConstraintViolation(
+        ex: ConstraintViolationException,
+        request: HttpServletRequest,
+    ): ResponseEntity<ErrorResponse> =
+        badRequest(
+            code = "VALIDATION_ERROR",
+            message = "Validation failed",
+            path = request.requestURI,
+            details = ex.constraintViolations.map { violation ->
+                FieldErrorDetail(
+                    field = violation.propertyPath.toString(),
+                    message = violation.message,
+                )
+            },
+        )
+
+    @ExceptionHandler(HttpMessageNotReadableException::class)
+    fun handleMalformedRequest(
+        ex: HttpMessageNotReadableException,
+        request: HttpServletRequest,
+    ): ResponseEntity<ErrorResponse> =
+        badRequest(
+            code = "INVALID_REQUEST",
+            message = "Request body is malformed or contains invalid values",
+            path = request.requestURI,
+        )
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException::class)
+    fun handleTypeMismatch(
+        ex: MethodArgumentTypeMismatchException,
+        request: HttpServletRequest,
+    ): ResponseEntity<ErrorResponse> =
+        badRequest(
+            code = "INVALID_REQUEST",
+            message = "Request parameter '${ex.name}' has an invalid value",
+            path = request.requestURI,
+        )
+
+    @ExceptionHandler(MissingServletRequestParameterException::class)
+    fun handleMissingParameter(
+        ex: MissingServletRequestParameterException,
+        request: HttpServletRequest,
+    ): ResponseEntity<ErrorResponse> =
+        badRequest(
+            code = "INVALID_REQUEST",
+            message = "Required request parameter '${ex.parameterName}' is missing",
+            path = request.requestURI,
+        )
 
     @ExceptionHandler(BadCredentialsException::class, AuthenticationException::class)
     fun handleAuth(
@@ -98,12 +175,29 @@ open class GlobalExceptionHandler {
             ),
         )
 
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun handleDataIntegrityViolation(
+        ex: DataIntegrityViolationException,
+        request: HttpServletRequest,
+    ): ResponseEntity<ErrorResponse> {
+        log.warn("Data integrity violation: {}", ex.javaClass.simpleName)
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+            ErrorResponse(
+                status = HttpStatus.CONFLICT.value(),
+                error = HttpStatus.CONFLICT.reasonPhrase,
+                code = "DATA_CONFLICT",
+                message = "The request conflicts with existing data",
+                path = request.requestURI,
+            ),
+        )
+    }
+
     @ExceptionHandler(OptimisticLockException::class, ObjectOptimisticLockingFailureException::class)
     fun handleOptimisticLock(
         ex: Exception,
         request: HttpServletRequest,
     ): ResponseEntity<ErrorResponse> {
-        log.warn("Optimistic lock conflict: {}", ex.message)
+        log.warn("Optimistic lock conflict: {}", ex.javaClass.simpleName)
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
             ErrorResponse(
                 status = HttpStatus.CONFLICT.value(),
@@ -131,4 +225,21 @@ open class GlobalExceptionHandler {
             ),
         )
     }
+
+    private fun badRequest(
+        code: String,
+        message: String,
+        path: String,
+        details: List<FieldErrorDetail>? = null,
+    ): ResponseEntity<ErrorResponse> =
+        ResponseEntity.badRequest().body(
+            ErrorResponse(
+                status = HttpStatus.BAD_REQUEST.value(),
+                error = HttpStatus.BAD_REQUEST.reasonPhrase,
+                code = code,
+                message = message,
+                path = path,
+                details = details?.takeIf { it.isNotEmpty() },
+            ),
+        )
 }

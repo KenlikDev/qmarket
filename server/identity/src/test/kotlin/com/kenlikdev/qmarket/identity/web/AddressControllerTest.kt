@@ -101,6 +101,22 @@ class AddressControllerTest {
     }
 
     @Test
+    fun `PUT update accepts only default flag`() {
+        every { addressService.update(userId, addressId, any()) } returns sample
+        val auth = UsernamePasswordAuthenticationToken(userId, null, emptyList())
+
+        mockMvc
+            .perform(
+                put("/api/v1/users/me/addresses/$addressId")
+                    .principal(auth)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"default":true}"""),
+            )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.default").value(true))
+    }
+
+    @Test
     fun `PUT update returns 200`() {
         every { addressService.update(userId, addressId, any()) } returns sample.copy(city = "SPb")
         val auth = UsernamePasswordAuthenticationToken(userId, null, emptyList())

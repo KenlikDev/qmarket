@@ -1,12 +1,15 @@
 package com.kenlikdev.qmarket.common.config
 
+import com.kenlikdev.qmarket.common.exception.ErrorResponse
 import com.kenlikdev.qmarket.common.security.JwtAuthenticationFilter
 import com.kenlikdev.qmarket.common.security.JwtProperties
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
@@ -20,6 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
+import tools.jackson.databind.ObjectMapper
 
 @Configuration
 @EnableWebSecurity
@@ -27,6 +31,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableConfigurationProperties(JwtProperties::class)
 open class SecurityConfig(
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val objectMapper: ObjectMapper,
     @Value("\${qmarket.security.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*,http://10.0.2.2:*}")
     private val corsOriginPatterns: String,
     /**
@@ -65,11 +70,38 @@ open class SecurityConfig(
                 auth
                     .requestMatchers("/actuator/**")
                     .hasAnyRole("ADMIN", "MANAGER")
+                    .requestMatchers(
+                        HttpMethod.GET,
+                        "/api/v1/products/admin/**",
+                        "/api/v1/categories/admin/**",
+                    )
+                    .hasAnyRole("ADMIN", "MANAGER")
                     .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**")
                     .permitAll()
                     .anyRequest()
                     .authenticated()
-            }.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            }
+            .exceptionHandling {
+                it.authenticationEntryPoint { request, response, _ ->
+                    writeSecurityError(
+                        response = response,
+                        status = HttpStatus.UNAUTHORIZED,
+                        code = "UNAUTHORIZED",
+                        message = "Authentication is required",
+                        path = request.requestURI,
+                    )
+                }
+                it.accessDeniedHandler { request, response, _ ->
+                    writeSecurityError(
+                        response = response,
+                        status = HttpStatus.FORBIDDEN,
+                        code = "FORBIDDEN",
+                        message = "Access denied",
+                        path = request.requestURI,
+                    )
+                }
+            }
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }
@@ -79,6 +111,28 @@ open class SecurityConfig(
 
     @Bean
     fun authenticationManager(config: AuthenticationConfiguration): AuthenticationManager = config.authenticationManager
+
+    private fun writeSecurityError(
+        response: HttpServletResponse,
+        status: HttpStatus,
+        code: String,
+        message: String,
+        path: String,
+    ) {
+        response.status = status.value()
+        response.contentType = "application/json"
+        response.characterEncoding = Charsets.UTF_8.name()
+        objectMapper.writeValue(
+            response.writer,
+            ErrorResponse(
+                status = status.value(),
+                error = status.reasonPhrase,
+                code = code,
+                message = message,
+                path = path,
+            ),
+        )
+    }
 
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {

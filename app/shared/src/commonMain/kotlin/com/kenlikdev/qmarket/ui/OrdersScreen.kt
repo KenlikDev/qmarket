@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.OrderStatusDto
 
 @Composable
 fun OrdersScreen(
@@ -103,7 +104,7 @@ fun OrdersScreen(
                                 modifier = Modifier.padding(top = 4.dp),
                             )
                             Row {
-                                if (order.status.name == "PENDING") {
+                                if (order.status == OrderStatusDto.PENDING) {
                                     TextButton(
                                         onClick = { onPay(order) },
                                         enabled = !loading,
