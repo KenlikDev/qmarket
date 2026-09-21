@@ -30,6 +30,14 @@ object InputValidation {
         return value
     }
 
+    fun requireTrimmedNotBlank(
+        raw: String,
+        field: String,
+    ): String =
+        raw.trim().ifEmpty {
+            throw BadRequestException("$field must not be blank")
+        }
+
     fun normalizeOptionalPhone(raw: String?): String? {
         if (raw == null) return null
         val trimmed = raw.trim()
