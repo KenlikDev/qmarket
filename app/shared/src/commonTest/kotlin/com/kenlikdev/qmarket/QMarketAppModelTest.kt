@@ -40,6 +40,15 @@ class QMarketAppModelTest {
         MockEngine { request ->
             val path = request.url.fullPath
             when {
+                path.contains("/api/v1/auth/login") ->
+                    respond(
+                        content =
+                            ByteReadChannel(
+                                """{"accessToken":"new-access","refreshToken":"new-refresh","expiresIn":60,"user":{"id":"1","email":"new@test.local","roles":["ROLE_USER"]}}""",
+                            ),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
                 path.contains("/api/v1/auth/logout") ->
                     respond(content = ByteReadChannel.Empty, status = HttpStatusCode.NoContent)
                 path.contains("/api/v1/categories") ->
@@ -243,6 +252,27 @@ class QMarketAppModelTest {
             assertTrue(pending.isCancelled)
             assertFalse(model.loggedIn)
             assertEquals(AppScreen.Login, model.screen)
+        }
+
+    @Test
+    fun loginCancelsOlderApiRequestsBeforeChangingSession() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            tokens.applyAuth(authUser("old@test.local"))
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            val gate = CompletableDeferred<Unit>()
+            val pending = model.runApi { gate.await() }
+
+            model.email = "new@test.local"
+            model.password = "password123"
+            val login = model.login()
+            login.join()
+
+            assertTrue(pending.isCancelled)
+            assertEquals("new@test.local", model.userLabel)
+            assertEquals("new-access", tokens.accessToken())
+            assertEquals(AppScreen.Catalog, model.screen)
         }
 
     @Test
