@@ -229,6 +229,23 @@ class QMarketAppModelTest {
         }
 
     @Test
+    fun logoutCancelsOlderApiRequests() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            val gate = CompletableDeferred<Unit>()
+            val pending = model.runApi { gate.await() }
+
+            val logout = model.logout()
+            logout.join()
+
+            assertTrue(pending.isCancelled)
+            assertFalse(model.loggedIn)
+            assertEquals(AppScreen.Login, model.screen)
+        }
+
+    @Test
     fun checkoutIsIgnoredWhileLockedOrLoading() =
         runBlocking {
             val tokens = MutableTokenProvider(InMemorySessionStore())
