@@ -30,8 +30,8 @@ class MutableTokenProvider(
     fun sessionRoles(): List<String> = roles
 
     fun isAdmin(): Boolean =
-        roles.any { r ->
-            r == "ROLE_ADMIN" || r == "ADMIN" || r.endsWith("_ADMIN")
+        roles.any { role ->
+            role == "ROLE_ADMIN" || role == "ADMIN"
         }
 
     fun hasSession(): Boolean = !token.isNullOrBlank() || !refresh.isNullOrBlank()
