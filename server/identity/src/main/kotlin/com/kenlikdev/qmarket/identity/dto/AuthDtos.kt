@@ -70,6 +70,6 @@ data class ChangePasswordRequest(
 )
 
 data class GoogleOAuthRequest(
-    @field:NotBlank
+    @field:NotBlank @field:Size(max = 8192)
     val idToken: String,
 )

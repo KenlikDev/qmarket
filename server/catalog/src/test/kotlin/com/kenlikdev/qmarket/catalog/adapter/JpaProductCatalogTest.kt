@@ -124,6 +124,16 @@ class JpaProductCatalogTest {
     }
 
     @Test
+    fun `decreaseStock throws BadRequest for inactive product without reporting stock shortage`() {
+        val id = UUID.randomUUID()
+        every { productRepository.decreaseStockIfAvailable(id, 5) } returns 0
+        every { productRepository.findById(id) } returns Optional.of(product(id = id, active = false, stock = 10))
+
+        val ex = assertThrows<BadRequestException> { catalog.decreaseStock(id, 5) }
+        assertEquals("Product is not available", ex.message)
+    }
+
+    @Test
     fun `decreaseStock throws BadRequest on insufficient stock`() {
         val id = UUID.randomUUID()
         every { productRepository.decreaseStockIfAvailable(id, 5) } returns 0

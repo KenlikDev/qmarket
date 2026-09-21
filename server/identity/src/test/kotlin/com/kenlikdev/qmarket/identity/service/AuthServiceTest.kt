@@ -16,6 +16,7 @@ import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import io.jsonwebtoken.Claims
+import io.jsonwebtoken.JwtException
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -238,7 +239,7 @@ class AuthServiceTest {
 
     @Test
     fun `logout is best-effort on invalid token`() {
-        every { jwtService.parseClaims(any()) } throws RuntimeException("bad token")
+        every { jwtService.parseClaims(any()) } throws JwtException("bad token")
         authService.logout(RefreshTokenRequest(refreshToken = "not-a-jwt"))
         // must not throw UnexpectedRollbackException / any exception
     }
@@ -352,6 +353,20 @@ class AuthServiceTest {
         every { googleIdTokenVerifierProvider.getIfAvailable() } returns null
         assertThrows<BadRequestException> {
             authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
+        }
+    }
+
+    @Test
+    fun `refresh propagates repository infrastructure failures`() {
+        val claims = mockk<Claims>()
+        every { jwtService.parseClaims("refresh") } returns claims
+        every { jwtService.isRefreshToken(claims) } returns true
+        every { jwtService.getUserId(claims) } returns UUID.randomUUID()
+        every { jwtService.getJti(claims) } returns UUID.randomUUID()
+        every { refreshTokenRepository.findByJti(any()) } throws IllegalStateException("database unavailable")
+
+        assertThrows<IllegalStateException> {
+            authService.refresh(RefreshTokenRequest(refreshToken = "refresh"))
         }
     }
 }

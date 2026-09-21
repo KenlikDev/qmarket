@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface UserNotificationRepository : JpaRepository<UserNotification, UUID> {
-    fun findByUserIdOrderByCreatedAtDesc(
+    fun findByUserIdOrderByCreatedAtDescIdDesc(
         userId: UUID,
         pageable: Pageable,
     ): Page<UserNotification>

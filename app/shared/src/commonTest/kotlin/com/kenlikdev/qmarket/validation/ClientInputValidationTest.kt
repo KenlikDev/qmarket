@@ -39,4 +39,24 @@ class ClientInputValidationTest {
         assertFalse(ClientInputValidation.isValidPersonName("12345"))
         assertFalse(ClientInputValidation.isValidPersonName("<script>"))
     }
+    @Test
+    fun phoneAcceptsFormattedInternationalInput() {
+        assertTrue(ClientInputValidation.isValidPhoneInput("+7 (999) 123-45.67"))
+    }
+
+    @Test
+    fun phoneRejectsInternalPlusAndUnsupportedCharacters() {
+        assertFalse(ClientInputValidation.isValidPhoneInput("7+9991234567"))
+        assertFalse(ClientInputValidation.isValidPhoneInput("79991234567/"))
+    }
+
+    @Test
+    fun phoneFilterKeepsOnlyLeadingPlusAndAllowedCharacters() {
+        assertEquals(
+            "+7 (999) 123-45.67",
+            ClientInputValidation.filterPhoneInput("+7 (999) 123-45.67+abc/"),
+        )
+        assertEquals("79991234567", ClientInputValidation.filterPhoneInput("7999abc12345"))
+    }
+
 }

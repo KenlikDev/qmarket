@@ -30,18 +30,18 @@ class MutableTokenProvider(
     fun sessionRoles(): List<String> = roles
 
     fun isAdmin(): Boolean =
-        roles.any { r ->
-            r == "ROLE_ADMIN" || r == "ADMIN" || r.endsWith("_ADMIN")
+        roles.any { role ->
+            role == "ROLE_ADMIN" || role == "ADMIN"
         }
 
     fun hasSession(): Boolean = !token.isNullOrBlank() || !refresh.isNullOrBlank()
 
     fun applyAuth(auth: AuthResponseDto) {
+        store.write(auth.accessToken, auth.refreshToken, auth.user.email)
         token = auth.accessToken
         refresh = auth.refreshToken
         email = auth.user.email
         roles = auth.user.roles
-        store.write(auth.accessToken, auth.refreshToken, auth.user.email)
     }
 
     fun applyRoles(newRoles: List<String>) {
@@ -49,10 +49,13 @@ class MutableTokenProvider(
     }
 
     fun clear() {
-        token = null
-        refresh = null
-        email = null
-        roles = emptyList()
-        store.clear()
+        try {
+            store.clear()
+        } finally {
+            token = null
+            refresh = null
+            email = null
+            roles = emptyList()
+        }
     }
 }

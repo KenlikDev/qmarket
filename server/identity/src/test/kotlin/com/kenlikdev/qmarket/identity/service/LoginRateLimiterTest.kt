@@ -47,6 +47,32 @@ class LoginRateLimiterTest {
     }
 
     @Test
+    fun `email limit survives client key rotation`() {
+        val lim = limiter(max = 2)
+        val email = "user@test.com"
+
+        lim.recordFailure(email, "10.0.0.1")
+        lim.recordFailure(email, "10.0.0.2")
+
+        assertThrows<TooManyRequestsException> {
+            lim.assertAllowed(email, "10.0.0.3")
+        }
+    }
+
+    @Test
+    fun `client limit applies across different accounts`() {
+        val lim = limiter(max = 2)
+        val client = "10.0.0.1"
+
+        lim.recordFailure("one@test.com", client)
+        lim.recordFailure("two@test.com", client)
+
+        assertThrows<TooManyRequestsException> {
+            lim.assertAllowed("three@test.com", client)
+        }
+    }
+
+    @Test
     fun `keys are case-insensitive`() {
         val lim = limiter(max = 1)
 
@@ -54,5 +80,43 @@ class LoginRateLimiterTest {
         assertThrows<TooManyRequestsException> {
             lim.assertAllowed("user@test.com")
         }
+    }
+
+    @Test
+    fun `client key cannot bypass account limit`() {
+        val lim = limiter(max = 2)
+        val email = "user@test.com"
+
+        lim.recordFailure(email, "10.0.0.1")
+        lim.recordFailure(email, "10.0.0.2")
+
+        assertThrows<TooManyRequestsException> {
+            lim.assertAllowed(email, "10.0.0.3")
+        }
+    }
+
+    @Test
+    fun `client key limits attempts across different accounts`() {
+        val lim = limiter(max = 2)
+        val client = "10.0.0.1"
+
+        lim.recordFailure("first@test.com", client)
+        lim.recordFailure("second@test.com", client)
+
+        assertThrows<TooManyRequestsException> {
+            lim.assertAllowed("third@test.com", client)
+        }
+    }
+
+    @Test
+    fun `clear removes account and client limits`() {
+        val lim = limiter(max = 1)
+        val email = "user@test.com"
+        val client = "10.0.0.1"
+
+        lim.recordFailure(email, client)
+        lim.clear(email, client)
+
+        assertDoesNotThrow { lim.assertAllowed(email, client) }
     }
 }

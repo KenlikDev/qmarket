@@ -49,7 +49,7 @@ class NotificationServiceTest {
                 body = "ok",
             )
         every {
-            repo.findByUserIdOrderByCreatedAtDesc(userId, any())
+            repo.findByUserIdOrderByCreatedAtDescIdDesc(userId, any())
         } returns PageImpl(listOf(n), PageRequest.of(0, 20), 1)
 
         val page = service.listMine(userId, 0, 20)

@@ -1,8 +1,8 @@
 package com.kenlikdev.qmarket.identity.service
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier as GoogleApiVerifier
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
-import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.json.gson.GsonFactory
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -13,20 +13,20 @@ import java.security.GeneralSecurityException
 /**
  * Production Google ID-token verifier backed by Google's official Java client.
  *
- * The verifier validates Google's signature and the standard issuer, audience,
- * and expiration claims before this adapter exposes the identity claims used by QMarket.
+ * GoogleApiVerifier validates the token signature and standard issuer,
+ * audience, and expiration claims before identity claims are exposed to QMarket.
  */
 @Component
 @ConditionalOnProperty(name = ["qmarket.security.oauth.google.enabled"], havingValue = "true")
 class GoogleApiIdTokenVerifier(
     private val props: GoogleOAuthProperties,
 ) : GoogleIdTokenVerifier {
-    private val verifier: GoogleIdTokenVerifier by lazy {
+    private val verifier: GoogleApiVerifier by lazy {
         try {
-            GoogleIdTokenVerifier
+            GoogleApiVerifier
                 .Builder(
                     GoogleNetHttpTransport.newTrustedTransport(),
-                    JacksonFactory.getDefaultInstance(),
+                    GsonFactory.getDefaultInstance(),
                 )
                 .setAudience(props.normalizedClientIds())
                 .build()
@@ -42,6 +42,9 @@ class GoogleApiIdTokenVerifier(
         if (token.isEmpty()) {
             throw UnauthorizedException("Google idToken must not be blank")
         }
+        if (token.length > MAX_TOKEN_LENGTH) {
+            throw UnauthorizedException("Google idToken is too long")
+        }
 
         val verified =
             try {
@@ -50,8 +53,7 @@ class GoogleApiIdTokenVerifier(
                 throw UnauthorizedException("Unable to verify Google ID token")
             } catch (_: GeneralSecurityException) {
                 throw UnauthorizedException("Unable to verify Google ID token")
-            }
-                ?: throw UnauthorizedException("Invalid Google ID token")
+            } ?: throw UnauthorizedException("Invalid Google ID token")
 
         val payload = verified.payload
         val email =
@@ -61,6 +63,7 @@ class GoogleApiIdTokenVerifier(
             payload.subject?.trim()
                 ?: throw UnauthorizedException("Google token missing sub")
         val emailVerified = payload.emailVerified ?: false
+
         if (props.requireEmailVerified && !emailVerified) {
             throw UnauthorizedException("Google email is not verified")
         }
@@ -72,5 +75,9 @@ class GoogleApiIdTokenVerifier(
             givenName = payload.givenName?.trim()?.ifBlank { null },
             familyName = payload.familyName?.trim()?.ifBlank { null },
         )
+    }
+
+    private companion object {
+        const val MAX_TOKEN_LENGTH = 16_384
     }
 }
