@@ -174,6 +174,10 @@ class StripeWebhookService(
             paymentIntent.id?.trim()?.takeIf { it.isNotEmpty() }
                 ?: throw BadRequestException("Stripe PaymentIntent id is missing")
 
+        if (paymentIntent.status?.trim() != "succeeded") {
+            throw BadRequestException("Stripe PaymentIntent status is not succeeded")
+        }
+
         val orderIdString =
             paymentIntent.orderIdMetadata()?.trim()?.takeIf { it.isNotEmpty() }
                 ?: throw BadRequestException("Stripe PaymentIntent metadata.order_id is missing")
