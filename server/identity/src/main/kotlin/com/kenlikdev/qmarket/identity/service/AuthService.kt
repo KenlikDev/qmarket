@@ -36,6 +36,9 @@ class AuthService(
     private val refreshTokenRepository: RefreshTokenRepository,
     private val googleIdTokenVerifierProvider: ObjectProvider<GoogleIdTokenVerifier>,
 ) {
+    private companion object {
+        const val GOOGLE_SUBJECT_MAX_LENGTH = 255
+    }
     @Transactional
     fun register(request: RegisterRequest): AuthResponse {
         val email = request.email.lowercase().trim()
@@ -189,47 +192,78 @@ class AuthService(
                 ?: throw BadRequestException("Google OAuth is not enabled")
         val claims = verifier.verify(request.idToken)
         val email = claims.email.lowercase().trim()
-        var user = userRepository.findByEmail(email)
+        val googleSubject = claims.subject.trim()
+        if (googleSubject.isEmpty() || googleSubject.length > GOOGLE_SUBJECT_MAX_LENGTH) {
+            throw BadRequestException("Google token subject has an invalid length")
+        }
+
+        var user = userRepository.findByGoogleSubject(googleSubject)
         if (user == null) {
-            val userRole =
-                roleRepository.findByName("ROLE_USER")
-                    ?: throw IllegalStateException("ROLE_USER not found in database. Run Flyway migrations.")
-            val unusablePassword =
-                passwordEncoder.encode("oauth-google-" + UUID.randomUUID())
-                    ?: throw IllegalStateException("Password encoding returned null")
-            user =
-                User(
-                    email = email,
-                    passwordHash = unusablePassword,
-                ).apply {
-                    firstName = claims.givenName
-                    lastName = claims.familyName
-                    emailVerified = claims.emailVerified
-                    roles.add(userRole)
+            user = userRepository.findByEmail(email)
+            if (user == null) {
+                val userRole =
+                    roleRepository.findByName("ROLE_USER")
+                        ?: throw IllegalStateException("ROLE_USER not found in database. Run Flyway migrations.")
+                val unusablePassword =
+                    passwordEncoder.encode("oauth-google-" + UUID.randomUUID())
+                        ?: throw IllegalStateException("Password encoding returned null")
+                user =
+                    User(
+                        email = email,
+                        passwordHash = unusablePassword,
+                        googleSubject = googleSubject,
+                    ).apply {
+                        firstName = claims.givenName
+                        lastName = claims.familyName
+                        emailVerified = claims.emailVerified
+                        roles.add(userRole)
+                    }
+                user = userRepository.save(user)
+            } else {
+                if (!user.enabled) {
+                    throw UnauthorizedException("User account is disabled")
                 }
-            user = userRepository.save(user)
+                if (!claims.emailVerified) {
+                    throw UnauthorizedException("Google email must be verified before linking the account")
+                }
+                if (user.googleSubject != null && user.googleSubject != googleSubject) {
+                    throw ConflictException("Google identity is already linked to another Google account")
+                }
+                user.googleSubject = googleSubject
+                user = updateGoogleProfile(user, claims)
+            }
         } else {
             if (!user.enabled) {
                 throw UnauthorizedException("User account is disabled")
             }
-            var dirty = false
-            if (user.firstName.isNullOrBlank() && !claims.givenName.isNullOrBlank()) {
-                user.firstName = claims.givenName
-                dirty = true
-            }
-            if (user.lastName.isNullOrBlank() && !claims.familyName.isNullOrBlank()) {
-                user.lastName = claims.familyName
-                dirty = true
-            }
-            if (claims.emailVerified && !user.emailVerified) {
-                user.emailVerified = true
-                dirty = true
-            }
-            if (dirty) {
-                user = userRepository.save(user)
-            }
+            user = updateGoogleProfile(user, claims)
         }
         return issueTokens(user, familyId = UUID.randomUUID())
+    }
+
+    private fun updateGoogleProfile(
+        user: User,
+        claims: GoogleIdTokenClaims,
+    ): User {
+        var dirty = false
+        if (user.firstName.isNullOrBlank() && !claims.givenName.isNullOrBlank()) {
+            user.firstName = claims.givenName
+            dirty = true
+        }
+        if (user.lastName.isNullOrBlank() && !claims.familyName.isNullOrBlank()) {
+            user.lastName = claims.familyName
+            dirty = true
+        }
+        if (claims.emailVerified && !user.emailVerified) {
+            user.emailVerified = true
+            dirty = true
+        }
+        if (user.googleSubject == null) {
+            user.googleSubject = claims.subject.trim()
+            dirty = true
+        }
+        return if (dirty) userRepository.save(user) else user
+    }
     }
 
     private fun issueTokens(
