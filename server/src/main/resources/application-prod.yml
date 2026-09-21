@@ -10,7 +10,7 @@ qmarket:
       # Required in production — app must not start with a known default secret
       secret: ${JWT_SECRET}
     cors:
-      allowed-origin-patterns: ${CORS_ORIGINS:https://qmarket.example}
+      allowed-origin-patterns: ${CORS_ORIGINS}
     # Swagger / OpenAPI must not be anonymous in production
     api-docs-public: false
 
