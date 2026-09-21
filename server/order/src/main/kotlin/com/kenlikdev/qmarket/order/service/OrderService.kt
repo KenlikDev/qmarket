@@ -179,7 +179,7 @@ class OrderService(
                 page.coerceAtLeast(0),
                 size.coerceIn(1, 100),
             )
-        val result = orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+        val result = orderRepository.findByUserIdOrderByCreatedAtDescIdDesc(userId, pageable)
         return PageResponse(
             content = result.content.map { OrderMapper.toResponse(it) },
             page = result.number,
