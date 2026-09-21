@@ -32,7 +32,7 @@ data class CreateAddressRequest(
 data class UpdateAddressRequest(
     @field:Size(max = 100)
     val label: String? = null,
-    @field:NotBlank @field:Size(max = 200)
+    @field:Size(max = 200)
     val recipientName: String? = null,
     @field:Size(max = 30)
     val phone: String? = null,
@@ -40,9 +40,9 @@ data class UpdateAddressRequest(
     val country: String? = null,
     @field:Size(max = 100)
     val region: String? = null,
-    @field:NotBlank @field:Size(max = 100)
+    @field:Size(max = 100)
     val city: String? = null,
-    @field:NotBlank @field:Size(max = 255)
+    @field:Size(max = 255)
     val streetLine1: String? = null,
     @field:Size(max = 255)
     val streetLine2: String? = null,
