@@ -1,88 +1,204 @@
-# Agent / AI contributor rules — QMarket
+# AI / Agent Development Rules — QMarket
 
-These rules apply to **every** change proposed by an AI assistant or automated agent.
-Human contributors should follow the same gates before opening a PR.
+These rules define the engineering contract for AI-assisted development and are intentionally stricter than the minimum GitHub defaults.
 
-If a rule conflicts with a user request, **prefer the stricter quality gate** unless the user explicitly overrides it for a one-off.
+## 1. Branch model
 
----
+QMarket has exactly three permanent branches:
 
-## Non-negotiable quality gates
+- **main** — production/release history. Human-only merge target.
+- **develop** — human-owned integration branch. Human-only merge target.
+- **ai/integration** — AI integration/staging branch. AI may integrate reviewed temporary work here.
 
-Before delivering **any** patch, archive, or commit suggestion:
+All other branches are temporary work branches. Recommended names:
 
-1. **Minimal scope** — change only files required for the stated task. No drive-by refactors, no “while we’re here” cleanups outside the task.
-2. **One concern per commit** — e.g. `fix: remove unused imports in QMarketAppModel`, not “refactor + imports + rename”.
-3. **ktlint must pass** on every touched Gradle module:
-   ```bash
-   ./gradlew :app:shared:ktlintCheck :server:order:ktlintCheck :server:common:ktlintCheck
-   # add every other module you modified
-   ```
-   Or project-wide: `./gradlew ktlintCheck`
-4. **Zero unused imports** — after moving code between files, re-scan **both** the old and the new file.
-5. **No FQCN noise** — do not write `java.util.Optional` / `com.kenlikdev...Product(` when the type is already imported; use the short name.
-6. **No leftover dead code** — after extract/move: delete old methods, fix call sites, drop obsolete imports.
-7. **Do not claim “clean” without evidence** — paste command output summary (or state clearly that ktlint could not be run in the environment).
+- feat/<short-name>
+- fix/<short-name>
+- refactor/<short-name>
+- chore/<short-name>
+- docs/<short-name>
 
-If ktlint or compile cannot be run in the agent environment: **say so**, still do a manual unused-import audit, and mark the deliverable as **unverified**.
+Never create new permanent branches without an explicit human decision.
 
----
+## 2. AI permissions and merge rules
 
-## Kotlin / project conventions
+The AI:
 
-- Package layout and module boundaries: respect existing `:server:*` and `:app:shared` structure; do not introduce cross-module leaks (see ArchUnit tests).
-- Prefer existing patterns: `Money.toMinorUnits`, `Authentication.userId()`, `OrderMapper`, payment via `OrderPaymentService`.
-- Null-safety: prefer `requireNotNull(x) { "..." }` over `x!!` after persist.
-- Coroutines (client): rethrow `CancellationException`; do not swallow it in broad `catch (Exception)`.
-- Do not pre-fill production secrets or real passwords in UI state; demo defaults must be obvious and local-only.
-- Compose entrypoints may be named `App()` (factory-style); do not “fix” that for ktlint naming unless the project config requires it.
+1. May create, update, and remove commits only on temporary branches and ai/integration.
+2. MUST NOT push commits directly to main or develop.
+3. MUST NOT merge any pull request into main or develop.
+4. MUST NOT use force-pushes to protected branches.
+5. Should normally develop on a temporary branch and open a PR into ai/integration.
+6. May merge a temporary-branch PR into ai/integration only after all automated checks required by the repository are green.
+7. Must stop at the ai/integration → develop boundary. A human owns this promotion.
+8. Must stop at the develop → main boundary. A human owns this promotion.
 
----
+Expected flow:
 
-## Documentation language
+~~~
+temporary branch
+      |
+      +-- PR --> ai/integration
+                    |
+                    +-- human review / merge --> develop
+                                                   |
+                                                   +-- human review / merge --> main
+~~~
 
-- **All project docs and user-facing README content: English only.**
-- Do not mix Russian and English in the same doc file.
+## 3. Start-of-task procedure
 
----
+Before changing code:
 
-## Forbidden patterns (regressions we already hit)
+1. Read the relevant issue/PR and inspect the current branch.
+2. Start from the current ai/integration state unless a human explicitly specifies another base.
+3. Check whether the task is already implemented in another branch/PR.
+4. Identify affected modules, migrations, APIs, and tests.
+5. Define the smallest safe change set.
 
-| Bad | Required instead |
-|-----|------------------|
-| Leave unused imports after splitting a class | Remove them; verify with ktlint / IDE inspection |
-| Fully-qualified type in body while import exists | Short name + import |
-| Giant “pass 1–5” refactors in one go | Small PR-sized diffs, gate after each |
-| Zip without file list | Always list paths + one-line commit message |
-| “Professional rewrite” of the whole codebase | Only what was asked |
+Do not build on stale refactor branches when ai/integration contains the current integration state.
 
----
+## 4. Scope discipline
 
-## Deliverable format (AI)
+- One logical concern per PR.
+- Do not mix formatting-only changes with behavior changes.
+- Do not perform unrelated cleanup while implementing a feature/fix.
+- Preserve historical database migrations; add forward migrations instead of rewriting applied migrations.
+- Preserve module boundaries. Run the architecture tests after dependency/module changes.
+- Prefer existing project abstractions over introducing parallel patterns.
 
-Every AI response that changes code must include:
+## 5. Mandatory quality gates
 
-1. **Goal** (one sentence)
-2. **Files touched** (paths)
-3. **Commands run** (ktlint / tests) and result
-4. **Commit message** (Conventional Commits style)
-5. **Patch or zip** with paths relative to repo root
+Before considering a change ready for integration:
 
-Example commit messages:
+~~~
+./scripts/agent-quality-gate.sh
+./gradlew test --parallel --no-daemon
+~~~
 
-```text
-fix: drop unused imports after QMarketAppModel split
-refactor(order): extract OrderPaymentService
-docs: English-only README and ROADMAP
-```
+For a smaller iteration, run the affected module checks first, then run the full project gate before integration.
 
----
+Required checks include:
 
-## Suggested local script
+- ktlint
+- unit tests
+- integration tests
+- architecture tests when relevant
+- JaCoCo/coverage checks when the affected modules are covered by the project policy
 
-```bash
-chmod +x scripts/agent-quality-gate.sh
-./scripts/agent-quality-gate.sh app:shared server:order server:common
-```
+CI is authoritative. If local execution is impossible, say so explicitly and mark the change UNVERIFIED.
 
-CI must keep failing on ktlint / tests; do not weaken gates to land AI diffs.
+Never disable or weaken a CI gate to make a branch mergeable.
+
+## 6. Kotlin / Spring / KMP conventions
+
+- Keep :server:common free of feature-specific contracts; use dedicated *.api modules for contracts.
+- Prefer requireNotNull(value) { "..." } over !!.
+- Never swallow CancellationException in broad coroutine exception handlers.
+- Keep payment-provider calls outside database transactions when an external network call does not require an open transaction.
+- Preserve idempotency, optimistic locking, database constraints, and deterministic pagination semantics.
+- Treat Flyway as the schema source of truth.
+- Keep production configuration secure-by-default.
+- Never add real credentials, access tokens, API keys, private URLs, or secrets to source or tests.
+- Demo credentials, when required, must be clearly local/dev-only and must not appear in production configuration, logs, or API descriptions.
+
+## 7. Imports and dead code
+
+After extracting or moving code:
+
+- clean imports in both source and destination files;
+- remove obsolete methods and call sites;
+- avoid fully-qualified type names when an import is appropriate;
+- do not leave generated bin/, build output, IDE caches, or other derived artifacts tracked by Git;
+- run ktlint on every touched Kotlin module.
+
+## 8. Database and API safety
+
+Any change involving persistence or API contracts must explicitly check:
+
+- migration ordering and deployment assumptions;
+- foreign keys, uniqueness, indexes, and delete/update semantics;
+- transaction boundaries and concurrency behavior;
+- backward compatibility of public API responses;
+- validation at the correct service/controller boundary;
+- stable error responses;
+- tests for race conditions when correctness depends on ordering.
+
+Never edit an already-published Flyway migration to "fix" the schema. Add a new migration.
+
+## 9. PR requirements
+
+Every AI-generated PR should contain:
+
+### Summary
+What changed and why.
+
+### Risk / behavior
+What behavior, API, schema, security, or concurrency semantics changed.
+
+### Validation
+Exact commands run and the result. Distinguish VERIFIED from UNVERIFIED.
+
+### Database
+State whether migrations were changed and how they were validated.
+
+### Rollback
+Explain how to revert the change safely, especially for schema or payment changes.
+
+### Human handoff
+State that the PR targets ai/integration and is ready for human promotion to develop only after review.
+
+## 10. Commit messages
+
+Use Conventional Commits:
+
+~~~
+feat(catalog): add category filtering
+fix(order): prevent duplicate checkout
+refactor(identity): isolate OAuth verification
+chore(ci): run CI on integration branches
+docs(workflow): document AI integration policy
+~~~
+
+Avoid commits such as "update", "fix stuff", or giant multi-purpose "pass" commits.
+
+## 11. Merge messages for human-controlled promotion
+
+When a human is expected to merge ai/integration into develop, or develop into main, the AI should provide a proposed merge title and body.
+
+The AI must not perform those merges.
+
+A promotion message should include:
+
+- release/integration scope;
+- notable behavior and schema changes;
+- CI status;
+- security-impact summary;
+- known limitations and follow-up work.
+
+## 12. Branch cleanup
+
+After a temporary branch PR is merged or closed:
+
+- delete the temporary remote branch;
+- do not reuse a completed branch for a new task;
+- rely on GitHub automatic head-branch deletion for merged PRs where possible.
+
+The permanent branches main, develop, and ai/integration must never be deleted.
+
+## 13. Documentation
+
+- Repository documentation and user-facing README text are English-only.
+- Keep this file current when development policy changes.
+- If GitHub UI configuration is required, document the exact expected setting in docs/GIT_WORKFLOW.md.
+
+## 14. Final AI response
+
+Any response for a code change must report:
+
+1. Goal
+2. Files changed
+3. Validation commands and results
+4. Commit/PR message
+5. Remaining verification or human-review items
+
+Do not claim a build, test, review, or merge happened unless there is evidence.

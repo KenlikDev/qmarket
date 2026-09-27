@@ -1,10 +1,21 @@
 # Contributing
 
+## Development flow
+
+QMarket uses three permanent branches:
+
+- main — production/release branch; human merge only.
+- develop — human-owned integration branch.
+- ai/integration — AI staging branch.
+
+AI work must happen on temporary branches and be integrated into ai/integration. AI must not merge into develop or main.
+
 ## Quality gates
 
-1. Run ktlint before push: `./gradlew ktlintCheck` or `./scripts/agent-quality-gate.sh`.
-2. Keep commits focused (one concern).
-3. Documentation and README content must be **English**.
-4. AI-assisted changes must follow [`AGENTS.md`](AGENTS.md).
+1. Run ./scripts/agent-quality-gate.sh.
+2. Run ./gradlew test --parallel --no-daemon.
+3. Keep commits focused on one concern.
+4. Documentation and README content must be English.
+5. Follow AGENTS.md for AI-assisted changes.
 
-More detail: [`docs/CODE_QUALITY.md`](docs/CODE_QUALITY.md).
+See docs/CODE_QUALITY.md and docs/GIT_WORKFLOW.md.
