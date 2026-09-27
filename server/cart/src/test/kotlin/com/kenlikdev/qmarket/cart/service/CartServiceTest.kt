@@ -80,8 +80,9 @@ class CartServiceTest {
 
     @Test
     fun `addItem rejects quantity above stock`() {
+        val cart = Cart(id = UUID.randomUUID(), userId = userId)
         every { productCatalog.requireActive(productId) } returns product
-        every { cartRepository.findByUserIdForUpdate(userId) } returns null
+        every { cartRepository.findByUserIdForUpdate(userId) } returnsMany listOf(null, cart)
         every { cartRepository.insertIfMissing(userId) } returns 1
         every { cartRepository.save(any()) } answers { firstArg() }
 
