@@ -72,8 +72,8 @@ class GoogleApiIdTokenVerifier(
             subject = subject,
             email = email,
             emailVerified = emailVerified,
-            givenName = payload.givenName?.trim()?.ifBlank { null },
-            familyName = payload.familyName?.trim()?.ifBlank { null },
+            givenName = (payload.get("given_name") as? String)?.trim()?.ifBlank { null },
+            familyName = (payload.get("family_name") as? String)?.trim()?.ifBlank { null },
         )
     }
 
