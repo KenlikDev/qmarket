@@ -66,7 +66,7 @@ jobs:
               echo "## Temporary CI diagnostic"
               echo ""
               echo '```text'
-              grep -E -n 'error:|Unresolved reference|Compilation error|FAILURE|FAILED|Exception|AssertionError' gradle-ci-failure.log | tail -n 120 || true
+              { grep -E -n 'error:|Unresolved reference|Compilation error|FAILURE|FAILED|Exception|AssertionError' gradle-ci-failure.log | head -n 80 || true; echo '--- LAST MATCHES ---'; grep -E -n 'error:|Unresolved reference|Compilation error|FAILURE|FAILED|Exception|AssertionError' gradle-ci-failure.log | tail -n 80 || true; }
               echo '```'
             } | gh pr comment "${{ github.event.pull_request.number }}" --body-file -
           fi
