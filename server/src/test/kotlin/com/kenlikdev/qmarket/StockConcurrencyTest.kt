@@ -45,7 +45,7 @@ class StockConcurrencyTest {
             product.active = false
             productRepository.saveAndFlush(product)
 
-            assertThrows<BadRequestException> {
+            assertThrows(BadRequestException::class.java) {
                 productCatalog.decreaseStock(id, 1)
             }
 
