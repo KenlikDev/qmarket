@@ -48,6 +48,7 @@ dependencies {
 
     developmentOnly(libs.spring.boot.devtools)
 
+    testImplementation(project(":server:catalog-api"))
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.starter.webmvc.test)
     testImplementation(libs.testcontainers)
