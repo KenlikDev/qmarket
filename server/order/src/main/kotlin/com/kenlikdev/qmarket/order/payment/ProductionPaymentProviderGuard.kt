@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Profile
 @Configuration
 @Profile("prod")
 class ProductionPaymentProviderGuard(
-    @Value("${qmarket.payment.provider}") private val provider: String,
+    @Value("\${qmarket.payment.provider}") private val provider: String,
 ) {
     @PostConstruct
     fun validate() {
