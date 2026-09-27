@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   secret-scan:
@@ -62,6 +63,21 @@ jobs:
           name: gradle-ci-failure-log
           path: gradle-ci-failure.log
           retention-days: 7
+
+      - name: Comment Gradle failure log (temporary diagnostics)
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f gradle-ci-failure.log ]; then
+            {
+              echo "## Temporary CI diagnostic"
+              echo ""
+              echo '```text'
+              tail -n 120 gradle-ci-failure.log
+              echo '```'
+            } | gh pr comment "${{ github.event.pull_request.number }}" --body-file -
+          fi
 
       - name: JaCoCo coverage verification (order + identity)
         run: >
