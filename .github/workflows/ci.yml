@@ -74,7 +74,7 @@ jobs:
               echo "## Temporary CI diagnostic"
               echo ""
               echo '```text'
-              tail -n 120 gradle-ci-failure.log
+              grep -E -n 'error:|Unresolved reference|Compilation error|FAILURE|e: ' gradle-ci-failure.log | tail -n 120 || true
               echo '```'
             } | gh pr comment "${{ github.event.pull_request.number }}" --body-file -
           fi
