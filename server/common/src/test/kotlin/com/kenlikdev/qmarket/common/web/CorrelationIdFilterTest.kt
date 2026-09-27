@@ -90,7 +90,7 @@ class CorrelationIdFilterTest {
 
         filter.doFilter(request, response, chain)
 
-        val generated = requireNotNull(response.getHeader(CorrelationIdFilter.HEADER))
+        val generated = response.getHeader(CorrelationIdFilter.HEADER) ?: error("Expected generated correlation id")
         assertEquals(36, generated.length)
     }
 
