@@ -48,6 +48,21 @@ jobs:
       - name: Unit + integration tests, ktlint, JaCoCo reports
         run: ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 
+      - name: Capture Gradle failure log
+        if: failure()
+        run: |
+          set -o pipefail
+          ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon --stacktrace 2>&1 | tee gradle-ci-failure.log
+          exit 0
+
+      - name: Upload Gradle failure log
+        if: always() && hashFiles('gradle-ci-failure.log') != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: gradle-ci-failure-log
+          path: gradle-ci-failure.log
+          retention-days: 7
+
       - name: JaCoCo coverage verification (order + identity)
         run: >
           ./gradlew
