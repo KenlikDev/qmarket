@@ -48,6 +48,13 @@ jobs:
       - name: Unit + integration tests, ktlint, JaCoCo reports
         run: ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 
+      - name: Debug KtLint formatted imports (temporary)
+        if: failure()
+        continue-on-error: true
+        run: |
+          ./gradlew :server:cart:ktlintFormat --no-daemon
+          echo '--- KTLINT FORMATTED CART REPOSITORY ---'
+          sed -n '1,28p' server/cart/src/main/kotlin/com/kenlikdev/qmarket/cart/repository/CartRepository.kt
       - name: JaCoCo coverage verification (order + identity)
         run: >
           ./gradlew
