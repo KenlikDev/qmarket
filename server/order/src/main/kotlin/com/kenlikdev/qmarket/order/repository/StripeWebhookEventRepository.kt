@@ -32,5 +32,7 @@ interface StripeWebhookEventRepository : JpaRepository<StripeWebhookEvent, Strin
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from StripeWebhookEvent e where e.eventId = :eventId")
-    fun findByEventIdForUpdate(@Param("eventId") eventId: String): StripeWebhookEvent?
+    fun findByEventIdForUpdate(
+        @Param("eventId") eventId: String,
+    ): StripeWebhookEvent?
 }
