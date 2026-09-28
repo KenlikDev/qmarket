@@ -2,6 +2,8 @@ package com.kenlikdev.qmarket
 
 import com.kenlikdev.qmarket.support.TestJson
 
+import com.kenlikdev.qmarket.support.TestJson
+
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
