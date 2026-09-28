@@ -1,6 +1,5 @@
 package com.kenlikdev.qmarket.identity.service
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier as GoogleApiVerifier
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
@@ -9,6 +8,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import java.io.IOException
 import java.security.GeneralSecurityException
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier as GoogleApiVerifier
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier as GoogleApiVerifier
 
 /**
  * Production Google ID-token verifier backed by Google's official Java client.
