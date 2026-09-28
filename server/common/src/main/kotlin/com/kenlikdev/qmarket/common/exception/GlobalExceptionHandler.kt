@@ -85,7 +85,8 @@ open class GlobalExceptionHandler {
             code = "VALIDATION_ERROR",
             message = "Validation failed",
             path = request.requestURI,
-            details = ex.parameterValidationResults.flatMap { result ->
+            details =
+                ex.parameterValidationResults.flatMap { result ->
                 result.resolvableErrors.map { error ->
                     FieldErrorDetail(
                         field = result.methodParameter.parameterName ?: "parameter",
@@ -104,7 +105,8 @@ open class GlobalExceptionHandler {
             code = "VALIDATION_ERROR",
             message = "Validation failed",
             path = request.requestURI,
-            details = ex.constraintViolations.map { violation ->
+            details =
+                ex.constraintViolations.map { violation ->
                 FieldErrorDetail(
                     field = violation.propertyPath.toString(),
                     message = violation.message,
