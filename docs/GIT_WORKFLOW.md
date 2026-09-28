@@ -84,7 +84,16 @@ Because the repository disables merge commits and the protected branches require
 
 Prefer squash merges for temporary work PRs.
 
-For ai/integration → develop and develop → main, use the repository's chosen human release convention consistently. The AI should propose the merge title/body but must not execute these merges.
+For every human-controlled promotion, the AI must prepare the merge title and merge description before the human merges. The description should include:
+
+- release/integration scope;
+- notable behavior and schema changes;
+- CI status;
+- security-impact summary;
+- known limitations and follow-up work;
+- rollback considerations when relevant.
+
+The AI must not execute ai/integration → develop or develop → main.
 
 ## Automatic branch deletion
 
@@ -108,7 +117,9 @@ After a temporary PR is merged or closed, delete its branch.
 
 ## Dependabot
 
-Dependabot targets develop, not main, so dependency updates enter the human-owned integration stream first. Existing old Dependabot PRs created against main should be closed/recreated after this policy is in place.
+Dependabot targets develop, not main, so dependency updates enter the human-owned integration stream first.
+
+Existing Dependabot PRs have already been retargeted to develop. Keep those branches/PRs while they represent active dependency updates. After develop receives the current ai/integration state, re-run or rebase the Dependabot PRs as needed and close only superseded or intentionally rejected updates.
 
 ## Verification checklist
 
