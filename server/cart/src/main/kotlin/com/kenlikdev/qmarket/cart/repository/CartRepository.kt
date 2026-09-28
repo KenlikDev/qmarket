@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
-
 import java.util.UUID
 
 interface CartRepository : JpaRepository<Cart, UUID> {
