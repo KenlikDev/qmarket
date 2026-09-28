@@ -86,5 +86,4 @@ class GlobalExceptionHandlerTest {
             response.body?.details?.single(),
         )
     }
-
 }
