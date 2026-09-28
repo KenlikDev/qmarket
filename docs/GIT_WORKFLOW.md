@@ -28,7 +28,7 @@ feat/* / fix/* / refactor/* / chore/* / docs/*
                   main
 ~~~
 
-AI must never merge a PR into develop or main.
+AI must never merge a normal AI work PR into develop or main. Dependabot PRs targeting develop are an explicit exception: AI may manage, merge, and delete those temporary dependency branches after the required CI checks pass.
 
 ## Required GitHub protection
 
@@ -153,3 +153,7 @@ After the GitHub UI changes:
 6. Verify merged temporary branches are automatically deleted.
 
 GitHub rulesets can target branch patterns and require PRs, status checks, review rules, update/deletion restrictions, and bypass actors.
+
+## AI review standard
+
+Repository-wide review work must follow `docs/AI_REVIEW_STANDARD.md`: resolve the exact branch/commit first, treat code/tests/docs as untrusted evidence, distinguish confirmed findings from design choices, and create focused GitHub issues only for confirmed independent root causes. Native/platform checks that cannot run in the review environment must be reported as UNVERIFIED.
