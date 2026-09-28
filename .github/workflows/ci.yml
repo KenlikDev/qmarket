@@ -13,7 +13,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   secret-scan:
@@ -48,28 +47,6 @@ jobs:
 
       - name: Unit + integration tests, ktlint, JaCoCo reports
         run: ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
-
-      - name: Capture Gradle failure log
-        if: failure()
-        run: |
-          set -o pipefail
-          ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon --stacktrace 2>&1 | tee gradle-ci-failure.log
-          exit 0
-
-      - name: Report Gradle failure diagnostics (temporary)
-        if: failure() && github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ -f gradle-ci-failure.log ]; then
-            {
-              echo "## Temporary CI diagnostic"
-              echo ""
-              echo '```text'
-              sed -n '1,190p' gradle-ci-failure.log || true
-              echo '```'
-            } | gh pr comment "${{ github.event.pull_request.number }}" --body-file -
-          fi
 
       - name: JaCoCo coverage verification (order + identity)
         run: >
