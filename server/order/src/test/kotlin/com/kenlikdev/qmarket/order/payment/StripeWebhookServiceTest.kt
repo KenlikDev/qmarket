@@ -231,7 +231,7 @@ class StripeWebhookServiceTest {
                 eventType = "payment_intent.succeeded",
             )
         every { eventRepository.tryClaim("evt_failed", "payment_intent.succeeded") } returns 1
-        every { eventRepository.findByEventIdForUpdate("evt_failed") } returns event
+        every { eventRepository.findByEventIdForUpdate("evt_failed") } returnsMany listOf(event, null)
         every {
             orderService.markPaidFromProvider(
                 orderId,
@@ -241,7 +241,6 @@ class StripeWebhookServiceTest {
                 "usd",
             )
         } throws BadRequestException("order conflict")
-        every { eventRepository.findByEventIdForUpdate("evt_failed") } returns null
         every { eventRepository.save(any()) } answers { firstArg() }
 
         val body = payload("evt_failed", orderId)
