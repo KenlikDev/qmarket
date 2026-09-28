@@ -32,8 +32,15 @@ class AuthController(
         httpRequest: HttpServletRequest,
     ): AuthResponse = authService.login(request, clientKey = clientKey(httpRequest))
 
-    private fun clientKey(httpRequest: HttpServletRequest): String =
-        httpRequest.remoteAddr?.takeIf { it.isNotBlank() } ?: "unknown"
+    private fun clientKey(httpRequest: HttpServletRequest): String {
+        val forwarded =
+            httpRequest
+                .getHeader("X-Forwarded-For")
+                ?.split(",")
+                ?.firstOrNull()
+                ?.trim()
+        return forwarded?.takeIf { it.isNotEmpty() } ?: (httpRequest.remoteAddr ?: "unknown")
+    }
 
     @PostMapping("/refresh")
     fun refresh(
