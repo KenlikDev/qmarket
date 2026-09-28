@@ -58,7 +58,6 @@ Use the same protection as main:
 - human review of the promotion PR is still required as the release process;
 - CI checks remain mandatory.
 
-
 ### ai/integration
 
 Require:
@@ -84,7 +83,36 @@ Because the repository disables merge commits and the protected branches require
 
 Prefer squash merges for temporary work PRs.
 
-For ai/integration → develop and develop → main, use the repository's chosen human release convention consistently. The AI should propose the merge title/body but must not execute these merges.
+For every human-controlled promotion, the AI must prepare the merge title and merge description before the human merges. The description should include:
+
+- release/integration scope;
+- notable behavior and schema changes;
+- CI status;
+- security-impact summary;
+- known limitations and follow-up work;
+- rollback considerations when relevant.
+
+The AI must not execute ai/integration → develop or develop → main.
+
+### ai/integration → develop
+
+Suggested title:
+
+~~~text
+refactor: promote professional hardening to develop
+~~~
+
+The description should identify the integrated scope, validation status, known limitations, and explicitly state that the merge is a human-controlled promotion.
+
+### develop → main
+
+Suggested title:
+
+~~~text
+release: promote develop to main
+~~~
+
+The description should identify the release scope, validation status, database/security impact, known limitations, and rollback considerations. The merge is human-controlled.
 
 ## Automatic branch deletion
 
@@ -92,7 +120,8 @@ Enable:
 
 **Settings → General → Pull Requests → Automatically delete head branches**
 
-GitHub can automatically remove merged temporary branches. This does not replace cleanup of already-existing stale branches. GitHub documents this setting here: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-the-automatic-deletion-of-branches
+GitHub can automatically remove merged temporary branches. This does not replace cleanup of already-existing stale branches. GitHub documents this setting here:
+https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-the-automatic-deletion-of-branches
 
 ## Branch cleanup policy
 
@@ -108,7 +137,9 @@ After a temporary PR is merged or closed, delete its branch.
 
 ## Dependabot
 
-Dependabot targets develop, not main, so dependency updates enter the human-owned integration stream first. Existing old Dependabot PRs created against main should be closed/recreated after this policy is in place.
+Dependabot targets develop, not main, so dependency updates enter the human-owned integration stream first.
+
+Existing Dependabot PRs have already been retargeted to develop. Keep those branches/PRs while they represent active dependency updates. After develop receives the current ai/integration state, re-run or rebase the Dependabot PRs as needed and close only superseded or intentionally rejected updates.
 
 ## Verification checklist
 
