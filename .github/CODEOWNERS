@@ -1,5 +1,5 @@
 # Human owner for protected production/integration changes.
-# Enable Require review from Code Owners on main/develop rules.
+# CODEOWNERS documents ownership; required approval is handled as a human process because the repository has one owner.
 * @KenlikDev
 
 .github/* @KenlikDev
