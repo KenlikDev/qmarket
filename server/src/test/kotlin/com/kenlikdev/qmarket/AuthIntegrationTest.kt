@@ -130,7 +130,7 @@ class AuthIntegrationTest {
                         .content(register),
                 ).andExpect(status().isCreated)
                 .andReturn()
-        val firstRefresh = TestJson.refreshToken(first.response.contentAsString)
+        val firstRefresh = TestJson.parse(first.response.contentAsString).path("refreshToken").asString(null) ?: error("No refreshToken")
 
         val rotated =
             mockMvc
@@ -140,7 +140,7 @@ class AuthIntegrationTest {
                         .content("""{"refreshToken":"$firstRefresh"}"""),
                 ).andExpect(status().isOk)
                 .andReturn()
-        val siblingRefresh = TestJson.refreshToken(rotated.response.contentAsString)
+        val siblingRefresh = TestJson.parse(rotated.response.contentAsString).path("refreshToken").asString(null) ?: error("No refreshToken")
 
         mockMvc
             .perform(
