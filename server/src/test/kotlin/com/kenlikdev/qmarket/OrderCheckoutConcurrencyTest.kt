@@ -74,7 +74,7 @@ class OrderCheckoutConcurrencyTest {
                 .findByUserIdOrderByCreatedAtDescIdDesc(userId, PageRequest.of(0, 100))
                 .totalElements
 
-        val cart = cartRepository.findByUserId(userId) ?: Cart(userId = userId)
+        val cart = cartRepository.findByUserIdWithItems(userId) ?: Cart(userId = userId)
         cart.items.clear()
         cart.items.add(CartItem(cart = cart, productId = productId, quantity = 1))
         cartRepository.save(cart)
