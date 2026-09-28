@@ -49,18 +49,6 @@ jobs:
         run: ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 
 
-      - name: Debug KtLint server-common formatting (temporary)
-        if: failure()
-        continue-on-error: true
-        run: |
-          ./gradlew :server:common:ktlintFormat --no-daemon
-          echo '--- SECURITY CONFIG ---'
-          sed -n '45,125p' server/common/src/main/kotlin/com/kenlikdev/qmarket/common/config/SecurityConfig.kt
-          echo '--- API EXCEPTION ---'
-          sed -n '30,65p' server/common/src/main/kotlin/com/kenlikdev/qmarket/common/exception/ApiException.kt
-          echo '--- GLOBAL HANDLER ---'
-          sed -n '75,120p' server/common/src/main/kotlin/com/kenlikdev/qmarket/common/exception/GlobalExceptionHandler.kt
-          tail -n 5 server/common/src/main/kotlin/com/kenlikdev/qmarket/common/exception/GlobalExceptionHandler.kt
       - name: JaCoCo coverage verification (order + identity)
         run: >
           ./gradlew
