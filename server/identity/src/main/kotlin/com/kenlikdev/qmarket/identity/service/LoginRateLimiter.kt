@@ -43,6 +43,7 @@ class LoginRateLimiter(
         val keys = keysFor(email, clientKey)
         val now = clock.millis()
         synchronized(lock) {
+            pruneAllQueues(now)
             val missingKeys = keys.count { it !in attemptsByKey }
             if (attemptsByKey.size + missingKeys > maxKeys) {
                 throw TooManyRequestsException("Login rate limiter capacity reached; try again later")
@@ -116,6 +117,11 @@ class LoginRateLimiter(
         reservation.keys.forEach { key ->
             attemptsByKey[key]?.removeIf { it.reservationId == reservation.id }
         }
+    }
+
+    private fun pruneAllQueues(now: Long) {
+        attemptsByKey.values.forEach { pruneQueue(it, now) }
+        cleanupEmptyQueues()
     }
 
     private fun cleanupEmptyQueues() {
