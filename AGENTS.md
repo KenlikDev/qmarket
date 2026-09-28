@@ -32,7 +32,7 @@ The AI:
 4. MUST NOT use force-pushes to protected branches.
 5. Should normally develop on a temporary branch and open a PR into ai/integration.
 6. May merge a temporary-branch PR into ai/integration only after all automated checks required by the repository are green.
-7. Must stop at the ai/integration → develop boundary. A human owns this promotion.
+7. Must stop at the ai/integration → develop boundary for normal AI work. Dependabot branches are an explicit exception: AI may manage, merge, and delete Dependabot PRs targeting develop after the required CI checks are green.
 8. Must stop at the develop → main boundary. A human owns this promotion.
 
 Expected flow:
