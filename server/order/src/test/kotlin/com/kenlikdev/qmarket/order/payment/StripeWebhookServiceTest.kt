@@ -209,10 +209,11 @@ class StripeWebhookServiceTest {
         every { eventRepository.tryClaim("evt_bad_status", "payment_intent.succeeded") } returns 1
         every { eventRepository.findByEventIdForUpdate("evt_bad_status") } returns event
 
-        val body = payload("evt_bad_status", orderId).replace(
-            "\"status\": \"succeeded\"",
-            "\"status\": \"processing\"",
-        )
+        val body =
+            payload("evt_bad_status", orderId).replace(
+                "\"status\": \"succeeded\"",
+                "\"status\": \"processing\"",
+            )
 
         assertThrows(BadRequestException::class.java) {
             service.handle(body, signedPayload(body))
