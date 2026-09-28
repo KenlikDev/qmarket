@@ -39,10 +39,9 @@ Configure these three branches under **Settings → Branches / Rulesets**.
 Require:
 
 - pull request before merging;
-- at least 1 approving human review;
+- **0 required GitHub approvals** in the current single-human workflow;
+- human review of the promotion PR before merge as a process requirement;
 - dismiss stale approvals when new commits are pushed;
-- require Code Owner approval;
-- require approval from someone other than the latest pusher where available;
 - status checks: test and secret-scan;
 - branch must be up to date before merge;
 - all review conversations resolved;
@@ -53,9 +52,12 @@ Require:
 
 ### develop
 
-Use the same protection as main.
+Use the same protection as main:
 
-This makes develop human-owned while still allowing CI and normal pull requests to update it.
+- **0 required GitHub approvals** because the sole repository owner cannot approve their own PR;
+- human review of the promotion PR is still required as the release process;
+- CI checks remain mandatory.
+
 
 ### ai/integration
 
@@ -68,7 +70,7 @@ Require:
 - no force pushes;
 - no deletion.
 
-Do not require a human approval on ai/integration if the intention is for the AI to integrate temporary branches automatically after CI passes. Human review happens on promotion to develop.
+Do not require a human approval on ai/integration. CI is the automated gate here; human review happens before promotion to develop.
 
 ## Direct push policy
 
