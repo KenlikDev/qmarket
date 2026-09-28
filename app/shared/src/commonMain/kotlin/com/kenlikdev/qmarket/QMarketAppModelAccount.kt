@@ -45,9 +45,9 @@ fun QMarketAppModel.saveProfile() {
         profile =
             api.updateProfile(
                 UpdateProfileRequestDto(
-                    firstName = firstName.trim().ifBlank { null },
-                    lastName = lastName.trim().ifBlank { null },
-                    phone = phone.trim().ifBlank { null },
+                    firstName = firstName.trim(),
+                    lastName = lastName.trim(),
+                    phone = phone.trim(),
                 ),
             )
         statusMessage = "Profile saved"

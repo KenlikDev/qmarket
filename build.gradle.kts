@@ -10,7 +10,6 @@ plugins {
     alias(libs.plugins.kotlinSerialization) apply false
     alias(libs.plugins.kotlinSpring) apply false
     alias(libs.plugins.ktlint) apply false
-    alias(libs.plugins.ktor) apply false
     alias(libs.plugins.springBoot) apply false
     alias(libs.plugins.springDependencyManagement) apply false
 }

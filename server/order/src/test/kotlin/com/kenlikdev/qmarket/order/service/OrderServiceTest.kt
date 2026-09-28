@@ -67,6 +67,7 @@ class OrderServiceTest {
     fun setUp() {
         orderRepository = mockk()
         cartRepository = mockk()
+        every { cartRepository.insertIfMissing(any()) } returns 1
         productCatalog = mockk()
         addressRepository = mockk()
         idempotencyKeyRepository = mockk(relaxed = true)
@@ -125,7 +126,7 @@ class OrderServiceTest {
             Cart(id = UUID.randomUUID(), userId = userId).apply {
                 items.add(CartItem(cart = this, productId = productId, quantity = 2))
             }
-        every { cartRepository.findByUserId(userId) } returns cart
+        every { cartRepository.findByUserIdForUpdate(userId) } returns cart
         every { productCatalog.requireActive(productId) } returns product
         every { productCatalog.decreaseStock(productId, any()) } returns Unit
         every { orderRepository.save(any()) } answers {
@@ -148,7 +149,7 @@ class OrderServiceTest {
 
     @Test
     fun `createFromCart fails on empty cart`() {
-        every { cartRepository.findByUserId(userId) } returns null
+        every { cartRepository.findByUserIdForUpdate(userId) } returns null
 
         assertThrows<BadRequestException> {
             orderService.createFromCart(userId, CreateOrderRequest(shippingAddress = "Address"))
@@ -161,7 +162,7 @@ class OrderServiceTest {
             Cart(id = UUID.randomUUID(), userId = userId).apply {
                 items.add(CartItem(cart = this, productId = productId, quantity = 100))
             }
-        every { cartRepository.findByUserId(userId) } returns cart
+        every { cartRepository.findByUserIdForUpdate(userId) } returns cart
         every { productCatalog.requireActive(productId) } returns product
         every { productCatalog.decreaseStock(productId, any()) } returns Unit
 
@@ -253,7 +254,7 @@ class OrderServiceTest {
                 postalCode = "101000",
                 country = "RU",
             )
-        every { cartRepository.findByUserId(userId) } returns cart
+        every { cartRepository.findByUserIdForUpdate(userId) } returns cart
         every { productCatalog.requireActive(productId) } returns product
         every { productCatalog.decreaseStock(productId, any()) } returns Unit
         every { addressRepository.findByIdAndUserId(addressId, userId) } returns address
@@ -278,7 +279,7 @@ class OrderServiceTest {
             Cart(id = UUID.randomUUID(), userId = userId).apply {
                 items.add(CartItem(cart = this, productId = productId, quantity = 1))
             }
-        every { cartRepository.findByUserId(userId) } returns cart
+        every { cartRepository.findByUserIdForUpdate(userId) } returns cart
 
         assertThrows<BadRequestException> {
             orderService.createFromCart(userId, CreateOrderRequest())
@@ -408,7 +409,7 @@ class OrderServiceTest {
                 items.add(CartItem(cart = this, productId = productId, quantity = 1))
             }
         every { idempotencyKeyRepository.findByUserIdAndKey(userId, "checkout-abc") } returns null
-        every { cartRepository.findByUserId(userId) } returns cart
+        every { cartRepository.findByUserIdForUpdate(userId) } returns cart
         every { productCatalog.requireActive(productId) } returns product
         every { productCatalog.decreaseStock(productId, 1) } returns Unit
         every { orderRepository.save(any()) } answers {

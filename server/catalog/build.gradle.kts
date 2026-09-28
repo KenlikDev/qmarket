@@ -30,8 +30,8 @@ dependencyManagement {
 }
 
 dependencies {
-    api(project(":server:common"))
-    api(project(":server:catalog-api"))
+    implementation(project(":server:common"))
+    implementation(project(":server:catalog-api"))
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockk)

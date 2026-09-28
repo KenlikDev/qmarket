@@ -1,11 +1,13 @@
 package com.kenlikdev.qmarket.identity.service
 
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import com.kenlikdev.qmarket.common.validation.InputValidation
 import com.kenlikdev.qmarket.identity.domain.Address
 import com.kenlikdev.qmarket.identity.dto.AddressResponse
 import com.kenlikdev.qmarket.identity.dto.CreateAddressRequest
 import com.kenlikdev.qmarket.identity.dto.UpdateAddressRequest
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
+import com.kenlikdev.qmarket.identity.repository.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -13,6 +15,7 @@ import java.util.UUID
 @Service
 class AddressService(
     private val addressRepository: AddressRepository,
+    private val userRepository: UserRepository,
 ) {
     @Transactional(readOnly = true)
     fun list(userId: UUID): List<AddressResponse> =
@@ -36,6 +39,7 @@ class AddressService(
         userId: UUID,
         request: CreateAddressRequest,
     ): AddressResponse {
+        lockUser(userId)
         val makeDefault = request.default || addressRepository.countByUserId(userId) == 0L
         if (makeDefault) {
             addressRepository.clearDefaultForUser(userId)
@@ -45,8 +49,8 @@ class AddressService(
             Address(
                 userId = userId,
                 label = request.label?.trim()?.ifEmpty { null },
-                recipientName = request.recipientName.trim(),
-                phone = request.phone?.trim()?.ifEmpty { null },
+                recipientName = normalizeRecipientName(request.recipientName),
+                phone = InputValidation.normalizeOptionalPhone(request.phone),
                 country = request.country.trim().ifEmpty { "RU" },
                 region = request.region?.trim()?.ifEmpty { null },
                 city = request.city.trim(),
@@ -64,17 +68,18 @@ class AddressService(
         addressId: UUID,
         request: UpdateAddressRequest,
     ): AddressResponse {
+        lockUser(userId)
         val address =
             addressRepository.findByIdAndUserId(addressId, userId)
                 ?: throw NotFoundException("Address not found")
 
         request.label?.let { address.label = it.trim().ifEmpty { null } }
-        request.recipientName?.let { address.recipientName = it.trim() }
-        request.phone?.let { address.phone = it.trim().ifEmpty { null } }
+        request.recipientName?.let { address.recipientName = normalizeRecipientName(it) }
+        request.phone?.let { address.phone = InputValidation.normalizeOptionalPhone(it) }
         request.country?.let { address.country = it.trim().ifEmpty { "RU" } }
         request.region?.let { address.region = it.trim().ifEmpty { null } }
-        request.city?.let { address.city = it.trim() }
-        request.streetLine1?.let { address.streetLine1 = it.trim() }
+        request.city?.let { address.city = InputValidation.requireTrimmedNotBlank(it, "City") }
+        request.streetLine1?.let { address.streetLine1 = InputValidation.requireTrimmedNotBlank(it, "Street address") }
         request.streetLine2?.let { address.streetLine2 = it.trim().ifEmpty { null } }
         request.postalCode?.let { address.postalCode = it.trim().ifEmpty { null } }
 
@@ -93,6 +98,7 @@ class AddressService(
         userId: UUID,
         addressId: UUID,
     ) {
+        lockUser(userId)
         val address =
             addressRepository.findByIdAndUserId(addressId, userId)
                 ?: throw NotFoundException("Address not found")
@@ -106,6 +112,15 @@ class AddressService(
             }
         }
     }
+
+    private fun lockUser(userId: UUID) {
+        userRepository.findByIdForUpdate(userId)
+            ?: throw NotFoundException("User not found")
+    }
+
+    private fun normalizeRecipientName(value: String): String =
+        InputValidation.normalizeOptionalName(value, "Recipient name")
+            ?: throw IllegalArgumentException("Recipient name must not be blank")
 
     private fun Address.toResponse(): AddressResponse =
         AddressResponse(

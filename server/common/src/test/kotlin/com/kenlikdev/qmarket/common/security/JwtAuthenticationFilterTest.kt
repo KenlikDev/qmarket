@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket.common.security
 
 import io.jsonwebtoken.Claims
+import io.jsonwebtoken.JwtException
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -108,7 +109,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     fun `invalid token is swallowed and chain continues`() {
-        every { jwtService.parseClaims("bad") } throws RuntimeException("jwt expired")
+        every { jwtService.parseClaims("bad") } throws JwtException("jwt expired")
 
         val request =
             MockHttpServletRequest().apply {

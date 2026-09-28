@@ -29,6 +29,7 @@ data class UpdateCategoryRequestDto(
     val slug: String? = null,
     val description: String? = null,
     val parentId: String? = null,
+    val clearParent: Boolean = false,
     val sortOrder: Int? = null,
     val active: Boolean? = null,
 )
@@ -101,5 +102,6 @@ data class UpdateProductRequestDto(
     val active: Boolean? = null,
     val featured: Boolean? = null,
     val categoryId: String? = null,
+    val clearCategory: Boolean = false,
 )
 

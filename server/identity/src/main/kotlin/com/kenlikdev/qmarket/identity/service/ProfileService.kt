@@ -77,8 +77,8 @@ class ProfileService(
         user.passwordHash = encoded
         userRepository.save(user)
         // Invalidate all sessions so a stolen refresh token cannot outlive a password change
-        val userId = requireNotNull(user.id) { "User id must not be null" }
-        refreshTokenRepository.revokeAllForUser(userId, Instant.now())
+        val persistedUserId = requireNotNull(user.id) { "User id must not be null" }
+        refreshTokenRepository.revokeAllForUser(persistedUserId, Instant.now())
     }
 
     private fun toResponse(user: User): ProfileResponse =

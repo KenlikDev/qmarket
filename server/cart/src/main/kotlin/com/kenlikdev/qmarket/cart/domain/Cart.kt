@@ -35,7 +35,7 @@ class Cart(
         mappedBy = "cart",
         cascade = [CascadeType.ALL],
         orphanRemoval = true,
-        fetch = FetchType.EAGER,
+        fetch = FetchType.LAZY,
     )
     var items: MutableList<CartItem> = mutableListOf(),
     @Column(name = "created_at", nullable = false, updatable = false)

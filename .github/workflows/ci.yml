@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: [main, develop, ai/integration]
   pull_request:
-    branches: [master, main]
+    branches: [main, develop, ai/integration]
   workflow_dispatch:
 
 concurrency:
@@ -48,7 +48,8 @@ jobs:
       - name: Unit + integration tests, ktlint, JaCoCo reports
         run: ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 
-      # Enforce minimum line coverage on core business modules.
+
+
       - name: JaCoCo coverage verification (order + identity)
         run: >
           ./gradlew

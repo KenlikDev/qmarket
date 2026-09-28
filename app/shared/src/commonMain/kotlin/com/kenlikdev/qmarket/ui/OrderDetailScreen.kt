@@ -17,8 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.OrderDto
-import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
+import com.kenlikdev.qmarket.api.PaymentSessionDto
 
 @Composable
 fun OrderDetailScreen(
@@ -161,7 +161,7 @@ fun OrderDetailScreen(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    "Stripe session ready",
+                                    "Stripe payment session created",
                                     style = MaterialTheme.typography.titleSmall,
                                 )
                                 Text(
@@ -170,7 +170,7 @@ fun OrderDetailScreen(
                                     modifier = Modifier.testTag("orderDetailPaymentIntentId"),
                                 )
                                 Text(
-                                    "Bind Payment Element / mobile SDK to clientSecret",
+                                    "Payment confirmation can continue in the configured payment client.",
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
@@ -183,7 +183,7 @@ fun OrderDetailScreen(
                                 enabled = !loading,
                                 modifier = Modifier.testTag("orderDetailPay"),
                             ) {
-                                Text("Pay (mock)")
+                                Text("Pay")
                             }
                             if (onStartPaymentSession != null) {
                                 TextButton(

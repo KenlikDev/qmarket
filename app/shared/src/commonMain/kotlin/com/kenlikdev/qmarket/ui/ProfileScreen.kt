@@ -14,6 +14,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.ProfileDto
 import com.kenlikdev.qmarket.validation.ClientInputValidation
@@ -172,6 +173,7 @@ fun ProfileScreen(
                     onValueChange = onCurrentPasswordChange,
                     label = { Text("Current password") },
                     singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
                     modifier =
                         Modifier
                             .fillMaxWidth()
@@ -182,6 +184,7 @@ fun ProfileScreen(
                     onValueChange = onNewPasswordChange,
                     label = { Text("New password") },
                     singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
                     modifier =
                         Modifier
                             .fillMaxWidth()

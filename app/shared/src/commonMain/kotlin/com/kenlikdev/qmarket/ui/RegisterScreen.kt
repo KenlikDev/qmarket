@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.validation.ClientInputValidation
 
@@ -55,6 +56,7 @@ fun RegisterScreen(
             onValueChange = onPasswordChange,
             label = { Text("Password") },
             singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
             modifier =
                 Modifier
                     .fillMaxWidth()

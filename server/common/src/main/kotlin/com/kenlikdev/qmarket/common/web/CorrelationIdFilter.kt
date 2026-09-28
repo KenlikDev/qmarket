@@ -25,8 +25,11 @@ class CorrelationIdFilter : OncePerRequestFilter() {
         filterChain: FilterChain,
     ) {
         val incoming =
-            request.getHeader(HEADER)?.takeIf { it.isNotBlank() }
-                ?: request.getHeader(HEADER_ALT)?.takeIf { it.isNotBlank() }
+            sequenceOf(
+                request.getHeader(HEADER),
+                request.getHeader(HEADER_ALT),
+            ).mapNotNull { it?.trim() }
+                .firstOrNull(::isSafeCorrelationId)
         val correlationId = incoming ?: UUID.randomUUID().toString()
         MDC.put(MDC_KEY, correlationId)
         response.setHeader(HEADER, correlationId)
@@ -37,7 +40,13 @@ class CorrelationIdFilter : OncePerRequestFilter() {
         }
     }
 
+    private fun isSafeCorrelationId(value: String): Boolean =
+        value.length <= MAX_LENGTH &&
+            value.isNotEmpty() &&
+            value.all { it.isLetterOrDigit() || it == '-' || it == '_' || it == '.' }
+
     companion object {
+        private const val MAX_LENGTH = 128
         const val HEADER = "X-Correlation-Id"
         const val HEADER_ALT = "X-Request-Id"
         const val MDC_KEY = "correlationId"

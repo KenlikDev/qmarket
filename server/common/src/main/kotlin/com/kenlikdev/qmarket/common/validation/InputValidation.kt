@@ -30,15 +30,29 @@ object InputValidation {
         return value
     }
 
+    fun requireTrimmedNotBlank(
+        raw: String,
+        field: String,
+    ): String =
+        raw.trim().ifEmpty {
+            throw BadRequestException("$field must not be blank")
+        }
+
     fun normalizeOptionalPhone(raw: String?): String? {
         if (raw == null) return null
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return null
-        if (trimmed.any { it.isLetter() }) {
-            throw BadRequestException("Phone must contain digits only (optional leading +)")
+
+        val hasPlus = trimmed.startsWith('+')
+        val body = trimmed.removePrefix("+")
+        if ('+' in body) {
+            throw BadRequestException("Phone may contain only one leading +")
         }
-        val hasPlus = trimmed.startsWith("+")
-        val digits = trimmed.filter { it.isDigit() }
+        if (body.any { !it.isDigit() && !it.isWhitespace() && it !in "()-." }) {
+            throw BadRequestException("Phone contains unsupported characters")
+        }
+
+        val digits = body.filter(Char::isDigit)
         if (digits.length !in 7..15) {
             throw BadRequestException("Phone must contain 7–15 digits (optional leading +)")
         }

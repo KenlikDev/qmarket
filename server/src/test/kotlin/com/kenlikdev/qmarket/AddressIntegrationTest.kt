@@ -42,7 +42,7 @@ class AddressIntegrationTest {
     fun `addresses require authentication`() {
         mockMvc
             .perform(get("/api/v1/users/me/addresses"))
-            .andExpect(status().isForbidden)
+            .andExpect(status().isUnauthorized)
     }
 
     @Test

@@ -22,6 +22,8 @@ class User(
     var id: UUID? = null,
     @Column(nullable = false, unique = true)
     var email: String = "",
+    @Column(name = "google_subject", length = 255)
+    var googleSubject: String? = null,
     @Column(name = "password_hash", nullable = false)
     var passwordHash: String = "",
     @Column(name = "first_name")
@@ -38,7 +40,7 @@ class User(
     var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now(),
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "user_roles",
         joinColumns = [JoinColumn(name = "user_id")],

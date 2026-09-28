@@ -9,6 +9,7 @@ import com.kenlikdev.qmarket.identity.domain.User
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -16,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
+import java.util.Locale
 
 @Component
 @ConditionalOnProperty(name = ["qmarket.seed.enabled"], havingValue = "true", matchIfMissing = false)
@@ -25,11 +27,18 @@ class DataInitializer(
     private val categoryRepository: CategoryRepository,
     private val productRepository: ProductRepository,
     private val passwordEncoder: PasswordEncoder,
+    @Value("\${qmarket.seed.admin.email:admin@qmarket.local}")
+    private val adminEmail: String,
+    @Value("\${qmarket.seed.admin.password:}")
+    private val adminPassword: String,
 ) : ApplicationRunner {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
     override fun run(args: ApplicationArguments) {
+        require(adminPassword.isNotBlank()) {
+            "qmarket.seed.admin.password must be configured when seed is enabled"
+        }
         seedRoles()
         seedAdmin()
         seedCatalog()
@@ -51,9 +60,12 @@ class DataInitializer(
     }
 
     private fun seedAdmin() {
-        val adminEmail = "admin@qmarket.local"
-        if (userRepository.existsByEmail(adminEmail)) {
-            log.info("Admin user already exists: {}", adminEmail)
+        val normalizedEmail = adminEmail.trim().lowercase(Locale.ROOT)
+        require(normalizedEmail.isNotBlank()) {
+            "qmarket.seed.admin.email must not be blank when seed is enabled"
+        }
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            log.info("Admin user already exists: {}", normalizedEmail)
             return
         }
 
@@ -68,8 +80,8 @@ class DataInitializer(
 
         val admin =
             User(
-                email = adminEmail,
-                passwordHash = passwordEncoder.encode("admin123") ?: error("encode failed"),
+                email = normalizedEmail,
+                passwordHash = passwordEncoder.encode(adminPassword) ?: error("encode failed"),
                 firstName = "Admin",
                 lastName = "QMarket",
                 enabled = true,
@@ -77,7 +89,7 @@ class DataInitializer(
                 roles = mutableSetOf(adminRole, userRole),
             )
         userRepository.save(admin)
-        log.info("Seeded admin user: {} (password from seed config, not logged)", adminEmail)
+        log.info("Seeded admin user: {} (password from seed config, not logged)", normalizedEmail)
     }
 
     private fun seedCatalog() {

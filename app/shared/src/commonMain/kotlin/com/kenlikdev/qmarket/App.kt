@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,20 +44,26 @@ fun App() {
             }
         val api = remember(http) { QMarketApiClient(http) }
         val scope = rememberCoroutineScope()
-        val restoredSession = tokens.hasSession()
-        val m =
+        val initialSession = remember { tokens.hasSession() }
+        val model =
             remember(api, tokens, scope) {
                 QMarketAppModel(
                     api = api,
                     tokens = tokens,
                     scope = scope,
-                    restoredSession = restoredSession,
+                    restoredSession = initialSession,
                 )
             }
 
-        LaunchedEffect(restoredSession) {
-            m.restoreSessionIfNeeded(restoredSession)
+        DisposableEffect(http) {
+            onDispose { http.close() }
         }
+
+        LaunchedEffect(model) {
+            model.restoreSessionIfNeeded(initialSession)
+        }
+
+        val m = model
 
         Scaffold { padding ->
 
@@ -429,7 +436,7 @@ fun App() {
                         error = m.error,
                         statusMessage = m.statusMessage,
                         loading = m.loading,
-                        onPay = { m.payOrder(current.order.id) },
+                        onOpenOrder = { m.openOrder(current.order) },
                         onMyOrders = { m.loadOrders() },
                         onBackToCatalog = { m.loadCatalog() },
                         onOpenCart = { m.loadCart() },

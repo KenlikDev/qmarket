@@ -121,10 +121,10 @@ fun CatalogScreen(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            TextButton(onClick = onSortNewest) { Text("Newest") }
-            TextButton(onClick = onSortPrice) { Text("Price") }
-            TextButton(onClick = onSortName) { Text("Name") }
-            TextButton(onClick = onToggleFeatured) {
+            TextButton(onClick = onSortNewest, enabled = !loading) { Text("Newest") }
+            TextButton(onClick = onSortPrice, enabled = !loading) { Text("Price") }
+            TextButton(onClick = onSortName, enabled = !loading) { Text("Name") }
+            TextButton(onClick = onToggleFeatured, enabled = !loading) {
                 Text(if (catalogFeaturedOnly) "Featured ✓" else "Featured")
             }
             Button(

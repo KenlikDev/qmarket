@@ -30,8 +30,12 @@ class CategoryController(
     private val catalogService: CatalogService,
 ) {
     @GetMapping
-    fun list(
-        @RequestParam(defaultValue = "true") activeOnly: Boolean,
+    fun list(): List<CategoryResponse> = catalogService.listCategories(activeOnly = true)
+
+    @GetMapping("/admin")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun listAdmin(
+        @RequestParam(defaultValue = "false") activeOnly: Boolean,
     ): List<CategoryResponse> = catalogService.listCategories(activeOnly)
 
     @GetMapping("/{id}")
@@ -70,7 +74,6 @@ class ProductController(
     fun search(
         @RequestParam(required = false) q: String?,
         @RequestParam(required = false) categoryId: UUID?,
-        @RequestParam(defaultValue = "true") activeOnly: Boolean,
         @RequestParam(defaultValue = "false") featuredOnly: Boolean,
         @RequestParam(required = false) minPrice: BigDecimal?,
         @RequestParam(required = false) maxPrice: BigDecimal?,
@@ -82,7 +85,33 @@ class ProductController(
         catalogService.searchProducts(
             query = q,
             categoryId = categoryId,
-            activeOnly = activeOnly,
+            activeOnly = true,
+            featuredOnly = featuredOnly,
+            minPrice = minPrice,
+            maxPrice = maxPrice,
+            sortBy = sortBy,
+            sortDir = sortDir,
+            page = page,
+            size = size,
+        )
+
+    @GetMapping("/admin")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    fun searchAdmin(
+        @RequestParam(required = false) q: String?,
+        @RequestParam(required = false) categoryId: UUID?,
+        @RequestParam(defaultValue = "false") featuredOnly: Boolean,
+        @RequestParam(required = false) minPrice: BigDecimal?,
+        @RequestParam(required = false) maxPrice: BigDecimal?,
+        @RequestParam(defaultValue = "createdAt") sortBy: String,
+        @RequestParam(defaultValue = "desc") sortDir: String,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int,
+    ): PageResponse<ProductResponse> =
+        catalogService.searchProducts(
+            query = q,
+            categoryId = categoryId,
+            activeOnly = false,
             featuredOnly = featuredOnly,
             minPrice = minPrice,
             maxPrice = maxPrice,

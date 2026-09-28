@@ -82,13 +82,11 @@ class Order(
         updatedAt = Instant.now()
     }
 
-    /** Returns true if this transition restores inventory (PENDING/CONFIRMED → CANCELLED). */
-    fun cancel(): Boolean {
+    fun cancel() {
         if (status != OrderStatus.PENDING && status != OrderStatus.CONFIRMED) {
             throw BadRequestException("Only PENDING or CONFIRMED orders can be cancelled")
         }
         status = OrderStatus.CANCELLED
-        return true
     }
 
     fun markPaid() {

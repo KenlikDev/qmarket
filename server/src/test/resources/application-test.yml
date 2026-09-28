@@ -16,6 +16,8 @@ spring:
 qmarket:
   seed:
     enabled: true
+    admin:
+      password: admin123
   security:
     jwt:
       secret: test-secret-key-that-is-long-enough-for-hs256-algorithm-1234567890

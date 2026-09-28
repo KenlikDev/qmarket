@@ -64,7 +64,7 @@ class CatalogIntegrationTest {
                 post("/api/v1/categories")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body),
-            ).andExpect(status().isForbidden)
+            ).andExpect(status().isUnauthorized)
 
         mockMvc
             .perform(
@@ -97,6 +97,54 @@ class CatalogIntegrationTest {
             ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.name").value("Test Product"))
             .andExpect(jsonPath("$.price").value(9.99))
+    }
+
+    @Test
+    fun `admin catalog listings require admin authorization`() {
+        mockMvc
+            .perform(get("/api/v1/products/admin"))
+            .andExpect(status().isUnauthorized)
+
+        mockMvc
+            .perform(get("/api/v1/categories/admin"))
+            .andExpect(status().isUnauthorized)
+
+        mockMvc
+            .perform(
+                get("/api/v1/products/admin")
+                    .header("Authorization", "Bearer $adminToken"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.content").isArray)
+
+        mockMvc
+            .perform(
+                get("/api/v1/categories/admin")
+                    .header("Authorization", "Bearer $adminToken"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$").isArray)
+    }
+
+    @Test
+    fun `invalid query parameter returns stable bad request response`() {
+        mockMvc
+            .perform(
+                get("/api/v1/products")
+                    .param("categoryId", "not-a-uuid"),
+            ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+            .andExpect(jsonPath("$.path").value("/api/v1/products"))
+    }
+
+    @Test
+    fun `malformed json returns stable bad request response`() {
+        mockMvc
+            .perform(
+                post("/api/v1/products")
+                    .header("Authorization", "Bearer $adminToken")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"name":"broken","price":}"""),
+            ).andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
     }
 
     @Test

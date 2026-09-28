@@ -1,0 +1,6 @@
+# Human owner for protected production/integration changes.
+# CODEOWNERS documents ownership; required approval is handled as a human process because the repository has one owner.
+* @KenlikDev
+
+.github/* @KenlikDev
+AGENTS.md @KenlikDev

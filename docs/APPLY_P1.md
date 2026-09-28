@@ -1,3 +1,5 @@
+> **Historical note:** P1 was already applied to the repository. This document records the original manual application procedure and is retained for audit/history. Do not reapply these steps to the current tree.
+
 # P1: typed Stripe webhook JSON + amount reconciliation
 
 ## Apply after P0 (`qmarket-stripe-webhook-p0`)

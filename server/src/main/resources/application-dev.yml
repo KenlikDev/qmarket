@@ -5,10 +5,13 @@
 qmarket:
   seed:
     enabled: true
+    admin:
+      password: admin123
   security:
+    api-docs-public: true
     jwt:
       # Local-only secret (never use in production)
-      secret: dev-only-qmarket-jwt-secret-key-32chars-min
+      secret: qmarket-local-dev-jwt-secret-2026-keep-local-only-9d4a7f2c6b8e1a53
 
 logging:
   level:

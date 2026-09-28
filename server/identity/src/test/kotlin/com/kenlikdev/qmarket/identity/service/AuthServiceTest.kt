@@ -16,6 +16,7 @@ import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
 import com.kenlikdev.qmarket.identity.repository.RoleRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import io.jsonwebtoken.Claims
+import io.jsonwebtoken.JwtException
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -64,6 +65,7 @@ class AuthServiceTest {
         every { userRepository.save(any()) } returnsArgument 0
         every { refreshTokenRepository.save(any()) } returnsArgument 0
         every { refreshTokenRepository.findByJti(any()) } returns null
+        every { userRepository.findByGoogleSubject(any()) } returns null
         every { refreshTokenRepository.revokeFamily(any(), any()) } returns 0
         every { refreshTokenRepository.revokeIfActive(any(), any()) } returns 1
 
@@ -238,7 +240,7 @@ class AuthServiceTest {
 
     @Test
     fun `logout is best-effort on invalid token`() {
-        every { jwtService.parseClaims(any()) } throws RuntimeException("bad token")
+        every { jwtService.parseClaims(any()) } throws JwtException("bad token")
         authService.logout(RefreshTokenRequest(refreshToken = "not-a-jwt"))
         // must not throw UnexpectedRollbackException / any exception
     }
@@ -297,7 +299,7 @@ class AuthServiceTest {
     }
 
     @Test
-    fun `loginWithGoogle creates user when email is new`() {
+    fun `loginWithGoogle creates user with stable Google subject`() {
         val userId = UUID.randomUUID()
         every { googleIdTokenVerifier.verify("id-token") } returns
             GoogleIdTokenClaims(
@@ -316,35 +318,75 @@ class AuthServiceTest {
 
         val result = authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
 
-        assertEquals("access", result.accessToken)
-        assertEquals("refresh", result.refreshToken)
+        assertEquals(userId, result.user.id)
         assertEquals("google.user@gmail.com", result.user.email)
+        verify { userRepository.save(match { it.googleSubject == "google-sub" }) }
     }
 
     @Test
-    fun `loginWithGoogle reuses existing user`() {
+    fun `loginWithGoogle resolves account by stable Google subject`() {
         val userId = UUID.randomUUID()
         val existing =
             User(
                 id = userId,
-                email = "google.user@gmail.com",
+                email = "old-email@gmail.com",
                 passwordHash = "hashed",
-                firstName = "Existing",
+                googleSubject = "google-sub",
                 enabled = true,
                 emailVerified = true,
             ).apply { roles.add(userRole) }
         every { googleIdTokenVerifier.verify("id-token") } returns
             GoogleIdTokenClaims(
                 subject = "google-sub",
-                email = "google.user@gmail.com",
+                email = "current-email@gmail.com",
                 emailVerified = true,
             )
-        every { userRepository.findByEmail("google.user@gmail.com") } returns existing
+        every { userRepository.findByGoogleSubject("google-sub") } returns existing
 
         val result = authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
 
         assertEquals(userId, result.user.id)
-        assertEquals("google.user@gmail.com", result.user.email)
+        assertEquals("old-email@gmail.com", result.user.email)
+        verify(exactly = 0) { userRepository.findByEmail(any()) }
+    }
+
+    @Test
+    fun `loginWithGoogle links existing verified email account`() {
+        val userId = UUID.randomUUID()
+        val existing =
+            User(
+                id = userId,
+                email = "google.user@gmail.com",
+                passwordHash = "hashed",
+                enabled = true,
+                emailVerified = false,
+            ).apply { roles.add(userRole) }
+        every { googleIdTokenVerifier.verify("id-token") } returns
+            GoogleIdTokenClaims(
+                subject = "google-sub",
+                email = "google.user@gmail.com",
+                emailVerified = true,
+                givenName = "Google",
+            )
+        every { userRepository.findByEmail("google.user@gmail.com") } returns existing
+        every { userRepository.save(any()) } returnsArgument 0
+
+        val result = authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
+
+        assertEquals(userId, result.user.id)
+        assertTrue(existing.emailVerified)
+        assertEquals("google-sub", existing.googleSubject)
+        verify { userRepository.save(existing) }
+    }
+
+    @Test
+    fun `loginWithGoogle rejects invalid subject`() {
+        every { googleIdTokenVerifier.verify("id-token") } returns
+            GoogleIdTokenClaims(subject = "", email = "google.user@gmail.com", emailVerified = true)
+
+        assertThrows<BadRequestException> {
+            authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
+        }
     }
 
     @Test
@@ -352,6 +394,20 @@ class AuthServiceTest {
         every { googleIdTokenVerifierProvider.getIfAvailable() } returns null
         assertThrows<BadRequestException> {
             authService.loginWithGoogle(GoogleOAuthRequest(idToken = "id-token"))
+        }
+    }
+
+    @Test
+    fun `refresh propagates repository infrastructure failures`() {
+        val claims = mockk<Claims>()
+        every { jwtService.parseClaims("refresh") } returns claims
+        every { jwtService.isRefreshToken(claims) } returns true
+        every { jwtService.getUserId(claims) } returns UUID.randomUUID()
+        every { jwtService.getJti(claims) } returns UUID.randomUUID()
+        every { refreshTokenRepository.findByJti(any()) } throws IllegalStateException("database unavailable")
+
+        assertThrows<IllegalStateException> {
+            authService.refresh(RefreshTokenRequest(refreshToken = "refresh"))
         }
     }
 }

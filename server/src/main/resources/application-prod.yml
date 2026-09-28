@@ -1,5 +1,8 @@
 # Production overrides — activate with spring.profiles.active=prod
 qmarket:
+  # Production must never fall back to the always-successful mock gateway.
+  payment:
+    provider: ${QMARKET_PAYMENT_PROVIDER:stripe}
   seed:
     enabled: false
   security:
@@ -7,7 +10,7 @@ qmarket:
       # Required in production — app must not start with a known default secret
       secret: ${JWT_SECRET}
     cors:
-      allowed-origin-patterns: ${CORS_ORIGINS:https://qmarket.example}
+      allowed-origin-patterns: ${CORS_ORIGINS}
     # Swagger / OpenAPI must not be anonymous in production
     api-docs-public: false
 
@@ -18,6 +21,7 @@ server:
 
 spring:
   datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:qmarket}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
   flyway:

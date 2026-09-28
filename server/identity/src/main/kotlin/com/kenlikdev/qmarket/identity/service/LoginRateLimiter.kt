@@ -10,8 +10,10 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * In-process sliding-window limiter for failed logins.
  *
- * Optional [clientKey] (typically client IP) is mixed into the map key so operators
- * can correlate abuse; email-only keys still work for unit tests and legacy callers.
+ * Failed attempts are tracked independently by normalized email and, when available,
+ * by client key (typically the client IP). This prevents an attacker from bypassing
+ * account protection simply by rotating source IPs and also limits abuse from a
+ * single client against many accounts.
  *
  * Not a substitute for edge rate limiting / Redis when running multiple instances.
  */
@@ -26,11 +28,54 @@ class LoginRateLimiter(
 
     private val failures = ConcurrentHashMap<String, ArrayDeque<Long>>()
 
+    init {
+        require(maxAttempts > 0) { "qmarket.auth.login-max-attempts must be greater than 0" }
+        require(windowSeconds > 0) { "qmarket.auth.login-window-seconds must be greater than 0" }
+        require(maxKeys > 0) { "qmarket.auth.login-rate-max-keys must be greater than 0" }
+    }
+
     fun assertAllowed(
         email: String,
         clientKey: String? = null,
     ) {
-        val key = compositeKey(email, clientKey)
+        keysFor(email, clientKey).forEach(::assertKeyAllowed)
+    }
+
+    fun recordFailure(
+        email: String,
+        clientKey: String? = null,
+    ) {
+        val now = clock.millis()
+        keysFor(email, clientKey).forEach { key ->
+            val q = failures.computeIfAbsent(key) { ArrayDeque() }
+            synchronized(q) {
+                pruneDeque(q, now)
+                if (q.size < maxAttempts) {
+                    q.addLast(now)
+                }
+            }
+        }
+        boundMapSize()
+    }
+
+    /** Clear failed attempts for one account after a successful authentication. */
+    fun clearAccount(email: String) {
+        failures.remove("email:${email.trim().lowercase()}")
+    }
+
+    private fun keysFor(
+        email: String,
+        clientKey: String?,
+    ): List<String> {
+        val normalizedEmail = email.trim().lowercase()
+        val normalizedClientKey = clientKey?.trim()?.takeIf { it.isNotEmpty() }
+        return buildList {
+            add("email:$normalizedEmail")
+            normalizedClientKey?.let { add("client:$it") }
+        }
+    }
+
+    private fun assertKeyAllowed(key: String) {
         pruneKey(key)
         val q = failures[key] ?: return
         synchronized(q) {
@@ -40,37 +85,6 @@ class LoginRateLimiter(
                 )
             }
         }
-    }
-
-    fun recordFailure(
-        email: String,
-        clientKey: String? = null,
-    ) {
-        val key = compositeKey(email, clientKey)
-        val now = clock.millis()
-        val q = failures.computeIfAbsent(key) { ArrayDeque() }
-        synchronized(q) {
-            pruneDeque(q, now)
-            q.addLast(now)
-        }
-        boundMapSize()
-    }
-
-    fun clear(
-        email: String,
-        clientKey: String? = null,
-    ) {
-        failures.remove(compositeKey(email, clientKey))
-        failures.remove(email.trim().lowercase())
-    }
-
-    private fun compositeKey(
-        email: String,
-        clientKey: String?,
-    ): String {
-        val e = email.trim().lowercase()
-        val c = clientKey?.trim().orEmpty()
-        return if (c.isEmpty()) e else "$e|$c"
     }
 
     private fun pruneKey(key: String) {

@@ -8,7 +8,6 @@ import com.kenlikdev.qmarket.cart.dto.UpdateCartItemRequest
 import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.NotFoundException
-import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -22,16 +21,16 @@ class CartService(
     private val cartRepository: CartRepository,
     private val productCatalog: ProductCatalog,
 ) {
-    @Transactional(readOnly = true)
-    fun getCart(userId: UUID): CartResponse = toResponse(findOrEmpty(userId))
+    @Transactional
+    fun getCart(userId: UUID): CartResponse = toResponse(findOrCreate(userId))
 
     @Transactional
     fun addItem(
         userId: UUID,
         request: AddCartItemRequest,
     ): CartResponse {
+        val cart = findOrCreateForUpdate(userId)
         val product = productCatalog.requireActive(request.productId)
-        val cart = findOrCreate(userId)
         cart.addItem(
             productId = product.id,
             quantity = request.quantity,
@@ -47,8 +46,8 @@ class CartService(
         productId: UUID,
         request: UpdateCartItemRequest,
     ): CartResponse {
+        val cart = requireCartForUpdate(userId)
         val product = productCatalog.requireActive(productId)
-        val cart = requireCart(userId)
         cart.changeQuantity(
             productId = productId,
             quantity = request.quantity,
@@ -63,34 +62,39 @@ class CartService(
         userId: UUID,
         productId: UUID,
     ): CartResponse {
-        val cart = requireCart(userId)
+        val cart = requireCartForUpdate(userId)
         cart.removeItem(productId)
         return toResponse(cartRepository.save(cart))
     }
 
     @Transactional
     fun clear(userId: UUID): CartResponse {
-        val cart = requireCart(userId)
+        val cart = requireCartForUpdate(userId)
         cart.clearItems()
         return toResponse(cartRepository.save(cart))
     }
 
     /**
-     * Concurrent first-touch is safe: UNIQUE(user_id) + re-read on conflict.
+     * Concurrent first-touch is safe through an atomic INSERT ... ON CONFLICT DO NOTHING.
+     * This avoids marking the surrounding transaction rollback-only after a uniqueness race.
      */
     private fun findOrCreate(userId: UUID): Cart {
         cartRepository.findByUserId(userId)?.let { return it }
-        return try {
-            cartRepository.save(Cart(userId = userId))
-        } catch (_: DataIntegrityViolationException) {
-            cartRepository.findByUserId(userId)
-                ?: throw IllegalStateException("Cart race: unique conflict but row missing for user $userId")
-        }
+        cartRepository.insertIfMissing(userId)
+        return cartRepository.findByUserId(userId)
+            ?: throw IllegalStateException("Cart row was not created for user $userId")
     }
 
-    private fun findOrEmpty(userId: UUID): Cart = cartRepository.findByUserId(userId) ?: Cart(userId = userId)
+    private fun findOrCreateForUpdate(userId: UUID): Cart {
+        cartRepository.findByUserIdForUpdate(userId)?.let { return it }
+        cartRepository.insertIfMissing(userId)
+        return cartRepository.findByUserIdForUpdate(userId)
+            ?: throw IllegalStateException("Cart row was not created for user $userId")
+    }
 
-    private fun requireCart(userId: UUID): Cart = cartRepository.findByUserId(userId) ?: throw NotFoundException("Cart is empty")
+    private fun requireCartForUpdate(userId: UUID): Cart =
+        cartRepository.findByUserIdForUpdate(userId)
+            ?: throw NotFoundException("Cart is empty")
 
     private fun toResponse(cart: Cart): CartResponse {
         val productIds = cart.items.map { it.productId }.distinct()
@@ -120,7 +124,7 @@ class CartService(
         val totalItems = items.sumOf { it.quantity }
         val totalPrice = items.fold(BigDecimal.ZERO) { acc, i -> acc.add(i.lineTotal) }
         return CartResponse(
-            id = cart.id ?: UUID(0, 0),
+            id = requireNotNull(cart.id) { "Cart id is missing" },
             userId = cart.userId,
             items = items,
             totalItems = totalItems,
