@@ -9,20 +9,22 @@ class LoginClientKeyResolverTest {
 
     @Test
     fun `untrusted proxy cannot spoof forwarded client address`() {
-        val request = MockHttpServletRequest().apply {
-            remoteAddr = "198.51.100.10"
-            addHeader("X-Forwarded-For", "203.0.113.10")
-        }
+        val request =
+            MockHttpServletRequest().apply {
+                remoteAddr = "198.51.100.10"
+                addHeader("X-Forwarded-For", "203.0.113.10")
+            }
 
         assertEquals("remote:198.51.100.10", resolver.resolve(request))
     }
 
     @Test
     fun `trusted proxy may supply forwarded client address`() {
-        val request = MockHttpServletRequest().apply {
-            remoteAddr = "192.0.2.10"
-            addHeader("X-Forwarded-For", "203.0.113.10, 192.0.2.1")
-        }
+        val request =
+            MockHttpServletRequest().apply {
+                remoteAddr = "192.0.2.10"
+                addHeader("X-Forwarded-For", "203.0.113.10, 192.0.2.1")
+            }
 
         assertEquals("forwarded:203.0.113.10", resolver.resolve(request))
     }
