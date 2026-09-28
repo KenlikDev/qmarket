@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component
 
 @Component
 class LoginClientKeyResolver(
-    @Value("${qmarket.security.trusted-proxy-addresses:127.0.0.1,::1}")
+    @Value("\${qmarket.security.trusted-proxy-addresses:127.0.0.1,::1}")
     trustedProxyAddresses: String,
 ) {
     private val trustedProxies =
