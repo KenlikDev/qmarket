@@ -80,6 +80,8 @@ For ai/integration, require pull requests as above so AI work is still auditable
 
 ## Merge strategy
 
+Because the repository disables merge commits and the protected branches require linear history, protected-branch merges are effectively squash or rebase. Keep the repository setting and ruleset consistent with that policy.
+
 Prefer squash merges for temporary work PRs.
 
 For ai/integration → develop and develop → main, use the repository's chosen human release convention consistently. The AI should propose the merge title/body but must not execute these merges.
