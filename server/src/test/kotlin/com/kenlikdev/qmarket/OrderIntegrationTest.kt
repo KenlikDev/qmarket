@@ -185,6 +185,14 @@ class OrderIntegrationTest {
                     .content("""{"status":"CONFIRMED"}"""),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.status").value("CONFIRMED"))
+
+        mockMvc
+            .perform(
+                put("/api/v1/orders/admin/$orderId/status")
+                    .header("Authorization", "Bearer $token")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"status":"PAID"}"""),
+            ).andExpect(status().isBadRequest)
     }
 
     @Test
