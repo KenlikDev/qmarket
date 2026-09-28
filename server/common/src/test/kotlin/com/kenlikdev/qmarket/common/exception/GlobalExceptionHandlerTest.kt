@@ -71,6 +71,7 @@ class GlobalExceptionHandlerTest {
         assertEquals("INTERNAL_ERROR", response.body?.code)
         assertEquals("An unexpected error occurred", response.body?.message)
     }
+
     @Test
     fun `validation errors do not expose rejected values`() {
         val bindingResult = BeanPropertyBindingResult(Any(), "request")
