@@ -64,7 +64,7 @@ class CatalogIntegrationTest {
                 post("/api/v1/categories")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body),
-            ).andExpect(status().isForbidden)
+            ).andExpect(status().isUnauthorized)
 
         mockMvc
             .perform(
@@ -103,11 +103,11 @@ class CatalogIntegrationTest {
     fun `admin catalog listings require admin authorization`() {
         mockMvc
             .perform(get("/api/v1/products/admin"))
-            .andExpect(status().isForbidden)
+            .andExpect(status().isUnauthorized)
 
         mockMvc
             .perform(get("/api/v1/categories/admin"))
-            .andExpect(status().isForbidden)
+            .andExpect(status().isUnauthorized)
 
         mockMvc
             .perform(
