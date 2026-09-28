@@ -168,7 +168,7 @@ class AuthControllerTest {
     }
 
     @Test
-    fun `POST login passes X-Forwarded-For as clientKey`() {
+    fun `POST login passes resolved client key`() {
         every { authService.login(any(), clientKey = "203.0.113.10") } returns sampleResponse
 
         mockMvc
