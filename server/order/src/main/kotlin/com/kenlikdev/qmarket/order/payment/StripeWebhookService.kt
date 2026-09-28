@@ -1,7 +1,5 @@
 package com.kenlikdev.qmarket.order.payment
 
-import java.util.UUID
-
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.order.domain.StripeWebhookEvent
@@ -14,6 +12,9 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.ObjectMapper
+
+import java.util.UUID
+
 /**
  * Stripe webhook handler with database-backed idempotency.
  *
