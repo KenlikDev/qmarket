@@ -214,7 +214,7 @@ class StripeWebhookServiceTest {
             "\"status\": \"processing\"",
         )
 
-        assertThrows<BadRequestException> {
+        assertThrows(BadRequestException::class.java) {
             service.handle(body, signedPayload(body))
         }
         verify(exactly = 0) {
