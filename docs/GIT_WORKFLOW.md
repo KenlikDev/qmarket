@@ -58,7 +58,6 @@ Use the same protection as main:
 - human review of the promotion PR is still required as the release process;
 - CI checks remain mandatory.
 
-
 ### ai/integration
 
 Require:
@@ -95,13 +94,34 @@ For every human-controlled promotion, the AI must prepare the merge title and me
 
 The AI must not execute ai/integration → develop or develop → main.
 
+### ai/integration → develop
+
+Suggested title:
+
+~~~text
+refactor: promote professional hardening to develop
+~~~
+
+The description should identify the integrated scope, validation status, known limitations, and explicitly state that the merge is a human-controlled promotion.
+
+### develop → main
+
+Suggested title:
+
+~~~text
+release: promote develop to main
+~~~
+
+The description should identify the release scope, validation status, database/security impact, known limitations, and rollback considerations. The merge is human-controlled.
+
 ## Automatic branch deletion
 
 Enable:
 
 **Settings → General → Pull Requests → Automatically delete head branches**
 
-GitHub can automatically remove merged temporary branches. This does not replace cleanup of already-existing stale branches. GitHub documents this setting here: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-the-automatic-deletion-of-branches
+GitHub can automatically remove merged temporary branches. This does not replace cleanup of already-existing stale branches. GitHub documents this setting here:
+https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-the-automatic-deletion-of-branches
 
 ## Branch cleanup policy
 
