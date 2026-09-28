@@ -83,7 +83,7 @@ class OrderCheckoutConcurrencyTest {
     @AfterEach
     fun tearDown() {
         synchronized(createdOrderIds) { createdOrderIds.toList() }.forEach(orderRepository::deleteById)
-        cartRepository.findByUserId(userId)?.let { cart ->
+        cartRepository.findByUserIdWithItems(userId)?.let { cart ->
             cart.clearItems()
             cartRepository.save(cart)
         }
