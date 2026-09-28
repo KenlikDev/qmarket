@@ -93,7 +93,7 @@ class StockConcurrencyTest {
                         insufficient.incrementAndGet()
                     } catch (e: NotFoundException) {
                         otherErrors.incrementAndGet()
-                        unexpected.add("${e.javaClass.simpleName}: ${e.message ?: ""}")
+                        unexpected.add("${e.javaClass.simpleName}: ${e.message}")
                         log.warn("Unexpected NotFoundException in stock concurrency test", e)
                     } catch (e: Exception) {
                         otherErrors.incrementAndGet()
