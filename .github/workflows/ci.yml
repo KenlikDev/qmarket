@@ -49,6 +49,18 @@ jobs:
         run: ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 
 
+
+      - name: Debug full KtLint formatting diff (temporary)
+        if: failure()
+        continue-on-error: true
+        run: |
+          ./gradlew ktlintFormat --no-daemon
+          echo '--- KTLINT FORMAT DIFF STAT ---'
+          git diff --stat
+          echo '--- KTLINT FORMAT DIFF NAMES ---'
+          git diff --name-only
+          echo '--- KTLINT FORMAT DIFF ---'
+          git diff -- server/common/src/main/kotlin server/identity/src/main/kotlin server/order/src/main/kotlin server/cart/src/main/kotlin server/catalog/src/main/kotlin server/catalog-api/src/main/kotlin
       - name: JaCoCo coverage verification (order + identity)
         run: >
           ./gradlew
