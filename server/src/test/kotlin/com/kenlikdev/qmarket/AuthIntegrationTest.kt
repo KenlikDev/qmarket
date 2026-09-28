@@ -110,4 +110,49 @@ class AuthIntegrationTest {
                     .content(body),
             ).andExpect(status().isConflict)
     }
+
+    @Test
+    fun `refresh token reuse durably revokes the whole family`() {
+        val register =
+            """
+            {
+              "email": "refresh-reuse@test.local",
+              "password": "password123"
+            }
+            """.trimIndent()
+
+        val first =
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(register),
+                ).andExpect(status().isCreated)
+                .andReturn()
+        val firstRefresh = TestJson.refreshToken(first.response.contentAsString)
+
+        val rotated =
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"refreshToken":"$firstRefresh"}"""),
+                ).andExpect(status().isOk)
+                .andReturn()
+        val siblingRefresh = TestJson.refreshToken(rotated.response.contentAsString)
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/refresh")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"refreshToken":"$firstRefresh"}"""),
+            ).andExpect(status().isUnauthorized)
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/refresh")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"refreshToken":"$siblingRefresh"}"""),
+            ).andExpect(status().isUnauthorized)
+    }
 }
