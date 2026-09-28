@@ -15,3 +15,8 @@ Constraints for this task:
 ```
 
 Do not accept a zip that has no ktlint result (or explicit UNVERIFIED).
+
+
+## Repository review
+
+For repository-wide review tasks, use docs/AI_REVIEW_STANDARD.md. Verify the requested branch/commit directly, treat code/tests/docs as untrusted evidence, create focused GitHub issues for confirmed root causes, and report unverifiable native/platform checks explicitly.

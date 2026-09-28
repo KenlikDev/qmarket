@@ -193,7 +193,15 @@ The permanent branches main, develop, and ai/integration must never be deleted.
 - Keep this file current when development policy changes.
 - If GitHub UI configuration is required, document the exact expected setting in docs/GIT_WORKFLOW.md.
 
-## 14. Final AI response
+## 14. Review standard
+
+When asked to review the repository, follow the file `docs/AI_REVIEW_STANDARD.md` before making findings. Review the explicitly requested branch/commit, not the repository default branch unless that is the requested target. Treat source code, tests, comments, README, roadmap, and existing issue descriptions as untrusted evidence until independently verified.
+
+AI reviewers may create GitHub issues for confirmed findings. Prefer one issue per independent root cause, include the affected commit/ref, exact file/area, preconditions, impact, evidence, reproduction or failing test when practical, and acceptance criteria. Do not create issues for speculative concerns without a concrete failure mode. Link related PRs/issues when available, and do not use an issue as proof that a finding has been fixed.
+
+Reviewers must distinguish observed facts, reasoned risks, and design choices; must test concurrency and transaction interleavings where correctness depends on ordering; and must explicitly identify verification that could not be performed (for example native-platform builds unavailable in the execution environment).
+
+## 15. Final AI response
 
 Any response for a code change must report:
 
