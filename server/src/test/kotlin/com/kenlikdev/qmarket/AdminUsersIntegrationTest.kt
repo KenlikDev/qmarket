@@ -78,7 +78,7 @@ class AdminUsersIntegrationTest {
 
     @Test
     fun `list users rejects anonymous`() {
-        // Class-level @PreAuthorize → AccessDenied for anonymous → 403 (not 401 entry-point)
+        // Unauthenticated requests are handled by the configured authentication entry point.
         mockMvc
             .perform(get("/api/v1/admin/users"))
             .andExpect(status().isForbidden)
