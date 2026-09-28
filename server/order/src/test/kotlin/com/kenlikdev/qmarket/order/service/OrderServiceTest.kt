@@ -193,6 +193,27 @@ class OrderServiceTest {
     }
 
     @Test
+    fun `admin status update cannot mark order paid`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+            )
+        every { orderRepository.findById(orderId) } returns Optional.of(order)
+
+        assertThrows<BadRequestException> {
+            orderService.updateStatus(
+                orderId,
+                UpdateOrderStatusRequest(OrderStatus.PAID),
+            )
+        }
+        verify(exactly = 0) { orderRepository.save(any()) }
+    }
+
+    @Test
     fun `pay sets status to PAID`() {
         val orderId = UUID.randomUUID()
         val order =

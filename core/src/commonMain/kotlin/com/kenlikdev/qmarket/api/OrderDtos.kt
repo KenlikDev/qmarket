@@ -14,8 +14,8 @@ enum class OrderStatusDto {
 
     fun nextAdminTargets(): List<OrderStatusDto> =
         when (this) {
-            PENDING -> listOf(CONFIRMED, PAID, CANCELLED)
-            CONFIRMED -> listOf(PAID, CANCELLED)
+            PENDING -> listOf(CONFIRMED, CANCELLED)
+            CONFIRMED -> listOf(CANCELLED)
             PAID -> listOf(SHIPPED)
             SHIPPED -> listOf(DELIVERED)
             DELIVERED, CANCELLED -> emptyList()

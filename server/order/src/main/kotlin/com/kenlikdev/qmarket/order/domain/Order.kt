@@ -107,6 +107,9 @@ class Order(
         if (status == newStatus) {
             return false
         }
+        if (newStatus == OrderStatus.PAID) {
+            throw BadRequestException("PAID can only be reached through the payment flow")
+        }
         if (!status.canTransitionTo(newStatus)) {
             throw BadRequestException("Cannot transition order from $status to $newStatus")
         }
