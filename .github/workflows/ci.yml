@@ -61,6 +61,19 @@ jobs:
           git diff --name-only
           echo '--- KTLINT FORMAT DIFF ---'
           git diff -- server/common/src/main/kotlin server/identity/src/main/kotlin server/order/src/main/kotlin server/cart/src/main/kotlin server/catalog/src/main/kotlin server/catalog-api/src/main/kotlin
+      - name: Debug KtLint formatted common (temporary)
+        if: failure()
+        continue-on-error: true
+        run: |
+          ./gradlew :server:common:ktlintFormat --no-daemon
+          for f in \
+            server/common/src/main/kotlin/com/kenlikdev/qmarket/common/config/SecurityConfig.kt \
+            server/common/src/main/kotlin/com/kenlikdev/qmarket/common/exception/ApiException.kt \
+            server/common/src/main/kotlin/com/kenlikdev/qmarket/common/exception/GlobalExceptionHandler.kt; do
+            echo "--- $f ---"
+            sed -n '1,270p' "$f"
+          done
+
       - name: JaCoCo coverage verification (order + identity)
         run: >
           ./gradlew
