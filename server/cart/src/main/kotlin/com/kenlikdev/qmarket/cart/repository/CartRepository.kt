@@ -13,6 +13,9 @@ import java.util.UUID
 interface CartRepository : JpaRepository<Cart, UUID> {
     fun findByUserId(userId: UUID): Cart?
 
+    @EntityGraph(attributePaths = ["items"])
+    fun findByUserIdWithItems(userId: UUID): Cart?
+
     /**
      * Locks the user's cart row for the duration of the current transaction.
      * Checkout and cart mutations use this to serialize changes to the aggregate.
