@@ -22,6 +22,8 @@ Never create new permanent branches without an explicit human decision.
 
 ## 2. AI permissions and merge rules
 
+GitHub required approvals are set to **0** for all three permanent branches because the repository currently has one human owner. The human must still perform and own promotion review for `ai/integration → develop` and `develop → main`; a self-approval is neither required nor possible.
+
 The AI:
 
 1. May create, update, and remove commits only on temporary branches and ai/integration.

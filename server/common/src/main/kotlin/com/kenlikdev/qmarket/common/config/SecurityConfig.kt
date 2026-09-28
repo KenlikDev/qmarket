@@ -80,8 +80,7 @@ open class SecurityConfig(
                     .permitAll()
                     .anyRequest()
                     .authenticated()
-            }
-            .exceptionHandling {
+            }.exceptionHandling {
                 it.authenticationEntryPoint { request, response, _ ->
                     writeSecurityError(
                         response = response,
@@ -100,8 +99,7 @@ open class SecurityConfig(
                         path = request.requestURI,
                     )
                 }
-            }
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
+            }.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
 
         return http.build()
     }

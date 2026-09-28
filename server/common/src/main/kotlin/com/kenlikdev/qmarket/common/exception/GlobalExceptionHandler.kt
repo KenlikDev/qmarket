@@ -85,14 +85,15 @@ open class GlobalExceptionHandler {
             code = "VALIDATION_ERROR",
             message = "Validation failed",
             path = request.requestURI,
-            details = ex.parameterValidationResults.flatMap { result ->
-                result.resolvableErrors.map { error ->
-                    FieldErrorDetail(
-                        field = result.methodParameter.parameterName ?: "parameter",
-                        message = error.defaultMessage ?: "Invalid value",
-                    )
-                }
-            },
+            details =
+                ex.parameterValidationResults.flatMap { result ->
+                    result.resolvableErrors.map { error ->
+                        FieldErrorDetail(
+                            field = result.methodParameter.parameterName ?: "parameter",
+                            message = error.defaultMessage ?: "Invalid value",
+                        )
+                    }
+                },
         )
 
     @ExceptionHandler(ConstraintViolationException::class)
@@ -104,12 +105,13 @@ open class GlobalExceptionHandler {
             code = "VALIDATION_ERROR",
             message = "Validation failed",
             path = request.requestURI,
-            details = ex.constraintViolations.map { violation ->
-                FieldErrorDetail(
-                    field = violation.propertyPath.toString(),
-                    message = violation.message,
-                )
-            },
+            details =
+                ex.constraintViolations.map { violation ->
+                    FieldErrorDetail(
+                        field = violation.propertyPath.toString(),
+                        message = violation.message,
+                    )
+                },
         )
 
     @ExceptionHandler(HttpMessageNotReadableException::class)

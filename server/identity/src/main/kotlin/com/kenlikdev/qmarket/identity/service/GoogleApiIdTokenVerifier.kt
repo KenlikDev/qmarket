@@ -1,6 +1,5 @@
 package com.kenlikdev.qmarket.identity.service
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier as GoogleApiVerifier
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
@@ -9,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import java.io.IOException
 import java.security.GeneralSecurityException
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier as GoogleApiVerifier
 
 /**
  * Production Google ID-token verifier backed by Google's official Java client.
@@ -72,8 +72,8 @@ class GoogleApiIdTokenVerifier(
             subject = subject,
             email = email,
             emailVerified = emailVerified,
-            givenName = payload.givenName?.trim()?.ifBlank { null },
-            familyName = payload.familyName?.trim()?.ifBlank { null },
+            givenName = (payload.get("given_name") as? String)?.trim()?.ifBlank { null },
+            familyName = (payload.get("family_name") as? String)?.trim()?.ifBlank { null },
         )
     }
 

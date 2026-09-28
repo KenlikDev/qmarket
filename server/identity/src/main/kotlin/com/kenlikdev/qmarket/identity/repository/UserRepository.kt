@@ -19,7 +19,9 @@ interface UserRepository : JpaRepository<User, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.id = :userId")
-    fun findByIdForUpdate(@Param("userId") userId: UUID): User?
+    fun findByIdForUpdate(
+        @Param("userId") userId: UUID,
+    ): User?
 
     fun existsByEmail(email: String): Boolean
 

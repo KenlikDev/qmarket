@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 class ProductionPaymentProviderGuardTest {
     @Test
     fun `production requires Stripe provider`() {
-        assertThrows<IllegalArgumentException> {
+        assertThrows(IllegalArgumentException::class.java) {
             ProductionPaymentProviderGuard("mock").validate()
         }
         assertDoesNotThrow {

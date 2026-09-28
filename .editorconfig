@@ -7,9 +7,11 @@ insert_final_newline = true
 trim_trailing_whitespace = true
 
 [*.{kt,kts}]
+# Keep existing IntelliJ-style multiline chains; keep all other KtLint rules enabled.
+ktlint_standard_chain-method-continuation = disabled
 indent_style = space
 indent_size = 4
-ij_kotlin_imports_layout = *,java.**,javax.**,kotlin.**,^,\#
+ij_kotlin_imports_layout = *,java.**,javax.**,kotlin.**,^
 
 [*.{yml,yaml}]
 indent_style = space

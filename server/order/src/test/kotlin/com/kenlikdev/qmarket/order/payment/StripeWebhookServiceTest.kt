@@ -209,12 +209,13 @@ class StripeWebhookServiceTest {
         every { eventRepository.tryClaim("evt_bad_status", "payment_intent.succeeded") } returns 1
         every { eventRepository.findByEventIdForUpdate("evt_bad_status") } returns event
 
-        val body = payload("evt_bad_status", orderId).replace(
-            "\"status\": \"succeeded\"",
-            "\"status\": \"processing\"",
-        )
+        val body =
+            payload("evt_bad_status", orderId).replace(
+                "\"status\": \"succeeded\"",
+                "\"status\": \"processing\"",
+            )
 
-        assertThrows<BadRequestException> {
+        assertThrows(BadRequestException::class.java) {
             service.handle(body, signedPayload(body))
         }
         verify(exactly = 0) {
@@ -231,7 +232,7 @@ class StripeWebhookServiceTest {
                 eventType = "payment_intent.succeeded",
             )
         every { eventRepository.tryClaim("evt_failed", "payment_intent.succeeded") } returns 1
-        every { eventRepository.findByEventIdForUpdate("evt_failed") } returns event
+        every { eventRepository.findByEventIdForUpdate("evt_failed") } returnsMany listOf(event, null)
         every {
             orderService.markPaidFromProvider(
                 orderId,
@@ -241,7 +242,6 @@ class StripeWebhookServiceTest {
                 "usd",
             )
         } throws BadRequestException("order conflict")
-        every { eventRepository.findByEventIdForUpdate("evt_failed") } returns null
         every { eventRepository.save(any()) } answers { firstArg() }
 
         val body = payload("evt_failed", orderId)

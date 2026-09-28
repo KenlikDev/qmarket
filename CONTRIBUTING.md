@@ -10,6 +10,8 @@ QMarket uses three permanent branches:
 
 AI work must happen on temporary branches and be integrated into ai/integration. AI must not merge into develop or main.
 
+GitHub required approvals are intentionally set to 0 because the repository currently has one human owner. Human review is still mandatory before promoting `ai/integration` to `develop` and `develop` to `main`.
+
 ## Quality gates
 
 1. Run ./scripts/agent-quality-gate.sh.

@@ -81,7 +81,7 @@ class StripeWebhookService(
     private fun processInTransaction(
         eventId: String,
         type: String,
-        root: JsonNode,
+        root: StripeEventEnvelope,
     ): Boolean {
         val claimed = eventRepository.tryClaim(eventId, type) == 1
         val event =

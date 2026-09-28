@@ -62,6 +62,7 @@ class CorrelationIdFilterTest {
 
         assertEquals("req-42", mdcDuringChain)
     }
+
     @Test
     fun `rejects unsafe correlation id and generates a new one`() {
         val request = MockHttpServletRequest()
@@ -90,9 +91,7 @@ class CorrelationIdFilterTest {
 
         filter.doFilter(request, response, chain)
 
-        val generated = response.getHeader(CorrelationIdFilter.HEADER)
-        assertNotNull(generated)
+        val generated = response.getHeader(CorrelationIdFilter.HEADER) ?: error("Expected generated correlation id")
         assertEquals(36, generated.length)
     }
-
 }
