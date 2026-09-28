@@ -72,7 +72,7 @@ class LoginRateLimiter(
 
     fun recordFailure(reservation: Reservation) {
         synchronized(lock) {
-            cleanupEmptyQueues()
+            findAttempts(reservation).forEach { it.failed = true }
         }
     }
 
@@ -82,7 +82,8 @@ class LoginRateLimiter(
     ) {
         synchronized(lock) {
             removeReservation(reservation)
-            attemptsByKey.remove("email:${email.trim().lowercase()}")
+            val emailKey = "email:" + email.trim().lowercase()
+            attemptsByKey[emailKey]?.removeIf { it.failed }
             cleanupEmptyQueues()
         }
     }
@@ -113,6 +114,11 @@ class LoginRateLimiter(
         }
     }
 
+    private fun findAttempts(reservation: Reservation): List<Attempt> =
+        reservation.keys.flatMap { key ->
+            attemptsByKey[key]?.filter { it.reservationId == reservation.id }.orEmpty()
+        }
+
     private fun removeReservation(reservation: Reservation) {
         reservation.keys.forEach { key ->
             attemptsByKey[key]?.removeIf { it.reservationId == reservation.id }
@@ -131,6 +137,7 @@ class LoginRateLimiter(
     private data class Attempt(
         val reservationId: Long,
         val timestamp: Long,
+        var failed: Boolean = false,
     )
 
     class Reservation internal constructor(
