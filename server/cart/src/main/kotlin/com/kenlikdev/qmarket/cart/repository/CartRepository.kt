@@ -14,7 +14,10 @@ interface CartRepository : JpaRepository<Cart, UUID> {
     fun findByUserId(userId: UUID): Cart?
 
     @EntityGraph(attributePaths = ["items"])
-    fun findByUserIdWithItems(userId: UUID): Cart?
+    @Query("select c from Cart c where c.userId = :userId")
+    fun findByUserIdWithItems(
+        @Param("userId") userId: UUID,
+    ): Cart?
 
     /**
      * Locks the user's cart row for the duration of the current transaction.
