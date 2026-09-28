@@ -20,9 +20,9 @@ import java.util.concurrent.atomic.AtomicLong
  */
 @Component
 class LoginRateLimiter(
-    @Value("${qmarket.auth.login-max-attempts:5}") private val maxAttempts: Int,
-    @Value("${qmarket.auth.login-window-seconds:300}") private val windowSeconds: Long,
-    @Value("${qmarket.auth.login-rate-max-keys:10000}") private val maxKeys: Int = 10_000,
+    @Value("\${qmarket.auth.login-max-attempts:5}") private val maxAttempts: Int,
+    @Value("\${qmarket.auth.login-window-seconds:300}") private val windowSeconds: Long,
+    @Value("\${qmarket.auth.login-rate-max-keys:10000}") private val maxKeys: Int = 10_000,
 ) {
     var clock: Clock = Clock.systemUTC()
 
