@@ -39,9 +39,9 @@ class PaymentProviderException(
 ) : ApiException(
     HttpStatus.BAD_GATEWAY,
     message,
-    "PAYMENT_PROVIDER_ERROR",
-    cause,
-)
+        "PAYMENT_PROVIDER_ERROR",
+        cause,
+    )
 
 class UpstreamServiceException(
     message: String = "An upstream service is temporarily unavailable",
@@ -49,6 +49,6 @@ class UpstreamServiceException(
 ) : ApiException(
     HttpStatus.BAD_GATEWAY,
     message,
-    "UPSTREAM_SERVICE_ERROR",
-    cause,
-)
+        "UPSTREAM_SERVICE_ERROR",
+        cause,
+    )
