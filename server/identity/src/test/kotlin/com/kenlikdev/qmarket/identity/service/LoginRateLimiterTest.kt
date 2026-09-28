@@ -42,7 +42,7 @@ class LoginRateLimiterTest {
         lim.recordFailure(email)
         assertThrows<TooManyRequestsException> { lim.assertAllowed(email) }
 
-        lim.clear(email)
+        lim.clearAccount(email)
         assertDoesNotThrow { lim.assertAllowed(email) }
     }
 
