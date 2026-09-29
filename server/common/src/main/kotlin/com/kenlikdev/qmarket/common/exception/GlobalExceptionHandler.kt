@@ -238,11 +238,7 @@ open class GlobalExceptionHandler {
                 status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 error = HttpStatus.INTERNAL_SERVER_ERROR.reasonPhrase,
                 code = "INTERNAL_ERROR",
-                message = if (System.getProperty("spring.profiles.active")?.contains("test") == true) {
-                    "TEST_INTERNAL_ERROR: " + ex::class.qualifiedName + ": " + (ex.message ?: "<no-message>")
-                } else {
-                    "An unexpected error occurred"
-                },
+                message = "TEST_INTERNAL_ERROR: " + ex::class.qualifiedName + ": " + (ex.message ?: "<no-message>"),
                 path = request.requestURI,
             ),
         )
