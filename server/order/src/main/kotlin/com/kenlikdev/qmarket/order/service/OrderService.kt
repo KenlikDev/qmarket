@@ -101,7 +101,8 @@ class OrderService(
             )
 
         var total = BigDecimal.ZERO
-        for (cartItem in cart.items) {
+        // Always acquire product-row locks in stable UUID order to prevent reverse-order deadlocks.
+        for (cartItem in cart.items.sortedBy { it.productId }) {
             val product = productCatalog.requireActive(cartItem.productId)
             if (cartItem.quantity > product.stockQuantity) {
                 throw BadRequestException(
@@ -230,7 +231,8 @@ class OrderService(
                 .orElseThrow { NotFoundException("Order not found") }
 
         // Snapshot items while session is open (LAZY collection)
-        val lines = order.items.map { it.productId to it.quantity }
+        // Match checkout's deterministic product lock order for restock operations.
+        val lines = order.items.map { it.productId to it.quantity }.sortedBy { it.first }
         val previous = order.status
         val needsRestock = order.applyAdminStatus(request.status)
         if (needsRestock) {
