@@ -65,6 +65,36 @@ class MutableTokenProviderTest {
     }
 
     @Test
+    fun staleAuthCannotApplyAfterSessionTransition() {
+        val provider = MutableTokenProvider(InMemorySessionStore())
+        provider.applyAuth(
+            AuthResponseDto(
+                accessToken = "old-access",
+                refreshToken = "old-refresh",
+                expiresIn = 60,
+                user = UserDto(id = "1", email = "old@qmarket.local"),
+            ),
+        )
+        val generation = provider.currentSessionGeneration()
+        provider.beginSessionTransition()
+
+        val applied =
+            provider.applyAuthIfCurrent(
+                generation,
+                AuthResponseDto(
+                    accessToken = "stale-access",
+                    refreshToken = "stale-refresh",
+                    expiresIn = 60,
+                    user = UserDto(id = "1", email = "old@qmarket.local"),
+                ),
+            )
+
+        assertFalse(applied)
+        assertEquals("old-access", provider.accessToken())
+        assertEquals("old-refresh", provider.refreshToken())
+    }
+
+    @Test
     fun loadsExistingSessionFromStore() {
         val store = InMemorySessionStore()
         store.write("access", "refresh", "u@qmarket.local")

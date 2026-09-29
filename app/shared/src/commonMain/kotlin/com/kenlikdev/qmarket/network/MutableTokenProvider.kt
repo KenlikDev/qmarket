@@ -21,6 +21,9 @@ class MutableTokenProvider(
     @Volatile
     private var roles: List<String> = emptyList()
 
+    @Volatile
+    private var sessionGeneration: Long = 0
+
     override fun accessToken(): String? = token
 
     override fun refreshToken(): String? = refresh
@@ -36,6 +39,22 @@ class MutableTokenProvider(
 
     fun hasSession(): Boolean = !token.isNullOrBlank() || !refresh.isNullOrBlank()
 
+    fun currentSessionGeneration(): Long = sessionGeneration
+
+    fun beginSessionTransition(): Long {
+        sessionGeneration += 1
+        return sessionGeneration
+    }
+
+    fun applyAuthIfCurrent(
+        expectedGeneration: Long,
+        auth: AuthResponseDto,
+    ): Boolean {
+        if (sessionGeneration != expectedGeneration) return false
+        applyAuth(auth)
+        return true
+    }
+
     fun applyAuth(auth: AuthResponseDto) {
         store.write(auth.accessToken, auth.refreshToken, auth.user.email)
         token = auth.accessToken
@@ -49,6 +68,7 @@ class MutableTokenProvider(
     }
 
     fun clear() {
+        sessionGeneration += 1
         try {
             store.clear()
         } finally {

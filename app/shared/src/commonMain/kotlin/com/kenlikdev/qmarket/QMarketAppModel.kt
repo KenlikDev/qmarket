@@ -144,6 +144,7 @@ class QMarketAppModel(
      * This prevents responses from a previous account from mutating the next account's UI state.
      */
     private fun beginSessionTransition() {
+        tokens.beginSessionTransition()
         sessionJob.cancel()
         sessionJob = SupervisorJob(scope.coroutineContext[Job])
         sessionScope = CoroutineScope(scope.coroutineContext + sessionJob)

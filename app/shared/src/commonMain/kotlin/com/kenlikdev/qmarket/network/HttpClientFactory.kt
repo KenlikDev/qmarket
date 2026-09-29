@@ -68,6 +68,9 @@ fun HttpClientConfig<*>.qMarketConfig(
                             ?.takeIf(String::isNotBlank)
                             ?: return@refreshTokens null
 
+                    val mutableTokenProvider = tokenProvider as? MutableTokenProvider
+                    val refreshGeneration = mutableTokenProvider?.currentSessionGeneration()
+
                     val response =
                         client.post("/api/v1/auth/refresh") {
                             markAsRefreshTokenRequest()
@@ -87,8 +90,10 @@ fun HttpClientConfig<*>.qMarketConfig(
                     }
 
                     val auth = response.body<AuthResponseDto>()
-                    if (tokenProvider is MutableTokenProvider) {
-                        tokenProvider.applyAuth(auth)
+                    if (mutableTokenProvider != null && refreshGeneration != null) {
+                        if (!mutableTokenProvider.applyAuthIfCurrent(refreshGeneration, auth)) {
+                            return@refreshTokens null
+                        }
                     }
 
                     BearerTokens(
