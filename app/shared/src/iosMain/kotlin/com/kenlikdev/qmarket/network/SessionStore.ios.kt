@@ -28,6 +28,8 @@ import platform.CoreFoundation.CFStringRef
 import platform.CoreFoundation.kCFAllocatorDefault
 import platform.CoreFoundation.kCFBooleanTrue
 import platform.CoreFoundation.kCFStringEncodingUTF8
+import platform.CoreFoundation.kCFTypeDictionaryKeyCallBacks
+import platform.CoreFoundation.kCFTypeDictionaryValueCallBacks
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
@@ -51,7 +53,7 @@ import platform.posix.memcpy
 /**
  * iOS Keychain-backed [SessionStore].
  *
- * CFDictionary for SecItem* (KN 2.4). Values as CFData via encodeToByteArray /
+ * CFDictionary for SecItem* (KN 2.4). CFType callbacks retain/release dictionary keys/values, and values as CFData via encodeToByteArray /
  * CFDataCreate — no NSString casts.
  */
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
@@ -124,7 +126,7 @@ class IosKeychainSessionStore : SessionStore {
                 )
             } ?: return
 
-        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
+        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)
         if (attributes == null) {
             CFRelease(cfData)
             return
@@ -157,7 +159,7 @@ class IosKeychainSessionStore : SessionStore {
         account: String,
         value: CFDataRef,
     ): OSStatus {
-        val addQuery = CFDictionaryCreateMutable(kCFAllocatorDefault, 5, null, null)
+        val addQuery = CFDictionaryCreateMutable(kCFAllocatorDefault, 5, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)
             ?: throw IllegalStateException("Unable to create Keychain add query")
         return try {
             addQuery.addStringValue(kSecAttrService, SERVICE)
@@ -173,7 +175,7 @@ class IosKeychainSessionStore : SessionStore {
             if (status == errSecDuplicateItem) {
                 status =
                     withQuery(account, returnData = false) { query ->
-                        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
+                        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)
                             ?: throw IllegalStateException("Unable to create Keychain update attributes")
                         try {
                             CFDictionaryAddValue(attributes, kSecValueData, value)
@@ -205,7 +207,7 @@ class IosKeychainSessionStore : SessionStore {
 
     private fun createQuery(account: String, returnData: Boolean): CFDictionaryRef? {
         val capacity = if (returnData) 5L else 3L
-        val dict = CFDictionaryCreateMutable(kCFAllocatorDefault, capacity, null, null) ?: return null
+        val dict = CFDictionaryCreateMutable(kCFAllocatorDefault, capacity, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr) ?: return null
         try {
             dict.addStringValue(kSecAttrService, SERVICE)
             dict.addStringValue(kSecAttrAccount, account)
