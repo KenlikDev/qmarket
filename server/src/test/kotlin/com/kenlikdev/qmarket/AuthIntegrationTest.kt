@@ -138,11 +138,11 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"refreshToken":"$oldRefresh"}"""),
                 ).andReturn()
-        assertEquals(
-            200,
-            firstRefresh.response.status,
-            "first refresh should be 200, body=${firstRefresh.response.contentAsString}",
-        )
+        if (firstRefresh.response.status != 200) {
+            throw IllegalStateException(
+                "first refresh failed: status=" + firstRefresh.response.status + ", body=" + firstRefresh.response.contentAsString,
+            )
+        }
         val currentRefresh = TestJson.parse(firstRefresh.response.contentAsString).path("refreshToken").asString()
         assert(currentRefresh.isNotBlank()) { "First refresh did not return a refresh token" }
 
