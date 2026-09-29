@@ -9,7 +9,9 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import com.kenlikdev.qmarket.support.TestJson
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.util.UUID
 
 /**
  * Auth API against Testcontainers PostgreSQL (jdbc:tc URL in application-test.yml).
@@ -110,4 +112,44 @@ class AuthIntegrationTest {
                     .content(body),
             ).andExpect(status().isConflict)
     }
+    @Test
+    fun `reuse of rotated refresh token revokes the whole family`() {
+        val email = "refresh-reuse-${UUID.randomUUID()}@test.local"
+        val registerBody = """{"email":"$email","password":"password123"}"""
+
+        val register =
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody),
+                ).andExpect(status().isCreated)
+                .andReturn()
+        val oldRefresh = TestJson.parse(register.response.contentAsString).path("refreshToken").asString()
+
+        val firstRefresh =
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"refreshToken":"$oldRefresh"}"""),
+                ).andExpect(status().isOk)
+                .andReturn()
+        val currentRefresh = TestJson.parse(firstRefresh.response.contentAsString).path("refreshToken").asString()
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/refresh")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"refreshToken":"$oldRefresh"}"""),
+            ).andExpect(status().isUnauthorized)
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/refresh")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"refreshToken":"$currentRefresh"}"""),
+            ).andExpect(status().isUnauthorized)
+    }
+
 }
