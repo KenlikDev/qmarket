@@ -45,7 +45,7 @@ class QMarketApiClientTest {
 
             val engine =
                 MockEngine { request ->
-                    when (request.url.path()) {
+                    when (request.url.encodedPath) {
                         "/api/v1/products" ->
                             respond(content = ByteReadChannel(""), status = HttpStatusCode.Unauthorized)
                         "/api/v1/auth/refresh" -> {
