@@ -180,7 +180,7 @@ class OrderServiceTest {
         every { cartRepository.findByUserIdForUpdate(userId) } returns cart
         every { productCatalog.requireActive(highId) } returns highProduct
         every { productCatalog.requireActive(lowId) } returns lowProduct
-        every { productCatalog.decreaseStock(any(), 1) } answers { calls += firstArg() }
+        every { productCatalog.decreaseStock(any<UUID>(), 1) } answers { calls += firstArg<UUID>() }
         every { orderRepository.save(any()) } answers {
             firstArg<Order>().also { it.id = UUID.randomUUID() }
         }

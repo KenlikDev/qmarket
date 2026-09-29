@@ -264,7 +264,8 @@ class OrderService(
 
         // Status transition first (fails fast if already cancelled / paid)
         order.cancel()
-        for (item in order.items) {
+        // Match checkout's deterministic product lock order for restock operations.
+        for (item in order.items.sortedBy { it.productId }) {
             productCatalog.increaseStock(item.productId, item.quantity)
         }
         val saved = orderRepository.save(order)
