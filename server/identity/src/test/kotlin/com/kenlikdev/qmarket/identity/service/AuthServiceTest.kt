@@ -99,6 +99,7 @@ class AuthServiceTest {
                 jwtProperties,
                 LoginRateLimiter(maxAttempts = 100, windowSeconds = 300),
                 refreshTokenRepository,
+                refreshTokenRevocationService,
                 googleIdTokenVerifierProvider,
             )
     }
