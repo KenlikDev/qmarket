@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket
 
 import com.kenlikdev.qmarket.support.TestJson
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -128,15 +129,22 @@ class AuthIntegrationTest {
                 .andReturn()
         val oldRefresh = TestJson.parse(register.response.contentAsString).path("refreshToken").asString()
 
+        assert(oldRefresh.isNotBlank()) { "Registration did not return a refresh token" }
+
         val firstRefresh =
             mockMvc
                 .perform(
                     post("/api/v1/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"refreshToken":"$oldRefresh"}"""),
-                ).andExpect(status().isOk)
-                .andReturn()
+                ).andReturn()
+        assertEquals(
+            200,
+            firstRefresh.response.status,
+            "first refresh should be 200, body=${firstRefresh.response.contentAsString}",
+        )
         val currentRefresh = TestJson.parse(firstRefresh.response.contentAsString).path("refreshToken").asString()
+        assert(currentRefresh.isNotBlank()) { "First refresh did not return a refresh token" }
 
         mockMvc
             .perform(
