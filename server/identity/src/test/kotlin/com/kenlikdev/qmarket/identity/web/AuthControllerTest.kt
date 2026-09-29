@@ -193,8 +193,6 @@ class AuthControllerTest {
 
         verify(exactly = 1) { authService.loginWithGoogle(any()) }
     }
-}
-
 
     @Test
     fun `POST register rejects values that exceed database field lengths`() {
@@ -211,3 +209,4 @@ class AuthControllerTest {
                     ),
             ).andExpect(status().isBadRequest)
     }
+}
