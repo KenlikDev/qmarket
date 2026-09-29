@@ -29,7 +29,6 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.Instant
 import java.util.Date
-import java.util.Optional
 import java.util.UUID
 
 /**
