@@ -55,7 +55,7 @@ class CartServiceTest {
 
         assertEquals(cart.id, result.id)
         assertEquals(0, result.totalItems)
-        assertEquals(BigDecimal.ZERO, result.totalPrice)
+        assertEquals("0", result.totalPrice)
         assertEquals(userId, result.userId)
         verify(exactly = 1) { cartRepository.insertIfMissing(userId) }
     }
