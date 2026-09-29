@@ -108,7 +108,7 @@ class CatalogServiceTest {
         val result = catalogService.createProduct(request)
 
         assertEquals("Headphones", result.name)
-        assertEquals(BigDecimal("99.99"), result.price)
+        assertEquals("99.99", result.price)
         assertEquals(savedId, result.id)
     }
 

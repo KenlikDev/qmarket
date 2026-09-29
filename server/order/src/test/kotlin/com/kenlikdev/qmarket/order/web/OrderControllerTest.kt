@@ -22,7 +22,6 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
-import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
@@ -46,7 +45,7 @@ class OrderControllerTest {
             id = orderId,
             userId = userId,
             status = OrderStatus.PENDING,
-            totalAmount = BigDecimal("99.99"),
+            totalAmount = "99.99",
             shippingAddress = "Test Street 1",
             customerNote = "note",
             items =
@@ -55,9 +54,9 @@ class OrderControllerTest {
                         productId = productId,
                         productName = "Headphones",
                         productSlug = "headphones",
-                        unitPrice = BigDecimal("99.99"),
+                        unitPrice = "99.99",
                         quantity = 1,
-                        lineTotal = BigDecimal("99.99"),
+                        lineTotal = "99.99",
                     ),
                 ),
             createdAt = Instant.parse("2026-01-01T00:00:00Z"),
@@ -95,7 +94,7 @@ class OrderControllerTest {
             ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.id").value(orderId.toString()))
             .andExpect(jsonPath("$.status").value("PENDING"))
-            .andExpect(jsonPath("$.totalAmount").value(99.99))
+            .andExpect(jsonPath("$.totalAmount").value("99.99"))
 
         verify(exactly = 1) { orderService.createFromCart(userId, any(), any()) }
     }
@@ -233,7 +232,7 @@ class OrderControllerTest {
                 id = orderId,
                 userId = userId,
                 status = OrderStatus.PAID,
-                totalAmount = BigDecimal("10.00"),
+                totalAmount = "10.00",
                 shippingAddress = "Addr",
                 customerNote = null,
                 items = emptyList(),

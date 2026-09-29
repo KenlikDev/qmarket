@@ -68,6 +68,9 @@ class CartIntegrationTest {
                     .content("""{"productId":"$productId","quantity":2}"""),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.totalItems").value(2))
+            .andExpect(jsonPath("$.items[0].unitPrice").isString)
+            .andExpect(jsonPath("$.items[0].lineTotal").isString)
+            .andExpect(jsonPath("$.totalPrice").isString)
             .andExpect(jsonPath("$.items[0].productId").value(productId))
 
         mockMvc

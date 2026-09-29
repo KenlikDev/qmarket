@@ -125,7 +125,7 @@ class CatalogServiceCoverageTest {
                 ),
             )
         assertEquals("P2", result.name)
-        assertEquals(BigDecimal("2.00"), result.price)
+        assertEquals("2.00", result.price)
         assertEquals(5, result.stockQuantity)
         assertEquals(catId, result.categoryId)
     }

@@ -141,7 +141,7 @@ class OrderServiceTest {
             )
 
         assertEquals(OrderStatus.PENDING, result.status)
-        assertEquals(BigDecimal("100.00"), result.totalAmount)
+        assertEquals("100.00", result.totalAmount)
         assertEquals(1, result.items.size)
         assertEquals(0, cart.items.size)
         verify { productCatalog.decreaseStock(productId, 2) }

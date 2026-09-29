@@ -17,7 +17,6 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
-import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
@@ -34,7 +33,7 @@ class ProductControllerTest {
             description = null,
             shortDescription = null,
             sku = "SKU-1",
-            price = BigDecimal("99.99"),
+            price = "99.99",
             compareAtPrice = null,
             stockQuantity = 10,
             active = true,
@@ -83,7 +82,7 @@ class ProductControllerTest {
             .perform(get("/api/v1/products/$productId"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.slug").value("headphones"))
-            .andExpect(jsonPath("$.price").value(99.99))
+            .andExpect(jsonPath("$.price").value("99.99"))
     }
 
     @Test
