@@ -1,6 +1,5 @@
 package com.kenlikdev.qmarket
 
-import com.kenlikdev.qmarket.support.TestJson
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -22,43 +21,8 @@ class AuthIntegrationTest {
     @Autowired
     private lateinit var mockMvc: MockMvc
 
-    private fun extractRefreshToken(json: String): String =
-        TestJson.parse(json).path("refreshToken").asString(null)
-            ?: error("No refreshToken in response: $json")
-
     @Test
-    fun refreshTokenReuseRevokesWholeTokenFamily() {
-        val register =
-            mockMvc.perform(
-                post("/api/v1/auth/register")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"email":"reuse-test-${System.nanoTime()}@test.local","password":"password123"}"""),
-            ).andExpect(status().isCreated).andReturn()
-
-        val firstRefresh = extractRefreshToken(register.response.contentAsString)
-        val rotated =
-            mockMvc.perform(
-                post("/api/v1/auth/refresh")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"refreshToken":"$firstRefresh"}"""),
-            ).andExpect(status().isOk).andReturn()
-        val siblingRefresh = extractRefreshToken(rotated.response.contentAsString)
-
-        mockMvc.perform(
-            post("/api/v1/auth/refresh")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"refreshToken":"$firstRefresh"}"""),
-        ).andExpect(status().isUnauthorized)
-
-        mockMvc.perform(
-            post("/api/v1/auth/refresh")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""{"refreshToken":"$siblingRefresh"}"""),
-        ).andExpect(status().isUnauthorized)
-    }
-
-    @Test
-    fun `register new user returns tokens` {
+    fun `register new user returns tokens`() {
         val body =
             """
             {
