@@ -36,6 +36,7 @@ class RefreshTokenReuseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"refreshToken":"$firstRefresh"}"""),
                 ).andReturn()
+        println("DEBUG refresh status=${rotated.response.status}; body=${rotated.response.contentAsString}")
         org.junit.jupiter.api.Assertions.assertEquals(
             200,
             rotated.response.status,
