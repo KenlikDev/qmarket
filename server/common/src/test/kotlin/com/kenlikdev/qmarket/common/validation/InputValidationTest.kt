@@ -43,7 +43,6 @@ class InputValidationTest {
             InputValidation.normalizeOptionalPhone("callme")
         }
     }
-}
 
     @Test
     fun `password length is checked by UTF-8 bytes`() {
