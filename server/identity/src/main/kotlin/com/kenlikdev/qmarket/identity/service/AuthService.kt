@@ -77,30 +77,30 @@ class AuthService(
         clientKey: String? = null,
     ): AuthResponse {
         val email = request.email.lowercase().trim()
-        loginRateLimiter.assertAllowed(email, clientKey)
+        val attempt = loginRateLimiter.beginAttempt(email, clientKey)
+        try {
+            val user =
+                userRepository.findByEmail(email)
+                    ?: throw UnauthorizedException("Invalid email or password")
 
-        val user =
-            userRepository.findByEmail(email)
-                ?: run {
-                    loginRateLimiter.recordFailure(email, clientKey)
-                    throw UnauthorizedException("Invalid email or password")
-                }
+            if (!user.enabled) {
+                throw UnauthorizedException("Invalid email or password")
+            }
 
-        if (!user.enabled) {
-            loginRateLimiter.recordFailure(email, clientKey)
-            throw UnauthorizedException("Invalid email or password")
+            InputValidation.requireBcryptPasswordLength(request.password, "Password")
+            if (!passwordEncoder.matches(request.password, user.passwordHash)) {
+                throw UnauthorizedException("Invalid email or password")
+            }
+
+            loginRateLimiter.recordSuccess(attempt, email)
+            return issueTokens(user, familyId = UUID.randomUUID())
+        } catch (ex: UnauthorizedException) {
+            loginRateLimiter.recordFailure(attempt)
+            throw ex
+        } catch (ex: Exception) {
+            loginRateLimiter.release(attempt)
+            throw ex
         }
-
-        InputValidation.requireBcryptPasswordLength(request.password, "Password")
-        if (!passwordEncoder.matches(request.password, user.passwordHash)) {
-            loginRateLimiter.recordFailure(email, clientKey)
-            throw UnauthorizedException("Invalid email or password")
-        }
-
-        loginRateLimiter.clearAccount(email)
-        return issueTokens(user, familyId = UUID.randomUUID())
-    }
-
     @Transactional
     fun refresh(request: RefreshTokenRequest): AuthResponse {
         val claims =
