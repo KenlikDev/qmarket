@@ -216,6 +216,22 @@ open class GlobalExceptionHandler {
         ex: Exception,
         request: HttpServletRequest,
     ): ResponseEntity<ErrorResponse> {
+        if (request.requestURI == "/api/v1/auth/refresh") {
+            try {
+                val report = java.nio.file.Path.of("server/build/reports/jacoco/refresh-exception.txt")
+                java.nio.file.Files.createDirectories(report.parent)
+                java.nio.file.Files.writeString(
+                    report,
+                    buildString {
+                        appendLine(ex::class.qualifiedName)
+                        appendLine(ex.message)
+                        ex.printStackTrace(java.io.PrintWriter(java.io.StringWriter()).also { append(it) })
+                    },
+                )
+            } catch (_: Exception) {
+                // Diagnostic artifact must never affect the HTTP response.
+            }
+        }
         log.error("Unexpected error", ex)
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
             ErrorResponse(
