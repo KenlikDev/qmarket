@@ -30,20 +30,18 @@ class RefreshTokenReuseIntegrationTest {
         val firstRefresh = extractRefreshToken(register.response.contentAsString)
 
         val rotated =
-            mockMvc.perform(
-                post("/api/v1/auth/refresh")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"refreshToken":"$firstRefresh"}"""),
-            ).andReturn()
-        if (rotated.response.status != 200) {
-            val error = TestJson.parse(rotated.response.contentAsString)
-            error(
-                "initial refresh failed: status=" + rotated.response.status +
-                    " code=" + error.path("code").asString(null) +
-                    " message=" + error.path("message").asString(null),
-            )
-        }
-
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"refreshToken":"$firstRefresh"}"""),
+                ).andReturn()
+        org.junit.jupiter.api.Assertions.assertEquals(
+            200,
+            rotated.response.status,
+            "initial refresh failed: status=" + rotated.response.status +
+                ", body=" + rotated.response.contentAsString,
+        )
         val siblingRefresh = extractRefreshToken(rotated.response.contentAsString)
 
         mockMvc.perform(
