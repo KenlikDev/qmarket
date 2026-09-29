@@ -193,4 +193,20 @@ class AuthControllerTest {
 
         verify(exactly = 1) { authService.loginWithGoogle(any()) }
     }
+
+    @Test
+    fun `POST register rejects values that exceed database field lengths`() {
+        val oversizedEmail = "a".repeat(250) + "@example.com"
+        val oversizedFirstName = "x".repeat(101)
+        val oversizedLastName = "y".repeat(101)
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """{"email":"$oversizedEmail","password":"password123","firstName":"$oversizedFirstName","lastName":"$oversizedLastName"}""",
+                    ),
+            ).andExpect(status().isBadRequest)
+    }
 }
