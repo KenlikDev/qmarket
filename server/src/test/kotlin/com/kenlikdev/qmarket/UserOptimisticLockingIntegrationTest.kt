@@ -83,6 +83,31 @@ class UserOptimisticLockingIntegrationTest {
         assertEquals(1, userRepository.findById(userId).get().version)
     }
 
+    @Test
+    fun `stale writer cannot overwrite a committed concurrent change`() {
+        val user =
+            userRepository.save(
+                User(
+                    email = "optimistic-stale-" + UUID.randomUUID() + "@test.local",
+                    passwordHash = "test-hash",
+                    firstName = "Before",
+                    lastName = "User",
+                ),
+            )
+        val userId = requireNotNull(user.id)
+
+        val first = userRepository.findById(userId).orElseThrow()
+        val second = userRepository.findById(userId).orElseThrow()
+        first.firstName = "Committed"
+        userRepository.save(first)
+
+        second.firstName = "Stale"
+        val failure = runCatching { userRepository.saveAndFlush(second) }.exceptionOrNull()
+
+        assertTrue(hasOptimisticLockFailure(failure ?: error("expected optimistic-lock failure")))
+        assertEquals("Committed", userRepository.findById(userId).orElseThrow().firstName)
+    }
+
     private fun hasOptimisticLockFailure(throwable: Throwable): Boolean {
         var current: Throwable? = throwable
         while (current != null) {
