@@ -25,7 +25,7 @@ class RefreshTokenReuseIntegrationTest {
                 post("/api/v1/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("""{"email":"reuse-${System.nanoTime()}@test.local","password":"password123"}"""),
-            ).andExpect(status().isCreated)
+            ).andExpect(status().isCreated).andReturn()
 
         val firstRefresh = extractRefreshToken(register.response.contentAsString)
 
