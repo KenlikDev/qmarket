@@ -68,6 +68,15 @@ jobs:
 
 
 
+      - name: Upload refresh reuse debug
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: refresh-reuse-debug
+          path: server/build/refresh-reuse-debug.txt
+          if-no-files-found: ignore
+          retention-days: 1
+
       - name: JaCoCo coverage verification (order + identity)
         run: >
           ./gradlew
