@@ -21,8 +21,43 @@ class AuthIntegrationTest {
     @Autowired
     private lateinit var mockMvc: MockMvc
 
+    private fun refreshToken(json: String): String =
+        com.kenlikdev.qmarket.support.TestJson.parse(json).path("refreshToken").asString(null)
+            ?: error("No refreshToken in response: $json")
+
     @Test
-    fun `register new user returns tokens`() {
+    fun `refresh token reuse revokes the whole token family`() {
+        val register =
+            mockMvc.perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"email":"reuse-test-${System.nanoTime()}@test.local","password":"password123"}"""),
+            ).andExpect(status().isCreated).andReturn()
+
+        val firstRefresh = refreshToken(register.response.contentAsString)
+        val rotated =
+            mockMvc.perform(
+                post("/api/v1/auth/refresh")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"refreshToken":"$firstRefresh"}"""),
+            ).andExpect(status().isOk).andReturn()
+        val siblingRefresh = refreshToken(rotated.response.contentAsString)
+
+        mockMvc.perform(
+            post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"refreshToken":"$firstRefresh"}"""),
+        ).andExpect(status().isUnauthorized)
+
+        mockMvc.perform(
+            post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"refreshToken":"$siblingRefresh"}"""),
+        ).andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `register new user returns tokens` {
         val body =
             """
             {
