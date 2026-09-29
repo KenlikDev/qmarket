@@ -140,7 +140,12 @@ class AuthIntegrationTest {
                         .content("""{"refreshToken":"$firstRefresh"}"""),
                 ).andExpect(status().isOk)
                 .andReturn()
-        val siblingRefresh = TestJson.parse(rotated.response.contentAsString).path("refreshToken").asString(null) ?: error("No refreshToken")
+        val siblingRefresh =
+            TestJson
+                .parse(rotated.response.contentAsString)
+                .path("refreshToken")
+                .asString(null)
+                ?: error("No refreshToken")
 
         mockMvc
             .perform(
