@@ -40,7 +40,7 @@ class RefreshTokenReuseIntegrationTest {
             error(
                 "initial refresh failed: status=" + rotated.response.status +
                     " code=" + error.path("code").asString(null) +
-                    " message=" + error.path("message").asString(null)
+                    " message=" + error.path("message").asString(null),
             )
         }
 
