@@ -140,6 +140,7 @@ class AuthIntegrationTest {
                         .content("""{"refreshToken":"$firstRefresh"}"""),
                 ).andReturn()
 
+        println("FIRST_REFRESH_STATUS=${rotatedRequest.response.status} BODY=${rotatedRequest.response.contentAsString}")
         org.junit.jupiter.api.Assertions.assertEquals(
             200,
             rotatedRequest.response.status,
