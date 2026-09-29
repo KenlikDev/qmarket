@@ -28,6 +28,8 @@ import platform.CoreFoundation.CFStringRef
 import platform.CoreFoundation.kCFAllocatorDefault
 import platform.CoreFoundation.kCFBooleanTrue
 import platform.CoreFoundation.kCFStringEncodingUTF8
+import platform.CoreFoundation.kCFTypeDictionaryKeyCallBacks
+import platform.CoreFoundation.kCFTypeDictionaryValueCallBacks
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
@@ -35,7 +37,6 @@ import platform.Security.SecItemUpdate
 import platform.Security.errSecDuplicateItem
 import platform.Security.errSecItemNotFound
 import platform.Security.errSecSuccess
-import platform.Security.OSStatus
 import platform.Security.kSecAttrAccount
 import platform.Security.kSecAttrAccessible
 import platform.Security.kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
@@ -51,7 +52,7 @@ import platform.posix.memcpy
 /**
  * iOS Keychain-backed [SessionStore].
  *
- * CFDictionary for SecItem* (KN 2.4). Values as CFData via encodeToByteArray /
+ * CFDictionary for SecItem* (KN 2.4). CFType callbacks retain/release dictionary keys/values, and values as CFData via encodeToByteArray /
  * CFDataCreate — no NSString casts.
  */
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
@@ -124,15 +125,15 @@ class IosKeychainSessionStore : SessionStore {
                 )
             } ?: return
 
-        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
+        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)
         if (attributes == null) {
             CFRelease(cfData)
             return
         }
 
-        var status: OSStatus
+        var status: Int
         try {
-            CFDictionaryAddValue(attributes, kSecValueData, cfData)
+            CFDictionaryAddValue(attributes, requireNotNull(kSecValueData), cfData)
             status =
                 withQuery(account, returnData = false) { query ->
                     SecItemUpdate(query, attributes)
@@ -156,33 +157,34 @@ class IosKeychainSessionStore : SessionStore {
     private fun add(
         account: String,
         value: CFDataRef,
-    ): OSStatus {
-        val addQuery = CFDictionaryCreateMutable(kCFAllocatorDefault, 5, null, null)
+    ): Int {
+        val addQuery = CFDictionaryCreateMutable(kCFAllocatorDefault, 5, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)
             ?: throw IllegalStateException("Unable to create Keychain add query")
         return try {
             addQuery.addStringValue(kSecAttrService, SERVICE)
             addQuery.addStringValue(kSecAttrAccount, account)
-            CFDictionaryAddValue(addQuery, kSecClass, kSecClassGenericPassword)
-            CFDictionaryAddValue(addQuery, kSecValueData, value)
+            CFDictionaryAddValue(addQuery, requireNotNull(kSecClass), requireNotNull(kSecClassGenericPassword))
+            CFDictionaryAddValue(addQuery, requireNotNull(kSecValueData), value)
             CFDictionaryAddValue(
                 addQuery,
-                kSecAttrAccessible,
-                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+                requireNotNull(kSecAttrAccessible),
+                requireNotNull(kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly),
             )
             var status = SecItemAdd(addQuery, null)
             if (status == errSecDuplicateItem) {
                 status =
                     withQuery(account, returnData = false) { query ->
-                        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, null, null)
+                        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)
                             ?: throw IllegalStateException("Unable to create Keychain update attributes")
                         try {
-                            CFDictionaryAddValue(attributes, kSecValueData, value)
+                            CFDictionaryAddValue(attributes, requireNotNull(kSecValueData), value)
                             SecItemUpdate(query, attributes)
                         } finally {
                             CFRelease(attributes)
                         }
                     }
             }
+            status
         } finally {
             CFRelease(addQuery)
         }
@@ -200,19 +202,19 @@ class IosKeychainSessionStore : SessionStore {
 
     private fun keychainError(
         message: String,
-        status: OSStatus,
+        status: Int,
     ): IllegalStateException = IllegalStateException("$message (OSStatus $status)")
 
     private fun createQuery(account: String, returnData: Boolean): CFDictionaryRef? {
         val capacity = if (returnData) 5L else 3L
-        val dict = CFDictionaryCreateMutable(kCFAllocatorDefault, capacity, null, null) ?: return null
+        val dict = CFDictionaryCreateMutable(kCFAllocatorDefault, capacity, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr) ?: return null
         try {
             dict.addStringValue(kSecAttrService, SERVICE)
             dict.addStringValue(kSecAttrAccount, account)
-            CFDictionaryAddValue(dict, kSecClass, kSecClassGenericPassword)
+            CFDictionaryAddValue(dict, requireNotNull(kSecClass), requireNotNull(kSecClassGenericPassword))
             if (returnData) {
-                CFDictionaryAddValue(dict, kSecReturnData, kCFBooleanTrue)
-                CFDictionaryAddValue(dict, kSecMatchLimit, kSecMatchLimitOne)
+                CFDictionaryAddValue(dict, requireNotNull(kSecReturnData), requireNotNull(kCFBooleanTrue))
+                CFDictionaryAddValue(dict, requireNotNull(kSecMatchLimit), requireNotNull(kSecMatchLimitOne))
             }
             return dict
         } catch (throwable: Throwable) {
@@ -235,13 +237,13 @@ class IosKeychainSessionStore : SessionStore {
     }
 
     private fun CFDictionaryRef.addStringValue(
-        key: CFStringRef,
+        key: CFStringRef?,
         value: String,
     ) {
         val string = CFStringCreateWithCString(kCFAllocatorDefault, value, kCFStringEncodingUTF8)
         if (string != null) {
             try {
-                CFDictionaryAddValue(this, key, string)
+                CFDictionaryAddValue(this, requireNotNull(key), string)
             } finally {
                 CFRelease(string)
             }
