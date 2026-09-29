@@ -2,7 +2,6 @@ package com.kenlikdev.qmarket.cart.dto
 
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotNull
-import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
@@ -22,9 +21,9 @@ data class CartItemResponse(
     val productId: UUID,
     val productName: String,
     val productSlug: String,
-    val unitPrice: BigDecimal,
+    val unitPrice: String,
     val quantity: Int,
-    val lineTotal: BigDecimal,
+    val lineTotal: String,
     val stockQuantity: Int,
 )
 
@@ -33,6 +32,6 @@ data class CartResponse(
     val userId: UUID,
     val items: List<CartItemResponse>,
     val totalItems: Int,
-    val totalPrice: BigDecimal,
+    val totalPrice: String,
     val updatedAt: Instant,
 )

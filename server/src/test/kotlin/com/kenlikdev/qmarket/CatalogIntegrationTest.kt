@@ -96,7 +96,7 @@ class CatalogIntegrationTest {
                     .content(body),
             ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.name").value("Test Product"))
-            .andExpect(jsonPath("$.price").value(9.99))
+            .andExpect(jsonPath("$.price").value("9.99"))
     }
 
     @Test

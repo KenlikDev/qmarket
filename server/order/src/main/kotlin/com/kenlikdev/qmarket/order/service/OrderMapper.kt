@@ -10,7 +10,7 @@ internal object OrderMapper {
             id = order.id ?: error("Order id is null"),
             userId = order.userId,
             status = order.status,
-            totalAmount = order.totalAmount,
+            totalAmount = order.totalAmount.toPlainString(),
             shippingAddress = order.shippingAddress,
             customerNote = order.customerNote,
             items =
@@ -19,9 +19,9 @@ internal object OrderMapper {
                         productId = it.productId,
                         productName = it.productName,
                         productSlug = it.productSlug,
-                        unitPrice = it.unitPrice,
+                        unitPrice = it.unitPrice.toPlainString(),
                         quantity = it.quantity,
-                        lineTotal = it.lineTotal,
+                        lineTotal = it.lineTotal.toPlainString(),
                     )
                 },
             createdAt = order.createdAt,

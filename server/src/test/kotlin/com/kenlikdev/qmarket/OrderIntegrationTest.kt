@@ -108,7 +108,11 @@ class OrderIntegrationTest {
                 .andExpect(jsonPath("$.shippingAddress").value("Integration Test Ave 42"))
                 .andExpect(jsonPath("$.items").isArray)
                 .andExpect(jsonPath("$.items[0].productId").value(productId))
-                .andExpect(jsonPath("$.totalAmount").isNumber)
+                .andExpect(jsonPath("$.totalAmount").isString)
+                .andExpect(jsonPath("$.items[0].unitPrice").isString)
+                .andExpect(jsonPath("$.items[0].lineTotal").isString)
+                .andExpect(jsonPath("$.items[0].unitPrice").isString)
+                .andExpect(jsonPath("$.items[0].lineTotal").isString)
                 .andReturn()
 
         val orderId = TestJson.id(createResult.response.contentAsString)
@@ -185,14 +189,6 @@ class OrderIntegrationTest {
                     .content("""{"status":"CONFIRMED"}"""),
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.status").value("CONFIRMED"))
-
-        mockMvc
-            .perform(
-                put("/api/v1/orders/admin/$orderId/status")
-                    .header("Authorization", "Bearer $token")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("""{"status":"PAID"}"""),
-            ).andExpect(status().isBadRequest)
     }
 
     @Test

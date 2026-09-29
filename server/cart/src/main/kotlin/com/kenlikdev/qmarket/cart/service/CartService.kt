@@ -115,20 +115,20 @@ class CartService(
                     productId = product.id,
                     productName = product.name,
                     productSlug = product.slug,
-                    unitPrice = product.price,
+                    unitPrice = product.price.toPlainString(),
                     quantity = item.quantity,
-                    lineTotal = lineTotal,
+                    lineTotal = lineTotal.toPlainString(),
                     stockQuantity = product.stockQuantity,
                 )
             }
         val totalItems = items.sumOf { it.quantity }
-        val totalPrice = items.fold(BigDecimal.ZERO) { acc, i -> acc.add(i.lineTotal) }
+        val totalPrice = items.fold(BigDecimal.ZERO) { acc, i -> acc.add(BigDecimal(i.lineTotal)) }
         return CartResponse(
             id = requireNotNull(cart.id) { "Cart id is missing" },
             userId = cart.userId,
             items = items,
             totalItems = totalItems,
-            totalPrice = totalPrice,
+            totalPrice = totalPrice.toPlainString(),
             updatedAt = cart.updatedAt,
         )
     }
