@@ -95,7 +95,7 @@ class OrderControllerTest {
             ).andExpect(status().isCreated)
             .andExpect(jsonPath("$.id").value(orderId.toString()))
             .andExpect(jsonPath("$.status").value("PENDING"))
-            .andExpect(jsonPath("$.totalAmount").value(99.99))
+            .andExpect(jsonPath("$.totalAmount").value("99.99"))
 
         verify(exactly = 1) { orderService.createFromCart(userId, any(), any()) }
     }
