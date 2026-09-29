@@ -16,9 +16,6 @@ services:
       timeout: 5s
       retries: 10
 
-volumes:
-  qmarket_pg_data:
-
   # Uncomment to run API in Docker (build from repo root).
   # JWT_SECRET is required — generate e.g. `openssl rand -base64 48` and pass via env.
   # Do not commit real secrets.
@@ -41,3 +38,6 @@ volumes:
   #   depends_on:
   #     postgres:
   #       condition: service_healthy
+
+volumes:
+  qmarket_pg_data:
