@@ -60,9 +60,8 @@ class ProfileService(
         request: ChangePasswordRequest,
     ) {
         val user =
-            userRepository
-                .findById(userId)
-                .orElseThrow { NotFoundException("User not found") }
+            userRepository.findByIdForUpdate(userId)
+                ?: throw NotFoundException("User not found")
 
         if (!passwordEncoder.matches(request.currentPassword, user.passwordHash)) {
             throw UnauthorizedException("Current password is incorrect")

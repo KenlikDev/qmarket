@@ -104,7 +104,7 @@ class ProfileServiceTest {
                 passwordHash = "old-hash",
             ).apply { roles.add(role) }
 
-        every { userRepository.findById(userId) } returns Optional.of(user)
+        every { userRepository.findByIdForUpdate(userId) } returns user
         every { passwordEncoder.matches("old-pass", "old-hash") } returns true
         every { passwordEncoder.encode("new-pass-123") } returns "new-hash"
         every { userRepository.save(any()) } answers { firstArg() }

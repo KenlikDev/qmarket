@@ -150,20 +150,40 @@ class AuthService(
         // Atomic consume: only one concurrent refresh may win (updated rows == 1).
         // If we lose the race, do NOT revoke the family — the winner legitimately issued R2.
         // Family revoke is reserved for true reuse: presenting an already-revoked jti (above).
-        val consumed = refreshTokenRepository.revokeIfActive(stored.jti, Instant.now())
-        if (consumed != 1) {
-            throw UnauthorizedException("Refresh token already used")
-        }
-
+        // Serialize refresh issuance with password changes on the user row.
+        // Password change uses the same lock before changing the password and revoking sessions.
+        // Re-read the token after acquiring the lock because password-change revocation is a
+        // bulk UPDATE and the pre-lock entity may otherwise be stale.
         val user =
-            userRepository
-                .findById(userId)
-                .orElseThrow { UnauthorizedException("User not found") }
+            userRepository.findByIdForUpdate(userId)
+                ?: throw UnauthorizedException("User not found")
         if (!user.enabled) {
             throw UnauthorizedException("Account is disabled")
         }
 
-        return issueTokens(user, familyId = stored.familyId)
+        val currentToken =
+            refreshTokenRepository.findByJti(jti)
+                ?: throw UnauthorizedException("Invalid refresh token")
+        if (currentToken.userId != userId) {
+            throw UnauthorizedException("Invalid refresh token")
+        }
+        if (currentToken.isExpired) {
+            currentToken.revoke()
+            refreshTokenRepository.save(currentToken)
+            throw UnauthorizedException("Refresh token expired")
+        }
+        if (currentToken.isRevoked) {
+            refreshTokenRevocationService.revokeFamily(currentToken.familyId)
+            throw UnauthorizedException("Refresh token reuse detected")
+        }
+
+        // Atomic consume after the user-row linearization point.
+        val consumed = refreshTokenRepository.revokeIfActive(currentToken.jti, Instant.now())
+        if (consumed != 1) {
+            throw UnauthorizedException("Refresh token already used")
+        }
+
+        return issueTokens(user, familyId = currentToken.familyId)
     }
 
     /**
