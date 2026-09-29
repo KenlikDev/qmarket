@@ -43,6 +43,7 @@ class AuthServiceTest {
     private lateinit var roleRepository: RoleRepository
     private lateinit var passwordEncoder: PasswordEncoder
     private lateinit var refreshTokenRepository: RefreshTokenRepository
+    private lateinit var refreshTokenRevocationService: RefreshTokenRevocationService
     private lateinit var jwtService: JwtService
     private lateinit var jwtProperties: JwtProperties
     private lateinit var authService: AuthService
@@ -57,6 +58,7 @@ class AuthServiceTest {
         roleRepository = mockk()
         passwordEncoder = mockk()
         refreshTokenRepository = mockk()
+        refreshTokenRevocationService = mockk()
         googleIdTokenVerifier = mockk()
         googleIdTokenVerifierProvider = mockk()
         every { googleIdTokenVerifierProvider.getIfAvailable() } returns googleIdTokenVerifier
@@ -67,6 +69,7 @@ class AuthServiceTest {
         every { refreshTokenRepository.findByJti(any()) } returns null
         every { userRepository.findByGoogleSubject(any()) } returns null
         every { refreshTokenRepository.revokeFamily(any(), any()) } returns 0
+        every { refreshTokenRevocationService.revokeFamily(any()) } returns Unit
         every { refreshTokenRepository.revokeIfActive(any(), any()) } returns 1
 
         every { passwordEncoder.encode(any()) } returns "hashed"
@@ -235,7 +238,8 @@ class AuthServiceTest {
         assertThrows<UnauthorizedException> {
             authService.refresh(RefreshTokenRequest(refreshToken = "stolen"))
         }
-        verify(exactly = 1) { refreshTokenRepository.revokeFamily(familyId, any()) }
+        verify(exactly = 1) { refreshTokenRevocationService.revokeFamily(familyId) }
+        verify(exactly = 0) { refreshTokenRepository.revokeFamily(any(), any()) }
     }
 
     @Test
