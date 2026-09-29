@@ -17,12 +17,13 @@ class RefreshTokenReuseServiceDebugTest {
 
     @Test
     fun refreshServicePath() {
-        val registered = authService.register(
-            RegisterRequest(
-                email = "service-debug-" + System.nanoTime() + "@test.local",
-                password = "password123",
-            ),
-        )
+        val registered =
+            authService.register(
+                RegisterRequest(
+                    email = "service-debug-" + System.nanoTime() + "@test.local",
+                    password = "password123",
+                ),
+            )
         val refreshed = authService.refresh(RefreshTokenRequest(registered.refreshToken))
         assertNotNull(refreshed.refreshToken)
     }
