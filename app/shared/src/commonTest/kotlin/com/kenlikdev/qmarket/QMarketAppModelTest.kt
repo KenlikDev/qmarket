@@ -242,3 +242,45 @@ class QMarketAppModelTest {
             assertTrue(model.loading)
         }
 }
+
+    @Test
+    fun checkoutKeepsSuccessfulOrderWhenCartRefreshFails() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            val orderJson =
+                """{"id":"order-1","userId":"user-1","status":"PENDING","totalAmount":"10.00","shippingAddress":"Test Street","customerNote":null,"items":[],"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}"""
+            val engine =
+                MockEngine { request ->
+                    when {
+                        request.url.fullPath.contains("/api/v1/orders") ->
+                            respond(
+                                content = ByteReadChannel(orderJson),
+                                status = HttpStatusCode.Created,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        request.url.fullPath.contains("/api/v1/cart") ->
+                            respond(
+                                content = ByteReadChannel("{\"status\":\"SERVICE_UNAVAILABLE\",\"message\":\"temporary outage\"}"),
+                                status = HttpStatusCode.ServiceUnavailable,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        else -> error("Unexpected path in checkout recovery test")
+                    }
+                }
+            val client = httpClient(engine)
+            try {
+                val api = QMarketApiClient(client)
+                val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+
+                model.checkout()
+                while (model.checkoutLocked) {
+                    kotlinx.coroutines.yield()
+                }
+
+                assertTrue(model.screen is AppScreen.OrderDone)
+                assertEquals("order-1", (model.screen as AppScreen.OrderDone).order.id)
+                assertNull(model.pendingCheckoutKey)
+            } finally {
+                client.close()
+            }
+        }

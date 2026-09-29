@@ -389,9 +389,11 @@ class QMarketAppModel(
                             ),
                         idempotencyKey = checkoutKey,
                     )
+                // The order creation response is the definitive business result.
+                // Do not make the user repeat checkout because an ancillary cart refresh failed.
                 pendingCheckoutKey = null
-                cart = api.getCart()
                 screen = AppScreen.OrderDone(order)
+                cart = runCatchingCancellable { api.getCart() }.getOrElse { cart }
             } finally {
                 checkoutLocked = false
             }
