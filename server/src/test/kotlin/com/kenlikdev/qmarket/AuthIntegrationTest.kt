@@ -112,6 +112,7 @@ class AuthIntegrationTest {
                     .content(body),
             ).andExpect(status().isConflict)
     }
+
     @Test
     fun `reuse of rotated refresh token revokes the whole family`() {
         val email = "refresh-reuse-${UUID.randomUUID()}@test.local"
@@ -151,5 +152,4 @@ class AuthIntegrationTest {
                     .content("""{"refreshToken":"$currentRefresh"}"""),
             ).andExpect(status().isUnauthorized)
     }
-
 }
