@@ -101,6 +101,8 @@ class AuthService(
             loginRateLimiter.release(attempt)
             throw ex
         }
+    }
+
     @Transactional
     fun refresh(request: RefreshTokenRequest): AuthResponse {
         val claims =
