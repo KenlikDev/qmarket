@@ -6,11 +6,13 @@ import jakarta.validation.constraints.Size
 import java.util.UUID
 
 data class RegisterRequest(
-    @field:NotBlank @field:Email
+    @field:NotBlank @field:Email @field:Size(max = 255)
     val email: String,
     @field:NotBlank @field:Size(min = 8, max = 100)
     val password: String,
+    @field:Size(max = 100)
     val firstName: String? = null,
+    @field:Size(max = 100)
     val lastName: String? = null,
 )
 
