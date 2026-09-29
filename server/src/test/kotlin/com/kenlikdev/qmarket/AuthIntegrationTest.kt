@@ -132,14 +132,20 @@ class AuthIntegrationTest {
                 .andReturn()
         val firstRefresh = TestJson.parse(first.response.contentAsString).path("refreshToken").asString(null) ?: error("No refreshToken")
 
-        val rotated =
+        val rotatedRequest =
             mockMvc
                 .perform(
                     post("/api/v1/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""{"refreshToken":"$firstRefresh"}"""),
-                ).andExpect(status().isOk)
-                .andReturn()
+                ).andReturn()
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+            200,
+            rotatedRequest.response.status,
+            "first refresh should succeed; body=\${rotatedRequest.response.contentAsString}",
+        )
+        val rotated = rotatedRequest
         val siblingRefresh =
             TestJson
                 .parse(rotated.response.contentAsString)
