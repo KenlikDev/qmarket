@@ -38,6 +38,17 @@ object InputValidation {
             throw BadRequestException("$field must not be blank")
         }
 
+    fun requireBcryptPasswordLength(
+        password: String,
+        field: String,
+    ): String {
+        val bytes = password.toByteArray(Charsets.UTF_8).size
+        if (bytes > BCRYPT_MAX_BYTES) {
+            throw BadRequestException("$field must be at most $BCRYPT_MAX_BYTES UTF-8 bytes")
+        }
+        return password
+    }
+
     fun normalizeOptionalPhone(raw: String?): String? {
         if (raw == null) return null
         val trimmed = raw.trim()
@@ -58,4 +69,6 @@ object InputValidation {
         }
         return if (hasPlus) "+$digits" else digits
     }
+
+    private const val BCRYPT_MAX_BYTES = 72
 }
