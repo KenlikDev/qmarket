@@ -80,15 +80,17 @@ fun HttpClientConfig<*>.qMarketConfig(
                         }
 
                     if (response.status != HttpStatusCode.OK) {
-                        if (tokenProvider is MutableTokenProvider) {
+                        if (tokenProvider is MutableTokenProvider && tokenProvider.refreshToken() == currentRefresh) {
                             tokenProvider.clear()
                         }
                         return@refreshTokens null
                     }
 
                     val auth = response.body<AuthResponseDto>()
-                    if (tokenProvider is MutableTokenProvider) {
+                    if (tokenProvider is MutableTokenProvider && tokenProvider.refreshToken() == currentRefresh) {
                         tokenProvider.applyAuth(auth)
+                    } else {
+                        return@refreshTokens null
                     }
 
                     BearerTokens(

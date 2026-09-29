@@ -4,6 +4,7 @@ import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.QMarketJson
+import com.kenlikdev.qmarket.api.UserDto
 import com.kenlikdev.qmarket.api.RefreshTokenRequestDto
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -28,6 +29,108 @@ class QMarketApiClientTest {
             }
         }
 
+    @Test
+    fun refreshDoesNotResurrectSessionAfterLogout() =
+        runTest {
+            val store = InMemorySessionStore()
+            val provider = MutableTokenProvider(store)
+            provider.applyAuth(
+                AuthResponseDto(
+                    accessToken = "old-access",
+                    refreshToken = "old-refresh",
+                    expiresIn = 60,
+                    user = UserDto(id = "1", email = "a@b.c"),
+                ),
+            )
+
+            val engine =
+                MockEngine { request ->
+                    when (request.url.encodedPath) {
+                        "/api/v1/products" ->
+                            respond(content = ByteReadChannel(""), status = HttpStatusCode.Unauthorized)
+                        "/api/v1/auth/refresh" -> {
+                            provider.clear()
+                            respond(
+                                content =
+                                    ByteReadChannel(
+                                        """{"accessToken":"stale-access","refreshToken":"stale-refresh","tokenType":"Bearer","expiresIn":60,"user":{"id":"1","email":"a@b.c"}}""",
+                                    ),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        }
+                        else -> error("Unexpected request")
+                    }
+                }
+            val client =
+                HttpClient(engine) {
+                    qMarketConfig("https://api.test", provider)
+                }
+            try {
+                val response = client.get("/api/v1/products")
+                assertEquals(HttpStatusCode.Unauthorized, response.status)
+                assertEquals(null, provider.accessToken())
+                assertEquals(null, provider.refreshToken())
+                assertEquals(null, store.readRefreshToken())
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun refreshDoesNotOverwriteNewLoginSession() =
+        runTest {
+            val store = InMemorySessionStore()
+            val provider = MutableTokenProvider(store)
+            provider.applyAuth(
+                AuthResponseDto(
+                    accessToken = "a-access",
+                    refreshToken = "a-refresh",
+                    expiresIn = 60,
+                    user = UserDto(id = "1", email = "a@b.c"),
+                ),
+            )
+
+            val engine =
+                MockEngine { request ->
+                    when (request.url.path()) {
+                        "/api/v1/products" ->
+                            respond(content = ByteReadChannel(""), status = HttpStatusCode.Unauthorized)
+                        "/api/v1/auth/refresh" -> {
+                            provider.applyAuth(
+                                AuthResponseDto(
+                                    accessToken = "b-access",
+                                    refreshToken = "b-refresh",
+                                    expiresIn = 60,
+                                    user = UserDto(id = "2", email = "b@b.c"),
+                                ),
+                            )
+                            respond(
+                                content =
+                                    ByteReadChannel(
+                                        """{"accessToken":"a-new-access","refreshToken":"a-new-refresh","tokenType":"Bearer","expiresIn":60,"user":{"id":"1","email":"a@b.c"}}""",
+                                    ),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        }
+                        else -> error("Unexpected request")
+                    }
+                }
+            val client =
+                HttpClient(engine) {
+                    qMarketConfig("https://api.test", provider)
+                }
+            try {
+                val response = client.get("/api/v1/products")
+                assertEquals(HttpStatusCode.Unauthorized, response.status)
+                assertEquals("b-access", provider.accessToken())
+                assertEquals("b-refresh", provider.refreshToken())
+                assertEquals("b-refresh", store.readRefreshToken())
+            } finally {
+                client.close()
+            }
+        }
     @Test
     fun loginParsesAuthResponse() =
         runTest {
