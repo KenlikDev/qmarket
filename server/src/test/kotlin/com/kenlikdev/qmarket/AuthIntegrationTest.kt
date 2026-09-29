@@ -140,11 +140,10 @@ class AuthIntegrationTest {
                         .content("""{"refreshToken":"$firstRefresh"}"""),
                 ).andReturn()
 
-        println("FIRST_REFRESH_STATUS=${rotatedRequest.response.status} BODY=${rotatedRequest.response.contentAsString}")
         org.junit.jupiter.api.Assertions.assertEquals(
             200,
             rotatedRequest.response.status,
-            "first refresh should succeed; body=\${rotatedRequest.response.contentAsString}",
+            "first refresh should succeed; status=${rotatedRequest.response.status}, body=${rotatedRequest.response.contentAsString}",
         )
         val rotated = rotatedRequest
         val siblingRefresh =
