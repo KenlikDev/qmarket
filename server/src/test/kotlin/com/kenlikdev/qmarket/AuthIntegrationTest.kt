@@ -1,7 +1,6 @@
 package com.kenlikdev.qmarket
 
 import com.kenlikdev.qmarket.support.TestJson
-import java.util.UUID
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -12,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.util.UUID
 
 /**
  * Auth API against Testcontainers PostgreSQL (jdbc:tc URL in application-test.yml).
