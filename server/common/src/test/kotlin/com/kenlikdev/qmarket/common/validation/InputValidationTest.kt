@@ -43,4 +43,19 @@ class InputValidationTest {
             InputValidation.normalizeOptionalPhone("callme")
         }
     }
+
+    @Test
+    fun `password length is checked by UTF-8 bytes`() {
+        val ascii72 = "a".repeat(72)
+        assertEquals(ascii72, InputValidation.requireBcryptPasswordLength(ascii72, "Password"))
+        assertThrows(BadRequestException::class.java) {
+            InputValidation.requireBcryptPasswordLength("a".repeat(73), "Password")
+        }
+
+        val cyrillic36 = "я".repeat(36)
+        assertEquals(cyrillic36, InputValidation.requireBcryptPasswordLength(cyrillic36, "Password"))
+        assertThrows(BadRequestException::class.java) {
+            InputValidation.requireBcryptPasswordLength("я".repeat(37), "Password")
+        }
+    }
 }
