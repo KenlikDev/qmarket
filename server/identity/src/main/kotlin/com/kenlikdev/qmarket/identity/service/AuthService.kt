@@ -35,6 +35,7 @@ class AuthService(
     private val jwtProperties: JwtProperties,
     private val loginRateLimiter: LoginRateLimiter,
     private val refreshTokenRepository: RefreshTokenRepository,
+    private val refreshTokenRevocationService: RefreshTokenRevocationService,
     private val googleIdTokenVerifierProvider: ObjectProvider<GoogleIdTokenVerifier>,
 ) {
     private companion object {
@@ -142,7 +143,7 @@ class AuthService(
         }
 
         if (stored.isRevoked) {
-            refreshTokenRepository.revokeFamily(stored.familyId, Instant.now())
+            refreshTokenRevocationService.revokeFamily(stored.familyId)
             throw UnauthorizedException("Refresh token reuse detected")
         }
 
