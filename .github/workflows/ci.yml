@@ -57,6 +57,17 @@ jobs:
           :server:identity:jacocoTestCoverageVerification
           --parallel --no-daemon
 
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            server/build/test-results/test/
+            server/build/reports/tests/test/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Upload JaCoCo HTML
         if: always()
         uses: actions/upload-artifact@v7
