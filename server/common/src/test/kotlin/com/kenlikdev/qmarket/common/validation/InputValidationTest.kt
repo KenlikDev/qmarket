@@ -58,3 +58,4 @@ class InputValidationTest {
             InputValidation.requireBcryptPasswordLength("я".repeat(37), "Password")
         }
     }
+}
