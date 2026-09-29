@@ -14,6 +14,7 @@ import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Profile
+import org.springframework.context.annotation.Profile
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
@@ -22,6 +23,7 @@ import java.util.Locale
 
 @Component
 @ConditionalOnProperty(name = ["qmarket.seed.enabled"], havingValue = "true", matchIfMissing = false)
+@Profile("!prod")
 @Profile("!prod")
 class DataInitializer(
     private val roleRepository: RoleRepository,
