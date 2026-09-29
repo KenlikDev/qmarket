@@ -148,6 +148,53 @@ class OrderServiceTest {
     }
 
     @Test
+    fun `createFromCart acquires product locks in stable UUID order`() {
+        val lowId = UUID(0L, 1L)
+        val highId = UUID(0L, 2L)
+        val lowProduct =
+            ProductInfo(
+                id = lowId,
+                name = "Low",
+                slug = "low",
+                price = BigDecimal("10.00"),
+                stockQuantity = 10,
+                active = true,
+            )
+        val highProduct =
+            ProductInfo(
+                id = highId,
+                name = "High",
+                slug = "high",
+                price = BigDecimal("20.00"),
+                stockQuantity = 10,
+                active = true,
+            )
+        val cart =
+            Cart(id = UUID.randomUUID(), userId = userId).apply {
+                // Intentionally reverse the natural lock order.
+                items.add(CartItem(cart = this, productId = highId, quantity = 1))
+                items.add(CartItem(cart = this, productId = lowId, quantity = 1))
+            }
+        val calls = mutableListOf<UUID>()
+
+        every { cartRepository.findByUserIdForUpdate(userId) } returns cart
+        every { productCatalog.requireActive(highId) } returns highProduct
+        every { productCatalog.requireActive(lowId) } returns lowProduct
+        every { productCatalog.decreaseStock(any(), 1) } answers { calls += firstArg() }
+        every { orderRepository.save(any()) } answers {
+            firstArg<Order>().also { it.id = UUID.randomUUID() }
+        }
+        every { cartRepository.save(any()) } answers { firstArg() }
+
+        orderService.createFromCart(
+            userId,
+            CreateOrderRequest(shippingAddress = "Lock order"),
+        )
+
+        assertEquals(listOf(lowId, highId), calls)
+    }
+
+    @Test
     fun `createFromCart fails on empty cart`() {
         every { cartRepository.findByUserIdForUpdate(userId) } returns null
 
