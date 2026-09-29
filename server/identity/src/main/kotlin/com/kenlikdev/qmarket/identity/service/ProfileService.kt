@@ -71,6 +71,7 @@ class ProfileService(
             throw BadRequestException("New password must differ from the current password")
         }
 
+        InputValidation.requireBcryptPasswordLength(request.newPassword, "New password")
         val encoded =
             passwordEncoder.encode(request.newPassword)
                 ?: throw IllegalStateException("Password encoding returned null")

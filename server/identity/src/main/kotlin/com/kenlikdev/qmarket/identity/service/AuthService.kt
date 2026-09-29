@@ -52,6 +52,7 @@ class AuthService(
             roleRepository.findByName("ROLE_USER")
                 ?: throw IllegalStateException("ROLE_USER not found in database. Run Flyway migrations.")
 
+        InputValidation.requireBcryptPasswordLength(request.password, "Password")
         val encodedPassword =
             passwordEncoder.encode(request.password)
                 ?: throw IllegalStateException("Password encoding returned null")
@@ -90,6 +91,7 @@ class AuthService(
             throw UnauthorizedException("Invalid email or password")
         }
 
+        InputValidation.requireBcryptPasswordLength(request.password, "Password")
         if (!passwordEncoder.matches(request.password, user.passwordHash)) {
             loginRateLimiter.recordFailure(email, clientKey)
             throw UnauthorizedException("Invalid email or password")
