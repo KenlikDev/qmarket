@@ -6,6 +6,7 @@ import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.identity.dto.AuthResponse
 import com.kenlikdev.qmarket.identity.dto.UserResponse
 import com.kenlikdev.qmarket.identity.service.AuthService
+import com.kenlikdev.qmarket.identity.service.LoginClientKeyResolver
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -41,9 +42,11 @@ class AuthControllerTest {
     @BeforeEach
     fun setUp() {
         authService = mockk()
+        val clientKeyResolver = mockk<LoginClientKeyResolver>()
+        every { clientKeyResolver.resolve(any()) } returns "203.0.113.10"
         mockMvc =
             MockMvcBuilders
-                .standaloneSetup(AuthController(authService))
+                .standaloneSetup(AuthController(authService, clientKeyResolver))
                 .setControllerAdvice(GlobalExceptionHandler())
                 .build()
     }
@@ -165,7 +168,7 @@ class AuthControllerTest {
     }
 
     @Test
-    fun `POST login passes X-Forwarded-For as clientKey`() {
+    fun `POST login passes resolved client key`() {
         every { authService.login(any(), clientKey = "203.0.113.10") } returns sampleResponse
 
         mockMvc

@@ -5,17 +5,18 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import java.time.Clock
 import java.util.ArrayDeque
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * In-process sliding-window limiter for failed logins.
  *
- * Failed attempts are tracked independently by normalized email and, when available,
- * by client key (typically the client IP). This prevents an attacker from bypassing
- * account protection simply by rotating source IPs and also limits abuse from a
- * single client against many accounts.
+ * A login slot is reserved atomically before BCrypt work begins. The reservation
+ * is converted to a failure, released on infrastructure failure, or removed on
+ * successful authentication. The lock protects only limiter state and is never
+ * held during password hashing.
  *
- * Not a substitute for edge rate limiting / Redis when running multiple instances.
+ * Distributed deployments still need an edge/Redis implementation with the same
+ * reservation semantics.
  */
 @Component
 class LoginRateLimiter(
@@ -23,10 +24,11 @@ class LoginRateLimiter(
     @Value("\${qmarket.auth.login-window-seconds:300}") private val windowSeconds: Long,
     @Value("\${qmarket.auth.login-rate-max-keys:10000}") private val maxKeys: Int = 10_000,
 ) {
-    /** Overridable in tests for deterministic windows. */
     var clock: Clock = Clock.systemUTC()
 
-    private val failures = ConcurrentHashMap<String, ArrayDeque<Long>>()
+    private val lock = Any()
+    private val nextReservationId = AtomicLong(0)
+    private val attemptsByKey = mutableMapOf<String, ArrayDeque<Attempt>>()
 
     init {
         require(maxAttempts > 0) { "qmarket.auth.login-max-attempts must be greater than 0" }
@@ -34,97 +36,112 @@ class LoginRateLimiter(
         require(maxKeys > 0) { "qmarket.auth.login-rate-max-keys must be greater than 0" }
     }
 
-    fun assertAllowed(
+    fun beginAttempt(
         email: String,
         clientKey: String? = null,
-    ) {
-        keysFor(email, clientKey).forEach(::assertKeyAllowed)
-    }
-
-    fun recordFailure(
-        email: String,
-        clientKey: String? = null,
-    ) {
+    ): Reservation {
+        val keys = keysFor(email, clientKey)
         val now = clock.millis()
-        keysFor(email, clientKey).forEach { key ->
-            val q = failures.computeIfAbsent(key) { ArrayDeque() }
-            synchronized(q) {
-                pruneDeque(q, now)
-                if (q.size < maxAttempts) {
-                    q.addLast(now)
+        synchronized(lock) {
+            pruneAllQueues(now)
+            val missingKeys = keys.count { it !in attemptsByKey }
+            if (attemptsByKey.size + missingKeys > maxKeys) {
+                throw TooManyRequestsException("Login rate limiter capacity reached; try again later")
+            }
+
+            keys.forEach { key ->
+                val queue = attemptsByKey.getOrPut(key) { ArrayDeque() }
+                pruneQueue(queue, now)
+                if (queue.size >= maxAttempts) {
+                    throw TooManyRequestsException(
+                        "Too many failed login attempts; try again later",
+                    )
                 }
             }
+
+            val reservation =
+                Reservation(
+                    id = nextReservationId.incrementAndGet(),
+                    keys = keys,
+                )
+            val attempt = Attempt(reservation.id, now)
+            keys.forEach { key -> attemptsByKey.getValue(key).addLast(attempt) }
+            return reservation
         }
-        boundMapSize()
     }
 
-    /** Clear failed attempts for one account after a successful authentication. */
-    fun clearAccount(email: String) {
-        failures.remove("email:${email.trim().lowercase()}")
+    fun recordFailure(reservation: Reservation) {
+        synchronized(lock) {
+            findAttempts(reservation).forEach { it.failed = true }
+        }
+    }
+
+    fun recordSuccess(
+        reservation: Reservation,
+        email: String,
+    ) {
+        synchronized(lock) {
+            removeReservation(reservation)
+            val emailKey = "email:" + email.trim().lowercase()
+            attemptsByKey[emailKey]?.removeIf { it.failed }
+            cleanupEmptyQueues()
+        }
+    }
+
+    fun release(reservation: Reservation) {
+        synchronized(lock) {
+            removeReservation(reservation)
+            cleanupEmptyQueues()
+        }
     }
 
     private fun keysFor(
         email: String,
         clientKey: String?,
-    ): List<String> {
-        val normalizedEmail = email.trim().lowercase()
-        val normalizedClientKey = clientKey?.trim()?.takeIf { it.isNotEmpty() }
-        return buildList {
-            add("email:$normalizedEmail")
-            normalizedClientKey?.let { add("client:$it") }
+    ): List<String> =
+        buildList {
+            add("email:${email.trim().lowercase()}")
+            clientKey?.trim()?.takeIf { it.isNotEmpty() }?.let { add("client:$it") }
         }
-    }
 
-    private fun assertKeyAllowed(key: String) {
-        pruneKey(key)
-        val q = failures[key] ?: return
-        synchronized(q) {
-            if (q.size >= maxAttempts) {
-                throw TooManyRequestsException(
-                    "Too many failed login attempts; try again later",
-                )
-            }
-        }
-    }
-
-    private fun pruneKey(key: String) {
-        val q = failures[key] ?: return
-        val now = clock.millis()
-        synchronized(q) {
-            pruneDeque(q, now)
-            if (q.isEmpty()) {
-                failures.remove(key, q)
-            }
-        }
-    }
-
-    private fun pruneDeque(
-        q: ArrayDeque<Long>,
+    private fun pruneQueue(
+        queue: ArrayDeque<Attempt>,
         now: Long,
     ) {
         val cutoff = now - windowSeconds * 1000
-        while (q.isNotEmpty() && q.first() < cutoff) {
-            q.removeFirst()
+        while (queue.isNotEmpty() && queue.first.timestamp < cutoff) {
+            queue.removeFirst()
         }
     }
 
-    private fun boundMapSize() {
-        if (failures.size <= maxKeys) return
-        val now = clock.millis()
-        val iter = failures.entries.iterator()
-        while (iter.hasNext() && failures.size > maxKeys) {
-            val e = iter.next()
-            val q = e.value
-            synchronized(q) {
-                pruneDeque(q, now)
-                if (q.isEmpty()) {
-                    iter.remove()
-                }
-            }
+    private fun findAttempts(reservation: Reservation): List<Attempt> =
+        reservation.keys.flatMap { key ->
+            attemptsByKey[key]?.filter { it.reservationId == reservation.id }.orEmpty()
         }
-        while (failures.size > maxKeys) {
-            val key = failures.keys.firstOrNull() ?: break
-            failures.remove(key)
+
+    private fun removeReservation(reservation: Reservation) {
+        reservation.keys.forEach { key ->
+            attemptsByKey[key]?.removeIf { it.reservationId == reservation.id }
         }
     }
+
+    private fun pruneAllQueues(now: Long) {
+        attemptsByKey.values.forEach { pruneQueue(it, now) }
+        cleanupEmptyQueues()
+    }
+
+    private fun cleanupEmptyQueues() {
+        attemptsByKey.entries.removeIf { it.value.isEmpty() }
+    }
+
+    private data class Attempt(
+        val reservationId: Long,
+        val timestamp: Long,
+        var failed: Boolean = false,
+    )
+
+    class Reservation internal constructor(
+        internal val id: Long,
+        internal val keys: List<String>,
+    )
 }
