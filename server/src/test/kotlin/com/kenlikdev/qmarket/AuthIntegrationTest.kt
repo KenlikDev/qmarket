@@ -139,9 +139,12 @@ class AuthIntegrationTest {
                         .content("""{"refreshToken":"$oldRefresh"}"""),
                 ).andReturn()
         if (firstRefresh.response.status != 200) {
-            throw IllegalStateException(
-                "first refresh failed: status=" + firstRefresh.response.status + ", body=" + firstRefresh.response.contentAsString,
+            java.nio.file.Files.createDirectories(java.nio.file.Path.of("build/reports/jacoco"))
+            java.nio.file.Files.writeString(
+                java.nio.file.Path.of("build/reports/jacoco/refresh-failure.txt"),
+                "status=" + firstRefresh.response.status + "\nbody=" + firstRefresh.response.contentAsString,
             )
+            throw IllegalStateException("first refresh failed")
         }
         val currentRefresh = TestJson.parse(firstRefresh.response.contentAsString).path("refreshToken").asString()
         assert(currentRefresh.isNotBlank()) { "First refresh did not return a refresh token" }
