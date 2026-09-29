@@ -28,6 +28,17 @@ class RefreshToken(
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now(),
 ) {
+    /**
+     * Hibernate requires a no-arg constructor when the Kotlin JPA no-arg plugin is not applied
+     * to this module. Keep it protected so application code must provide real token identity.
+     */
+    protected constructor() : this(
+        userId = UUID(0, 0),
+        jti = UUID(0, 0),
+        familyId = UUID(0, 0),
+        expiresAt = Instant.EPOCH,
+    )
+
     val isRevoked: Boolean
         get() = revokedAt != null
 
