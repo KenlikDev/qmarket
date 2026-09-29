@@ -50,7 +50,7 @@ class ProfileServiceTest {
                 phone = "+79001112233",
             ).apply { roles.add(role) }
 
-        every { userRepository.findById(userId) } returns Optional.of(user)
+        every { userRepository.findByIdForUpdate(userId) } returns user
 
         val result = profileService.getMyProfile(userId)
 
@@ -116,6 +116,11 @@ class ProfileServiceTest {
 
         verify { userRepository.save(match { it.passwordHash == "new-hash" }) }
         verify(exactly = 1) { refreshTokenRepository.revokeAllForUser(userId, any()) }
+        io.mockk.verifySequence {
+            userRepository.findByIdForUpdate(userId)
+            userRepository.save(any())
+            refreshTokenRepository.revokeAllForUser(userId, any())
+        }
     }
 
     @Test

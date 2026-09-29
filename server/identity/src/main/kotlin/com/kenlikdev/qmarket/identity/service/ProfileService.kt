@@ -25,9 +25,8 @@ class ProfileService(
     @Transactional(readOnly = true)
     fun getMyProfile(userId: UUID): ProfileResponse {
         val user =
-            userRepository
-                .findById(userId)
-                .orElseThrow { NotFoundException("User not found") }
+            userRepository.findByIdForUpdate(userId)
+                ?: throw NotFoundException("User not found")
         return toResponse(user)
     }
 

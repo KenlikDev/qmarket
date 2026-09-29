@@ -202,13 +202,17 @@ class AuthServiceTest {
         every { jwtService.getUserId(claims) } returns userId
         every { jwtService.getJti(claims) } returns jti
         every { refreshTokenRepository.findByJti(jti) } returns stored
-        every { userRepository.findById(userId) } returns Optional.of(user)
+        every { userRepository.findByIdForUpdate(userId) } returns user
 
         val result = authService.refresh(RefreshTokenRequest(refreshToken = "old-refresh"))
 
         assertEquals("access", result.accessToken)
         assertEquals("refresh", result.refreshToken)
-        verify(exactly = 1) { refreshTokenRepository.revokeIfActive(jti, any()) }
+        io.mockk.verifySequence {
+            refreshTokenRepository.findByJti(jti)
+            userRepository.findByIdForUpdate(userId)
+            refreshTokenRepository.revokeIfActive(jti, any())
+        }
     }
 
     @Test

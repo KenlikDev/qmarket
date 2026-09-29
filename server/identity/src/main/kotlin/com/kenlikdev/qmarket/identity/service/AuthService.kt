@@ -146,20 +146,23 @@ class AuthService(
             throw UnauthorizedException("Refresh token reuse detected")
         }
 
-        // Atomic consume: only one concurrent refresh may win (updated rows == 1).
-        // If we lose the race, do NOT revoke the family — the winner legitimately issued R2.
-        // Family revoke is reserved for true reuse: presenting an already-revoked jti (above).
+        // Serialize refresh issuance with password changes and account-level mutations.
+        // The user row is the linearization point: password change acquires the same lock before
+        // changing the password and revoking refresh sessions.
+        val user =
+            userRepository
+                .findByIdForUpdate(userId)
+                ?: throw UnauthorizedException("User not found")
+        if (!user.enabled) {
+            throw UnauthorizedException("Account is disabled")
+        }
+
+        // Atomic consume: only one refresh operation may consume this jti.
+        // Because the user row is locked first, a password change cannot race between consume
+        // and issuing the replacement refresh token.
         val consumed = refreshTokenRepository.revokeIfActive(stored.jti, Instant.now())
         if (consumed != 1) {
             throw UnauthorizedException("Refresh token already used")
-        }
-
-        val user =
-            userRepository
-                .findById(userId)
-                .orElseThrow { UnauthorizedException("User not found") }
-        if (!user.enabled) {
-            throw UnauthorizedException("Account is disabled")
         }
 
         return issueTokens(user, familyId = stored.familyId)
