@@ -122,6 +122,7 @@ class LoginRateLimiterTest {
             lim.assertAllowed("other@test.com", client)
         }
     }
+
     @Test
     fun `in flight reservations count toward the limit`() {
         val lim = limiter(max = 2)
