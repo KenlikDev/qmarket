@@ -35,9 +35,8 @@ class AuthController(
     /**
      * Forwarded headers are not trusted here because this service does not own the proxy trust boundary.
      */
-    private fun clientKey(httpRequest: HttpServletRequest): String {
-        return httpRequest.remoteAddr ?: "unknown"
-    }
+    private fun clientKey(httpRequest: HttpServletRequest): String =
+        httpRequest.remoteAddr ?: "unknown"
 
     @PostMapping("/refresh")
     fun refresh(
