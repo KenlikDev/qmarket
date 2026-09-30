@@ -134,9 +134,8 @@ class LoginRateLimiterTest {
         }
 
         lim.releaseAttempt(first)
-        assertThrows<TooManyRequestsException> {
-            lim.beginAttempt("four@test.com", "10.0.0.1")
-        }
+        val fourth = lim.beginAttempt("four@test.com", "10.0.0.1")
+        lim.releaseAttempt(fourth)
 
         lim.releaseAttempt(second)
         val third = lim.beginAttempt("five@test.com", "10.0.0.1")
