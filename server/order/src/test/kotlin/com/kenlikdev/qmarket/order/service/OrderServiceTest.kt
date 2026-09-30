@@ -49,6 +49,7 @@ class OrderServiceTest {
     private lateinit var orderService: OrderService
     private lateinit var notificationService: NotificationService
     private lateinit var paymentGateway: PaymentGateway
+    private lateinit var orderPaymentService: OrderPaymentService
     private lateinit var idempotency: OrderIdempotencySupport
 
     private val userId = UUID.randomUUID()
