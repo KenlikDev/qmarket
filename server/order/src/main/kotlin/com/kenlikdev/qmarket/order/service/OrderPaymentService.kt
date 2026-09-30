@@ -179,9 +179,8 @@ class OrderPaymentService(
         currency: String? = null,
     ): OrderResponse {
         val order =
-            orderRepository.findByIdForUpdate(orderId).orElseThrow {
-                NotFoundException("Order not found: $orderId")
-            }
+            orderRepository.findByIdForUpdate(orderId)
+                ?: throw NotFoundException("Order not found: $orderId")
         if (order.paymentProvider != null && order.paymentProvider != providerId) {
             throw BadRequestException("Payment provider mismatch for order $" + "{orderId}")
         }

@@ -228,7 +228,7 @@ class OrderService(
         val order =
             orderRepository
                 .findByIdForUpdate(orderId)
-                .orElseThrow { NotFoundException("Order not found") }
+                ?: throw NotFoundException("Order not found")
 
         // Snapshot items while session is open (LAZY collection)
         // Match checkout's deterministic product lock order for restock operations.
