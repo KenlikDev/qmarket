@@ -100,9 +100,20 @@ class OrderServiceTest {
                     paymentGateway,
                     stripeApiClient,
                     stripeProperties,
+                    transactionManager,
                 ),
             )
-        every { orderPaymentService.cancelProviderPayment(any()) } just Runs
+        every {
+            orderPaymentService.cancelProviderPayment(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } just Runs
         val idempotency =
             OrderIdempotencySupport(
                 orderRepository,
@@ -390,7 +401,17 @@ class OrderServiceTest {
             UpdateOrderStatusRequest(OrderStatus.CANCELLED),
         )
 
-        verify(exactly = 1) { orderPaymentService.cancelProviderPayment(order) }
+        verify(exactly = 1) {
+            orderPaymentService.cancelProviderPayment(
+                providerId = null,
+                providerReference = null,
+                paymentOperationKey = null,
+                amountMinor = any(),
+                currency = null,
+                orderId = orderId,
+                userId = userId,
+            )
+        }
     }
 
     @Test
@@ -409,7 +430,17 @@ class OrderServiceTest {
             orderService.cancelMyOrder(userId, orderId)
         }
 
-        verify(exactly = 0) { orderPaymentService.cancelProviderPayment(any()) }
+        verify(exactly = 0) {
+            orderPaymentService.cancelProviderPayment(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
     }
 
     @Test
@@ -492,6 +523,7 @@ class OrderServiceTest {
                 )
             }
         every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 1) } returns Unit
 

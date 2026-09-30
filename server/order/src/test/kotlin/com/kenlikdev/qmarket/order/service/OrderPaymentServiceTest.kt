@@ -11,9 +11,12 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionStatus
 import java.math.BigDecimal
 import java.util.UUID
 
@@ -24,6 +27,9 @@ class OrderPaymentServiceTest {
     private lateinit var stripeApi: StripeApiClient
     private lateinit var stripeProperties: StripeProperties
     private lateinit var service: OrderPaymentService
+    private lateinit var transactionManager: PlatformTransactionManager
+    private lateinit var txStatus: TransactionStatus
+    private var transactionActive = false
     private val userId = UUID.randomUUID()
     private val orderId = UUID.randomUUID()
 
@@ -43,6 +49,18 @@ class OrderPaymentServiceTest {
         val stripePropertiesProvider = mockk<ObjectProvider<StripeProperties>>()
         every { stripeApiProvider.ifAvailable } returns stripeApi
         every { stripePropertiesProvider.ifAvailable } returns stripeProperties
+        transactionManager = mockk()
+        txStatus = mockk(relaxed = true)
+        every { transactionManager.getTransaction(any()) } answers {
+            transactionActive = true
+            txStatus
+        }
+        every { transactionManager.commit(txStatus) } answers {
+            transactionActive = false
+        }
+        every { transactionManager.rollback(txStatus) } answers {
+            transactionActive = false
+        }
         service =
             OrderPaymentService(
                 orderRepository = orderRepository,
@@ -50,6 +68,7 @@ class OrderPaymentServiceTest {
                 paymentGateway = paymentGateway,
                 stripeApiClient = stripeApiProvider,
                 stripeProperties = stripePropertiesProvider,
+                transactionManager = transactionManager,
             )
     }
 
@@ -69,6 +88,7 @@ class OrderPaymentServiceTest {
                 currency = "rub",
                 orderId = orderId,
                 userId = userId,
+                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
             )
         } returns
             StripePaymentIntentResult(
@@ -77,6 +97,20 @@ class OrderPaymentServiceTest {
                 clientSecret = "pi_test_secret",
             )
         every { orderRepository.save(order) } returns order
+        every {
+            stripeApi.createPaymentIntentForClient(
+                amountMinor = 1050L,
+                currency = "rub",
+                orderId = orderId,
+                userId = userId,
+                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
+            )
+        } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "requires_payment_method",
+                clientSecret = "pi_test_secret",
+            )
 
         val result = service.createPaymentSession(userId, orderId)
 
@@ -84,7 +118,41 @@ class OrderPaymentServiceTest {
         assertEquals("pi_test_123", result.paymentIntentId)
         assertEquals("pi_test_123", order.paymentProviderReference)
         assertEquals("stripe", order.paymentProvider)
-        verify(exactly = 1) { orderRepository.save(order) }
+        verify(exactly = 2) { orderRepository.save(order) }
+    }
+
+    @Test
+    fun `createPaymentSession calls Stripe outside the database transaction`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.save(order) } returns order
+        every {
+            stripeApi.createPaymentIntentForClient(
+                amountMinor = 1050L,
+                currency = "rub",
+                orderId = orderId,
+                userId = userId,
+                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
+            )
+        } answers {
+            assertFalse(transactionActive)
+            StripePaymentIntentResult(
+                id = "pi_outside_tx",
+                status = "requires_payment_method",
+                clientSecret = "pi_outside_tx_secret",
+            )
+        }
+
+        val result = service.createPaymentSession(userId, orderId)
+
+        assertEquals("pi_outside_tx", result.paymentIntentId)
+        assertFalse(transactionActive)
     }
 
     @Test
@@ -104,7 +172,15 @@ class OrderPaymentServiceTest {
                 status = "canceled",
             )
 
-        service.cancelProviderPayment(order)
+        service.cancelProviderPayment(
+            providerId = "stripe",
+            providerReference = "pi_test_123",
+            paymentOperationKey = null,
+            amountMinor = null,
+            currency = null,
+            orderId = orderId,
+            userId = userId,
+        )
 
         verify(exactly = 1) { stripeApi.cancelPaymentIntent("pi_test_123") }
     }

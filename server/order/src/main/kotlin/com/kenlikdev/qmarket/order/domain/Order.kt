@@ -20,6 +20,12 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
+enum class PaymentOperationState {
+    NONE,
+    CREATING,
+    CANCELLING,
+}
+
 enum class OrderStatus {
     PENDING,
     CONFIRMED,
@@ -66,6 +72,11 @@ class Order(
     var paymentProvider: String? = null,
     @Column(name = "payment_provider_reference", length = 255)
     var paymentProviderReference: String? = null,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_operation_state", nullable = false, length = 32)
+    var paymentOperationState: PaymentOperationState = PaymentOperationState.NONE,
+    @Column(name = "payment_operation_key", length = 255)
+    var paymentOperationKey: String? = null,
     @OneToMany(
         mappedBy = "order",
         cascade = [CascadeType.ALL],

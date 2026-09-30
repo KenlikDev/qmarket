@@ -5,6 +5,7 @@ import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.common.exception.PaymentProviderException
 import com.kenlikdev.qmarket.common.util.Money
 import com.kenlikdev.qmarket.order.domain.OrderStatus
+import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PaymentSessionResponse
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
@@ -14,7 +15,9 @@ import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Service
+import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
 import java.util.UUID
 
@@ -29,7 +32,10 @@ class OrderPaymentService(
     private val paymentGateway: PaymentGateway,
     private val stripeApiClient: ObjectProvider<StripeApiClient>,
     private val stripeProperties: ObjectProvider<StripeProperties>,
+    transactionManager: PlatformTransactionManager,
 ) {
+    private val transactionTemplate = TransactionTemplate(transactionManager)
+
     /**
      * Charge via [PaymentGateway] then mark order PAID.
      * Default gateway is mock; swap with a real PSP adapter without changing this flow.
@@ -76,10 +82,12 @@ class OrderPaymentService(
     }
 
     /**
-     * Create a Stripe PaymentIntent for client-side confirmation (Payment Element / mobile SDK).
-     * Requires `qmarket.payment.provider=stripe`. Order stays PENDING until webhook or pay path.
+     * Create a Stripe PaymentIntent without holding a database transaction during network I/O.
+     *
+     * A short transaction records a durable operation key/state. Stripe is then called outside
+     * the transaction. A second short transaction persists the provider reference or observes
+     * a concurrent cancellation/payment result.
      */
-    @Transactional
     fun createPaymentSession(
         userId: UUID,
         orderId: UUID,
@@ -91,75 +99,218 @@ class OrderPaymentService(
                 )
         val stripeProps = stripeProperties.ifAvailable ?: StripeProperties()
 
-        val order =
-            orderRepository.findByIdAndUserIdForUpdate(orderId, userId)
-                ?: throw NotFoundException("Order not found")
-        when (order.status) {
-            OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
-            OrderStatus.PAID -> throw BadRequestException("Order is already paid")
-            OrderStatus.CANCELLED -> throw BadRequestException("Cannot pay a cancelled order")
-            OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
-                throw BadRequestException("Order is already fulfilled")
-        }
-        if (order.totalAmount <= BigDecimal.ZERO) {
-            throw BadRequestException("Amount must be positive")
-        }
+        val plan =
+            requireNotNull(
+                transactionTemplate.execute {
+                    val order =
+                        orderRepository.findByIdAndUserIdForUpdate(orderId, userId)
+                            ?: throw NotFoundException("Order not found")
+                    validatePayableStatus(order.status)
+                    if (order.totalAmount <= BigDecimal.ZERO) {
+                        throw BadRequestException("Amount must be positive")
+                    }
+                    if (order.paymentProvider != null && order.paymentProvider != "stripe") {
+                        throw BadRequestException("Order already has a different payment provider")
+                    }
+                    if (order.paymentOperationState == PaymentOperationState.CANCELLING) {
+                        throw BadRequestException("Order payment is being cancelled")
+                    }
 
-        val currency = stripeProps.defaultCurrency
-        val amountMinor = Money.toMinorUnits(order.totalAmount)
-        try {
-            val intent =
+                    val operationKey =
+                        order.paymentOperationKey
+                            ?: "qmarket-payment-intent-v2-$orderId"
+                    order.paymentProvider = "stripe"
+                    order.paymentOperationKey = operationKey
+                    order.paymentOperationState = PaymentOperationState.CREATING
+                    orderRepository.save(order)
+
+                    PaymentSessionPlan(
+                        orderId = orderId,
+                        userId = userId,
+                        amountMinor = Money.toMinorUnits(order.totalAmount),
+                        currency = stripeProps.defaultCurrency,
+                        idempotencyKey = operationKey,
+                    )
+                },
+            ) { "Payment-session preparation transaction returned no result" }
+
+        val intent =
+            try {
                 stripeApi.createPaymentIntentForClient(
-                    amountMinor = amountMinor,
-                    currency = currency,
+                    amountMinor = plan.amountMinor,
+                    currency = plan.currency,
+                    orderId = plan.orderId,
+                    userId = plan.userId,
+                    idempotencyKey = plan.idempotencyKey,
+                )
+            } catch (ex: StripeApiException) {
+                throw PaymentProviderException(cause = ex)
+            }
+
+        val clientSecret =
+            intent.clientSecret
+                ?: throw PaymentProviderException(
+                    cause = IllegalStateException("Stripe did not return client_secret"),
+                )
+
+        val finalization =
+            requireNotNull(
+                transactionTemplate.execute {
+                    val order =
+                        orderRepository.findByIdAndUserIdForUpdate(orderId, userId)
+                            ?: throw NotFoundException("Order not found")
+
+                    when (order.status) {
+                        OrderStatus.PENDING, OrderStatus.CONFIRMED -> {
+                            if (order.paymentOperationState == PaymentOperationState.CANCELLING) {
+                                PaymentSessionFinalization.CANCEL_PROVIDER
+                            } else {
+                                if (order.paymentProvider != null && order.paymentProvider != "stripe") {
+                                    throw BadRequestException("Order already has a different payment provider")
+                                }
+                                if (
+                                    order.paymentProviderReference != null &&
+                                    order.paymentProviderReference != intent.id
+                                ) {
+                                    throw BadRequestException(
+                                        "Stripe PaymentIntent does not match the order payment session",
+                                    )
+                                }
+                                order.paymentProvider = "stripe"
+                                order.paymentProviderReference = intent.id
+                                order.paymentOperationState = PaymentOperationState.NONE
+                                orderRepository.save(order)
+                                PaymentSessionFinalization.PERSISTED
+                            }
+                        }
+                        OrderStatus.PAID -> PaymentSessionFinalization.PAID
+                        OrderStatus.CANCELLED -> PaymentSessionFinalization.CANCEL_PROVIDER
+                        OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
+                            throw BadRequestException("Order is already fulfilled")
+                    }
+                },
+            ) { "Payment-session finalization transaction returned no result" }
+
+        return when (finalization) {
+            PaymentSessionFinalization.PERSISTED ->
+                PaymentSessionResponse(
+                    orderId = orderId,
+                    providerId = "stripe",
+                    paymentIntentId = intent.id,
+                    clientSecret = clientSecret,
+                    publishableKey = stripeProps.publishableKey,
+                )
+            PaymentSessionFinalization.PAID ->
+                throw BadRequestException("Order is already paid")
+            PaymentSessionFinalization.CANCEL_PROVIDER -> {
+                cancelProviderPayment(
+                    providerId = "stripe",
+                    providerReference = intent.id,
+                    paymentOperationKey = null,
+                    amountMinor = null,
+                    currency = null,
                     orderId = orderId,
                     userId = userId,
                 )
-            val secret =
-                intent.clientSecret
-                    ?: throw BadRequestException("Stripe did not return client_secret")
-            if (order.paymentProvider != null && order.paymentProvider != "stripe") {
-                throw BadRequestException("Order already has a different payment provider")
+                throw BadRequestException("Order was cancelled while the payment session was being created")
             }
-            if (order.paymentProviderReference != null && order.paymentProviderReference != intent.id) {
-                throw BadRequestException("Stripe PaymentIntent does not match the order payment session")
-            }
-            order.paymentProvider = "stripe"
-            order.paymentProviderReference = intent.id
-            orderRepository.save(order)
-            return PaymentSessionResponse(
-                orderId = orderId,
-                providerId = "stripe",
-                paymentIntentId = intent.id,
-                clientSecret = secret,
-                publishableKey = stripeProps.publishableKey,
-            )
-        } catch (ex: StripeApiException) {
-            throw PaymentProviderException(cause = ex)
         }
     }
 
-    /** Cancel the provider payment before the local order enters CANCELLED. */
-    fun cancelProviderPayment(order: com.kenlikdev.qmarket.order.domain.Order) {
-        if (order.paymentProvider != "stripe" || order.paymentProviderReference == null) return
+    /**
+     * Cancel a Stripe PaymentIntent without holding a database transaction during network I/O.
+     *
+     * When the provider reference has not been persisted yet, the durable operation key is used
+     * to resolve the same idempotent PaymentIntent before cancellation.
+     */
+    fun cancelProviderPayment(
+        providerId: String?,
+        providerReference: String?,
+        paymentOperationKey: String?,
+        amountMinor: Long?,
+        currency: String?,
+        orderId: UUID,
+        userId: UUID,
+    ) {
+        if (providerId != "stripe") return
+
         val stripeApi =
             stripeApiClient.ifAvailable
                 ?: throw PaymentProviderException(
                     cause = IllegalStateException("Stripe API client is unavailable"),
                 )
+
+        val intentId =
+            providerReference
+                ?: run {
+                    val key =
+                        paymentOperationKey
+                            ?: throw PaymentProviderException(
+                                cause =
+                                    IllegalStateException(
+                                        "Stripe payment operation has no provider reference or operation key",
+                                    ),
+                            )
+                    val amount =
+                        amountMinor
+                            ?: throw PaymentProviderException(
+                                cause = IllegalStateException("Stripe payment operation has no amount"),
+                            )
+                    val selectedCurrency =
+                        currency
+                            ?: stripeProperties.ifAvailable?.defaultCurrency
+                            ?: throw PaymentProviderException(
+                                cause = IllegalStateException("Stripe payment operation has no currency"),
+                            )
+                    try {
+                        stripeApi.createPaymentIntentForClient(
+                            amountMinor = amount,
+                            currency = selectedCurrency,
+                            orderId = orderId,
+                            userId = userId,
+                            idempotencyKey = key,
+                        ).id
+                    } catch (ex: StripeApiException) {
+                        throw PaymentProviderException(cause = ex)
+                    }
+                }
+
         try {
-            val result = stripeApi.cancelPaymentIntent(requireNotNull(order.paymentProviderReference))
+            val result = stripeApi.cancelPaymentIntent(intentId)
             if (result.status != "canceled") {
                 throw PaymentProviderException(
                     cause =
                         IllegalStateException(
-                            "Stripe PaymentIntent ${order.paymentProviderReference} was not canceled: ${result.status}",
+                            "Stripe PaymentIntent $intentId was not canceled: ${result.status}",
                         ),
                 )
             }
         } catch (ex: StripeApiException) {
             throw PaymentProviderException(cause = ex)
         }
+    }
+
+    private fun validatePayableStatus(status: OrderStatus) {
+        when (status) {
+            OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
+            OrderStatus.PAID -> throw BadRequestException("Order is already paid")
+            OrderStatus.CANCELLED -> throw BadRequestException("Cannot pay a cancelled order")
+            OrderStatus.SHIPPED, OrderStatus.DELIVERED -> throw BadRequestException("Order is already fulfilled")
+        }
+    }
+
+    private data class PaymentSessionPlan(
+        val orderId: UUID,
+        val userId: UUID,
+        val amountMinor: Long,
+        val currency: String,
+        val idempotencyKey: String,
+    )
+
+    private enum class PaymentSessionFinalization {
+        PERSISTED,
+        PAID,
+        CANCEL_PROVIDER,
     }
 
     /**
@@ -216,6 +367,7 @@ class OrderPaymentService(
             }
         }
 
+        order.paymentOperationState = PaymentOperationState.NONE
         order.markPaid()
         val saved = orderRepository.save(order)
         notificationService.notifyOrderEvent(
