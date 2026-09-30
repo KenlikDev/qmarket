@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         initAndroidSessionStore(this)
 
         setContent {
-            App()
+            App(apiBaseUrl = getString(R.string.qmarket_api_base_url))
         }
     }
 }
@@ -23,5 +23,5 @@ class MainActivity : ComponentActivity() {
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    App()
+    App(apiBaseUrl = "http://10.0.2.2:8080")
 }

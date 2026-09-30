@@ -4,5 +4,9 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>QMARKET_API_BASE_URL</key>
+	<string>$(QMARKET_API_BASE_URL)</string>
+	<key>QMARKET_BUILD_CONFIGURATION</key>
+	<string>$(CONFIGURATION)</string>
 </dict>
 </plist>
