@@ -36,8 +36,18 @@ android {
         }
     }
     buildTypes {
+        debug {
+            resValue("string", "qmarket_api_base_url", "http://10.0.2.2:8080")
+        }
         release {
             isMinifyEnabled = false
+            val apiBaseUrl =
+                providers.gradleProperty("qmarketApiBaseUrl").orNull?.trim()
+                    ?: error("Release Android builds require -PqmarketApiBaseUrl=https://...")
+            require(apiBaseUrl.startsWith("https://")) {
+                "Release Android API base URL must use HTTPS"
+            }
+            resValue("string", "qmarket_api_base_url", apiBaseUrl)
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
