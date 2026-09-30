@@ -92,7 +92,7 @@ class OrderServiceTest {
         every { stripeApiClient.getIfAvailable() } returns null
         val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
         every { stripeProperties.getIfAvailable() } returns null
-        val orderPaymentService =
+        orderPaymentService =
             spyk(
                 OrderPaymentService(
                     orderRepository,
