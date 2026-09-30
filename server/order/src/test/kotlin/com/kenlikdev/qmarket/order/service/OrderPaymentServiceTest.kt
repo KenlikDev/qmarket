@@ -123,6 +123,7 @@ class OrderPaymentServiceTest {
         assertEquals("stripe", order.paymentProvider)
         assertEquals("rub", order.paymentCurrency)
         verify(exactly = 2) { orderRepository.save(order) }
+    }
 
     @Test
     fun `cancelProviderPayment requires stripe cancellation before local cancellation`() {
