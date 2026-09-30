@@ -49,10 +49,11 @@ class HttpStripeApiClient(
             "Invalid Stripe PaymentIntent id"
         }
         return postPaymentIntentAction(
-            path = "/v1/payment_intents/$" + "{paymentIntentId}/cancel",
-            idempotencyKey = "qmarket-payment-cancel-v1-$" + "{paymentIntentId}",
+            path = "/v1/payment_intents/$paymentIntentId/cancel",
+            idempotencyKey = "qmarket-payment-cancel-v1-$paymentIntentId",
         )
     }
+
     private fun baseForm(
         amountMinor: Long,
         currency: String,
@@ -160,7 +161,7 @@ class HttpStripeApiClient(
                 .newBuilder()
                 .uri(URI.create("$" + "{props.apiBaseUrl.trimEnd('/')}$" + "{path}"))
                 .timeout(Duration.ofSeconds(30))
-                .header("Authorization", "Bearer $" + "{props.secretKey}")
+                .header("Authorization", "Bearer ${props.secretKey}")
                 .header("Idempotency-Key", idempotencyKey)
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build()
@@ -186,7 +187,7 @@ class HttpStripeApiClient(
                     .path("error")
                     .path("message")
                     .asString(null)
-                    ?: "Stripe HTTP $" + "{response.statusCode()}"
+                    ?: "Stripe HTTP ${response.statusCode()}"
             throw StripeApiException(message, response.statusCode(), body)
         }
         val id =

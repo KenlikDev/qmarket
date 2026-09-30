@@ -194,7 +194,7 @@ class OrderService(
     fun getOrderAdmin(orderId: UUID): OrderResponse {
         val order =
             orderRepository
-                .findByIdForUpdate(orderId)
+                .findById(orderId)
                 .orElseThrow { NotFoundException("Order not found") }
         return OrderMapper.toResponse(order)
     }
@@ -227,7 +227,7 @@ class OrderService(
     ): OrderResponse {
         val order =
             orderRepository
-                .findById(orderId)
+                .findByIdForUpdate(orderId)
                 .orElseThrow { NotFoundException("Order not found") }
 
         // Snapshot items while session is open (LAZY collection)
