@@ -13,6 +13,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -109,10 +110,12 @@ class CartServiceTest {
         every { cartRepository.save(any()) } answers { firstArg() }
         every { productCatalog.findByIds(any()) } returns mapOf(productId to product)
 
+        val beforeUpdatedAt = cart.updatedAt
         val result = cartService.updateItem(userId, productId, UpdateCartItemRequest(3))
 
         assertEquals(3, result.totalItems)
         assertEquals(3, result.items[0].quantity)
+        assertTrue(result.updatedAt > beforeUpdatedAt)
     }
 
     @Test

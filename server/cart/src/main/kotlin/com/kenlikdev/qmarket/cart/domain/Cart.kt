@@ -70,6 +70,7 @@ class Cart(
                 ),
             )
         }
+        touch()
     }
 
     /** Set absolute quantity for an existing line. */
@@ -85,6 +86,7 @@ class Cart(
                 ?: throw NotFoundException("Product not in cart")
         ensureStock(productSlug, availableStock, quantity)
         item.quantity = quantity
+        touch()
     }
 
     fun removeItem(productId: UUID) {
@@ -92,10 +94,17 @@ class Cart(
         if (!removed) {
             throw NotFoundException("Product not in cart")
         }
+        touch()
     }
 
     fun clearItems() {
+        if (items.isEmpty()) return
         items.clear()
+        touch()
+    }
+
+    private fun touch() {
+        updatedAt = Instant.now()
     }
 
     fun isEmpty(): Boolean = items.isEmpty()
