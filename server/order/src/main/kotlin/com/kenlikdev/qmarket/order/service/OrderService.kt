@@ -194,7 +194,7 @@ class OrderService(
     fun getOrderAdmin(orderId: UUID): OrderResponse {
         val order =
             orderRepository
-                .findById(orderId)
+                .findByIdForUpdate(orderId)
                 .orElseThrow { NotFoundException("Order not found") }
         return OrderMapper.toResponse(order)
     }
@@ -260,7 +260,10 @@ class OrderService(
     ): OrderResponse {
         val order =
             orderRepository
-                .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
+                .findByIdAndUserIdForUpdate(orderId, userId) ?: throw NotFoundException("Order not found")
+
+        // Cancel provider payment before committing the local cancellation.
+        orderPaymentService.cancelProviderPayment(order)
 
         // Status transition first (fails fast if already cancelled / paid)
         order.cancel()

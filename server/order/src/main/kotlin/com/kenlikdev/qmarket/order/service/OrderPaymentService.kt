@@ -79,6 +79,7 @@ class OrderPaymentService(
      * Create a Stripe PaymentIntent for client-side confirmation (Payment Element / mobile SDK).
      * Requires `qmarket.payment.provider=stripe`. Order stays PENDING until webhook or pay path.
      */
+    @Transactional
     fun createPaymentSession(
         userId: UUID,
         orderId: UUID,
@@ -91,7 +92,7 @@ class OrderPaymentService(
         val stripeProps = stripeProperties.ifAvailable ?: StripeProperties()
 
         val order =
-            orderRepository.findByIdAndUserId(orderId, userId)
+            orderRepository.findByIdAndUserIdForUpdate(orderId, userId)
                 ?: throw NotFoundException("Order not found")
         when (order.status) {
             OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
@@ -117,6 +118,15 @@ class OrderPaymentService(
             val secret =
                 intent.clientSecret
                     ?: throw BadRequestException("Stripe did not return client_secret")
+            if (order.paymentProvider != null && order.paymentProvider != "stripe") {
+                throw BadRequestException("Order already has a different payment provider")
+            }
+            if (order.paymentProviderReference != null && order.paymentProviderReference != intent.id) {
+                throw BadRequestException("Stripe PaymentIntent does not match the order payment session")
+            }
+            order.paymentProvider = "stripe"
+            order.paymentProviderReference = intent.id
+            orderRepository.save(order)
             return PaymentSessionResponse(
                 orderId = orderId,
                 providerId = "stripe",
@@ -129,6 +139,28 @@ class OrderPaymentService(
         }
     }
 
+    /** Cancel the provider payment before the local order enters CANCELLED. */
+    fun cancelProviderPayment(order: com.kenlikdev.qmarket.order.domain.Order) {
+        if (order.paymentProvider != "stripe" || order.paymentProviderReference == null) return
+        val stripeApi =
+            stripeApiClient.ifAvailable
+                ?: throw PaymentProviderException(
+                    cause = IllegalStateException("Stripe API client is unavailable"),
+                )
+        try {
+            val result = stripeApi.cancelPaymentIntent(requireNotNull(order.paymentProviderReference))
+            if (result.status != "canceled") {
+                throw PaymentProviderException(
+                    cause =
+                        IllegalStateException(
+                            "Stripe PaymentIntent $" + "{order.paymentProviderReference} was not canceled: $" + "{result.status}",
+                        ),
+                )
+            }
+        } catch (ex: StripeApiException) {
+            throw PaymentProviderException(cause = ex)
+        }
+    }
     /**
      * Provider webhook / async capture path: mark order PAID without re-charging.
      * Idempotent when already PAID.
@@ -146,9 +178,19 @@ class OrderPaymentService(
         currency: String? = null,
     ): OrderResponse {
         val order =
-            orderRepository.findById(orderId).orElseThrow {
+            orderRepository.findByIdForUpdate(orderId).orElseThrow {
                 NotFoundException("Order not found: $orderId")
             }
+        if (order.paymentProvider != null && order.paymentProvider != providerId) {
+            throw BadRequestException("Payment provider mismatch for order $" + "{orderId}")
+        }
+        if (providerReference != null) {
+            if (order.paymentProviderReference != null && order.paymentProviderReference != providerReference) {
+                throw BadRequestException("Payment provider reference mismatch for order $" + "{orderId}")
+            }
+            order.paymentProvider = providerId
+            order.paymentProviderReference = providerReference
+        }
         when (order.status) {
             OrderStatus.PAID -> return OrderMapper.toResponse(order)
             OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit

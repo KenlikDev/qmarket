@@ -44,6 +44,15 @@ class HttpStripeApiClient(
         )
     }
 
+    override fun cancelPaymentIntent(paymentIntentId: String): StripePaymentIntentResult {
+        require(Regex("^pi_[A-Za-z0-9_]+$").matches(paymentIntentId)) {
+            "Invalid Stripe PaymentIntent id"
+        }
+        return postPaymentIntentAction(
+            path = "/v1/payment_intents/$" + "{paymentIntentId}/cancel",
+            idempotencyKey = "qmarket-payment-cancel-v1-$" + "{paymentIntentId}",
+        )
+    }
     private fun baseForm(
         amountMinor: Long,
         currency: String,
@@ -135,6 +144,58 @@ class HttpStripeApiClient(
             id = id,
             status = status,
             clientSecret = clientSecret,
+            rawBody = body,
+        )
+    }
+
+    private fun postPaymentIntentAction(
+        path: String,
+        idempotencyKey: String,
+    ): StripePaymentIntentResult {
+        require(props.secretKey.isNotBlank()) {
+            "qmarket.payment.stripe.secret-key is required when provider=stripe"
+        }
+        val request =
+            HttpRequest
+                .newBuilder()
+                .uri(URI.create("$" + "{props.apiBaseUrl.trimEnd('/')}$" + "{path}"))
+                .timeout(Duration.ofSeconds(30))
+                .header("Authorization", "Bearer $" + "{props.secretKey}")
+                .header("Idempotency-Key", idempotencyKey)
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build()
+        val response =
+            try {
+                httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+            } catch (ex: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw StripeApiException("Stripe request was interrupted", 503, null, ex)
+            } catch (ex: IOException) {
+                throw StripeApiException("Stripe request failed", 503, null, ex)
+            }
+        val body = response.body()
+        val root =
+            try {
+                objectMapper.readTree(body)
+            } catch (_: Exception) {
+                throw StripeApiException("Stripe returned invalid JSON", response.statusCode(), body)
+            }
+        if (response.statusCode() !in 200..299) {
+            val message =
+                root
+                    .path("error")
+                    .path("message")
+                    .asString(null)
+                    ?: "Stripe HTTP $" + "{response.statusCode()}"
+            throw StripeApiException(message, response.statusCode(), body)
+        }
+        val id =
+            root.path("id").asString(null)
+                ?: throw StripeApiException("Stripe response missing id", response.statusCode(), body)
+        return StripePaymentIntentResult(
+            id = id,
+            status = root.path("status").asString("unknown") ?: "unknown",
+            clientSecret = root.path("client_secret").asString(null),
             rawBody = body,
         )
     }
