@@ -205,14 +205,22 @@ class AuthServiceTest {
         every { jwtService.isRefreshToken(claims) } returns true
         every { jwtService.getUserId(claims) } returns userId
         every { jwtService.getJti(claims) } returns jti
-        every { refreshTokenRepository.findByJti(jti) } returns stored
+        every { refreshTokenRepository.findByJti(jti) } returnsMany listOf(stored, stored)
+        every { userRepository.findByIdForUpdate(userId) } returns user
         every { userRepository.findById(userId) } returns Optional.of(user)
 
         val result = authService.refresh(RefreshTokenRequest(refreshToken = "old-refresh"))
 
         assertEquals("access", result.accessToken)
         assertEquals("refresh", result.refreshToken)
-        verify(exactly = 1) { refreshTokenRepository.revokeIfActive(jti, any()) }
+        io.mockk.verifySequence {
+            refreshTokenRepository.findByJti(jti)
+            userRepository.findByIdForUpdate(userId)
+            refreshTokenRepository.findByJti(jti)
+            refreshTokenRepository.revokeIfActive(jti, any())
+            userRepository.findById(userId)
+            refreshTokenRepository.save(any())
+        }
     }
 
     @Test
@@ -295,6 +303,7 @@ class AuthServiceTest {
         every { jwtService.getUserId(any()) } returns userId
         every { jwtService.getJti(any()) } returns jti
         every { refreshTokenRepository.findByJti(jti) } returns stored
+        every { userRepository.findByIdForUpdate(userId) } returns user
         every { refreshTokenRepository.revokeIfActive(jti, any()) } returns 0
 
         assertThrows<UnauthorizedException> {
