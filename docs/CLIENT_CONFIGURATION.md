@@ -38,7 +38,7 @@ If neither is supplied, desktop development falls back to `http://localhost:8080
 
 ## Web
 
-JS and Wasm clients use the current browser origin. Production web deployment should route `/api/*` to the QMarket server through the same HTTPS origin. This avoids a hard-coded backend URL and keeps browser transport same-origin.
+JS and Wasm clients use an optional `window.QMARKET_API_BASE_URL` runtime override and otherwise fall back to the current browser origin. Production web deployment should normally route `/api/*` to the QMarket server through the same HTTPS origin. Local development may set `window.QMARKET_API_BASE_URL` when the UI and API use different ports.
 
 Local browser development can therefore use the development server's origin when the API is exposed through the same origin. Plain HTTP is accepted only for local hosts by the shared validator.
 
@@ -52,3 +52,12 @@ Remote `http://` API endpoints are rejected by `validateApiBaseUrl`. Production 
 - iOS Release was built with `QMARKET_API_BASE_URL=https://...`.
 - Desktop production launcher provides `QMARKET_API_BASE_URL=https://...` or `qmarket.api.base-url=https://...`.
 - Web is served over HTTPS and `/api` is reverse-proxied to the backend on the same origin.
+### Web development override
+
+Before loading `webApp.js`, a deployment may define:
+
+```html
+<script>window.QMARKET_API_BASE_URL = "http://localhost:8080";</script>
+```
+
+This is suitable only for local development; the shared validator rejects remote plain HTTP.
