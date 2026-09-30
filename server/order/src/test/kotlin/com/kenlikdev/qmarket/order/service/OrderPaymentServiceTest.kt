@@ -33,11 +33,12 @@ class OrderPaymentServiceTest {
         notificationService = mockk(relaxed = true)
         paymentGateway = mockk()
         stripeApi = mockk()
-        stripeProperties = StripeProperties(
-            secretKey = "sk_test_key",
-            publishableKey = "pk_test_key",
-            defaultCurrency = "rub",
-        )
+        stripeProperties =
+            StripeProperties(
+                secretKey = "sk_test_key",
+                publishableKey = "pk_test_key",
+                defaultCurrency = "rub",
+            )
         val stripeApiProvider = mockk<ObjectProvider<StripeApiClient>>()
         val stripePropertiesProvider = mockk<ObjectProvider<StripeProperties>>()
         every { stripeApiProvider.ifAvailable } returns stripeApi
