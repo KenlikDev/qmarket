@@ -14,6 +14,7 @@ import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.network.createPlatformHttpClient
 import com.kenlikdev.qmarket.network.createPlatformSessionStore
 import com.kenlikdev.qmarket.network.defaultApiBaseUrl
+import com.kenlikdev.qmarket.network.validateApiBaseUrl
 import com.kenlikdev.qmarket.ui.AddressesScreen
 import com.kenlikdev.qmarket.ui.AdminScreen
 import com.kenlikdev.qmarket.ui.AppScreen
@@ -31,14 +32,14 @@ import com.kenlikdev.qmarket.ui.slugifyProductName
 import com.kenlikdev.qmarket.validation.ClientInputValidation
 
 @Composable
-fun App() {
+fun App(apiBaseUrl: String = defaultApiBaseUrl()) {
     MaterialTheme {
         val sessionStore = remember { createPlatformSessionStore() }
         val tokens = remember { MutableTokenProvider(sessionStore) }
         val http =
             remember {
                 createPlatformHttpClient(
-                    baseUrl = defaultApiBaseUrl(),
+                    baseUrl = validateApiBaseUrl(apiBaseUrl),
                     tokenProvider = tokens,
                 )
             }

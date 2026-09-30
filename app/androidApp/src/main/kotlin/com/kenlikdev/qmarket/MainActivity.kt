@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         initAndroidSessionStore(this)
 
         setContent {
-            App()
+            App(apiBaseUrl = BuildConfig.QMARKET_API_BASE_URL)
         }
     }
 }

@@ -1,5 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+val qmarketApiBaseUrl =
+    providers.gradleProperty("qmarketApiBaseUrl").orElse("http://10.0.2.2:8080").get()
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
@@ -36,8 +39,12 @@ android {
         }
     }
     buildTypes {
+        debug {
+            buildConfigField("String", "QMARKET_API_BASE_URL", "\"$qmarketApiBaseUrl\"")
+        }
         release {
             isMinifyEnabled = false
+            buildConfigField("String", "QMARKET_API_BASE_URL", "\"$qmarketApiBaseUrl\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -50,5 +57,6 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
