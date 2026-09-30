@@ -127,7 +127,7 @@ class ProfileServiceTest {
                 passwordHash = "old-hash",
             ).apply { roles.add(role) }
 
-        every { userRepository.findById(userId) } returns Optional.of(user)
+        every { userRepository.findByIdForUpdate(userId) } returns user
         every { passwordEncoder.matches("wrong", "old-hash") } returns false
 
         assertThrows<UnauthorizedException> {
@@ -147,7 +147,7 @@ class ProfileServiceTest {
                 passwordHash = "old-hash",
             ).apply { roles.add(role) }
 
-        every { userRepository.findById(userId) } returns Optional.of(user)
+        every { userRepository.findByIdForUpdate(userId) } returns user
         every { passwordEncoder.matches("same-pass", "old-hash") } returns true
 
         assertThrows<BadRequestException> {

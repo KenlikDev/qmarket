@@ -178,12 +178,19 @@ class AuthService(
         }
 
         // Atomic consume after the user-row linearization point.
+        val familyId = currentToken.familyId
         val consumed = refreshTokenRepository.revokeIfActive(currentToken.jti, Instant.now())
         if (consumed != 1) {
             throw UnauthorizedException("Refresh token already used")
         }
 
-        return issueTokens(user, familyId = currentToken.familyId)
+        // revokeIfActive() clears the persistence context. Reload the locked user so lazy roles
+        // can be resolved safely when issuing the replacement tokens.
+        val refreshedUser =
+            userRepository.findById(userId)
+                .orElseThrow { UnauthorizedException("User not found") }
+
+        return issueTokens(refreshedUser, familyId = familyId)
     }
 
     /**

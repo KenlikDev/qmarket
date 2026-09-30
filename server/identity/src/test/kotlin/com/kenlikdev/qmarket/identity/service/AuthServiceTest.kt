@@ -216,6 +216,7 @@ class AuthServiceTest {
             userRepository.findByIdForUpdate(userId)
             refreshTokenRepository.findByJti(jti)
             refreshTokenRepository.revokeIfActive(jti, any())
+            userRepository.findById(userId)
         }
     }
 
