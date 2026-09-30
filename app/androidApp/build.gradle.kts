@@ -35,25 +35,38 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    val configuredApiBaseUrl = providers.gradleProperty("qmarketApiBaseUrl")
+    val releaseApiBaseUrl = configuredApiBaseUrl.orElse("https://invalid.qmarket.invalid")
+    val validateReleaseApiBaseUrl =
+        tasks.register("validateReleaseApiBaseUrl") {
+            doLast {
+                val apiBaseUrl =
+                    configuredApiBaseUrl.orNull?.trim()
+                        ?: error("Release Android builds require -PqmarketApiBaseUrl=https://...")
+                require(apiBaseUrl.startsWith("https://")) {
+                    "Release Android API base URL must use HTTPS"
+                }
+            }
+        }
+
     buildTypes {
         debug {
             resValue("string", "qmarket_api_base_url", "http://10.0.2.2:8080")
         }
         release {
             isMinifyEnabled = false
-            val apiBaseUrl =
-                providers.gradleProperty("qmarketApiBaseUrl").orNull?.trim()
-                    ?: error("Release Android builds require -PqmarketApiBaseUrl=https://...")
-            require(apiBaseUrl.startsWith("https://")) {
-                "Release Android API base URL must use HTTPS"
-            }
-            resValue("string", "qmarket_api_base_url", apiBaseUrl)
+            resValue("string", "qmarket_api_base_url", releaseApiBaseUrl.get())
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
     }
+    tasks
+        .matching { it.name == "assembleRelease" || it.name == "bundleRelease" }
+        .configureEach {
+            dependsOn(validateReleaseApiBaseUrl)
+        }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
