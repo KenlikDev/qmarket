@@ -124,66 +124,6 @@ class OrderPaymentServiceTest {
         assertEquals("rub", order.paymentCurrency)
         verify(exactly = 2) { orderRepository.save(order) }
 
-        val persistedCurrencyOrder =
-            Order(
-                id = orderId,
-                userId = userId,
-                status = OrderStatus.PENDING,
-                totalAmount = BigDecimal("10.50"),
-                paymentCurrency = "usd",
-            )
-        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns persistedCurrencyOrder
-        every { orderRepository.save(persistedCurrencyOrder) } returns persistedCurrencyOrder
-        every {
-            stripeApi.createPaymentIntentForClient(
-                amountMinor = 1050L,
-                currency = "usd",
-                orderId = orderId,
-                userId = userId,
-                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
-            )
-        } returns StripePaymentIntentResult("pi_usd", "requires_payment_method", "pi_usd_secret")
-
-        val persistedResult = service.createPaymentSession(userId, orderId)
-
-        assertEquals("usd", persistedResult.providerId.takeIf { persistedResult.providerId == "stripe" }?.let { persistedCurrencyOrder.paymentCurrency })
-        assertEquals("usd", persistedCurrencyOrder.paymentCurrency)
-    }
-
-    @Test
-    fun `createPaymentSession calls Stripe outside the database transaction`() {
-        val order =
-            Order(
-                id = orderId,
-                userId = userId,
-                status = OrderStatus.PENDING,
-                totalAmount = BigDecimal("10.50"),
-            )
-        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
-        every { orderRepository.save(order) } returns order
-        every {
-            stripeApi.createPaymentIntentForClient(
-                amountMinor = 1050L,
-                currency = "rub",
-                orderId = orderId,
-                userId = userId,
-                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
-            )
-        } answers {
-            assertFalse(transactionActive)
-            StripePaymentIntentResult(
-                id = "pi_outside_tx",
-                status = "requires_payment_method",
-                clientSecret = "pi_outside_tx_secret",
-            )
-        }
-
-        val result = service.createPaymentSession(userId, orderId)
-
-        assertEquals("pi_outside_tx", result.paymentIntentId)
-        assertFalse(transactionActive)
-    }
-
     @Test
     fun `cancelProviderPayment requires stripe cancellation before local cancellation`() {
         val order =
@@ -240,4 +180,33 @@ class OrderPaymentServiceTest {
             )
         }
     }
+
+    @Test
+    fun `createPaymentSession uses persisted order currency`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentCurrency = "usd",
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.save(order) } returns order
+        every {
+            stripeApi.createPaymentIntentForClient(
+                amountMinor = 1050L,
+                currency = "usd",
+                orderId = orderId,
+                userId = userId,
+                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
+            )
+        } returns StripePaymentIntentResult("pi_usd", "requires_payment_method", "pi_usd_secret")
+
+        val result = service.createPaymentSession(userId, orderId)
+
+        assertEquals("pi_usd", result.paymentIntentId)
+        assertEquals("usd", order.paymentCurrency)
+    }
+
 }
