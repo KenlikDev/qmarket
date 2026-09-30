@@ -220,7 +220,13 @@ class OrderStatusConcurrencyTest {
         pool.shutdown()
 
         assertEquals(OrderStatus.CANCELLED, orderRepository.findById(UUID.fromString(orderId)).orElseThrow().status)
-        assertEquals(1, cancelOk.get(), "only one cancel should commit")
-        assertTrue(rejected.get() >= 1)
+        assertEquals(2, cancelOk.get(), "both callers may receive the idempotent CANCELLED result")
+        assertEquals(0, rejected.get(), "repeat cancellation should be idempotent")
+        val finalStock =
+            productRepository
+                .findById(UUID.fromString(productId))
+                .orElseThrow()
+                .stockQuantity
+        assertEquals(originalStock, finalStock, "inventory must be restored exactly once")
     }
 }

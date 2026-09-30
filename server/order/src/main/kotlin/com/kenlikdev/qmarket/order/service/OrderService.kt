@@ -4,10 +4,12 @@ import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import com.kenlikdev.qmarket.common.util.Money
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
+import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PageResponse
@@ -220,68 +222,148 @@ class OrderService(
         )
     }
 
-    @Transactional
     fun updateStatus(
         orderId: UUID,
         request: UpdateOrderStatusRequest,
     ): OrderResponse {
-        val order =
-            orderRepository
-                .findByIdForUpdate(orderId)
-                ?: throw NotFoundException("Order not found")
+        if (request.status == OrderStatus.CANCELLED) {
+            return cancelOrder(orderId = orderId, expectedUserId = null)
+        }
 
-        // Validate and apply the local lifecycle transition before any provider call.
-        // This prevents a PAID/SHIPPED order from reaching the provider-cancellation path.
-        val previous = order.status
-        val needsRestock = order.applyAdminStatus(request.status)
-        if (needsRestock) {
-            orderPaymentService.cancelProviderPayment(order)
-            // Snapshot items while session is open (LAZY collection).
-            // Match checkout's deterministic product lock order for restock operations.
-            val lines = order.items.map { it.productId to it.quantity }.sortedBy { it.first }
-            for ((productId, quantity) in lines) {
-                productCatalog.increaseStock(productId, quantity)
-            }
-        }
-        val saved = orderRepository.save(order)
-        if (previous != saved.status) {
-            notificationService.notifyOrderEvent(
-                userId = saved.userId,
-                type = "ORDER_STATUS_${saved.status.name}",
-                title = "Order status updated",
-                body = "Order ${saved.id} is now ${saved.status.name}.",
-                orderId = saved.id,
-            )
-        }
-        return OrderMapper.toResponse(saved)
+        return requireNotNull(
+            transactionTemplate.execute {
+                val order =
+                    orderRepository.findByIdForUpdate(orderId)
+                        ?: throw NotFoundException("Order not found")
+
+                val previous = order.status
+                val needsRestock = order.applyAdminStatus(request.status)
+                check(!needsRestock) { "Cancellation must use the payment-aware cancellation flow" }
+
+                val saved = orderRepository.save(order)
+                if (previous != saved.status) {
+                    notificationService.notifyOrderEvent(
+                        userId = saved.userId,
+                        type = "ORDER_STATUS_${saved.status.name}",
+                        title = "Order status updated",
+                        body = "Order ${saved.id} is now ${saved.status.name}.",
+                        orderId = saved.id,
+                    )
+                }
+                OrderMapper.toResponse(saved)
+            },
+        ) { "Order status transaction returned no result" }
     }
 
-    @Transactional
     fun cancelMyOrder(
         userId: UUID,
         orderId: UUID,
-    ): OrderResponse {
-        val order =
-            orderRepository
-                .findByIdAndUserIdForUpdate(orderId, userId) ?: throw NotFoundException("Order not found")
+    ): OrderResponse = cancelOrder(orderId = orderId, expectedUserId = userId)
 
-        // Validate and apply the local lifecycle transition before any provider call.
-        // If provider cancellation fails, the surrounding transaction remains unchanged.
-        order.cancel()
-        orderPaymentService.cancelProviderPayment(order)
-        // Match checkout's deterministic product lock order for restock operations.
-        for (item in order.items.sortedBy { it.productId }) {
-            productCatalog.increaseStock(item.productId, item.quantity)
+    private fun cancelOrder(
+        orderId: UUID,
+        expectedUserId: UUID?,
+    ): OrderResponse {
+        val planOrCompleted =
+            requireNotNull(
+                transactionTemplate.execute {
+                    val order =
+                        if (expectedUserId != null) {
+                            orderRepository.findByIdAndUserIdForUpdate(orderId, expectedUserId)
+                                ?: throw NotFoundException("Order not found")
+                        } else {
+                            orderRepository.findByIdForUpdate(orderId)
+                                ?: throw NotFoundException("Order not found")
+                        }
+
+                    if (order.status == OrderStatus.CANCELLED) {
+                        return@execute CancellationPlanOrCompleted.Completed(OrderMapper.toResponse(order))
+                    }
+
+                    if (order.status != OrderStatus.PENDING && order.status != OrderStatus.CONFIRMED) {
+                        throw BadRequestException("Only PENDING or CONFIRMED orders can be cancelled")
+                    }
+
+                    order.paymentOperationState = PaymentOperationState.CANCELLING
+                    orderRepository.save(order)
+
+                    CancellationPlanOrCompleted.Plan(
+                        orderId = requireNotNull(order.id),
+                        userId = order.userId,
+                        paymentProvider = order.paymentProvider,
+                        paymentProviderReference = order.paymentProviderReference,
+                        paymentOperationKey = order.paymentOperationKey,
+                        amountMinor = Money.toMinorUnits(order.totalAmount),
+                    )
+                },
+            ) { "Cancellation preparation transaction returned no result" }
+
+        if (planOrCompleted is CancellationPlanOrCompleted.Completed) {
+            return planOrCompleted.response
         }
-        val saved = orderRepository.save(order)
-        notificationService.notifyOrderEvent(
-            userId = userId,
-            type = "ORDER_CANCELLED",
-            title = "Order cancelled",
-            body = "Order ${saved.id} was cancelled. Stock restored where applicable.",
-            orderId = saved.id,
+
+        val plan = planOrCompleted as CancellationPlanOrCompleted.Plan
+        orderPaymentService.cancelProviderPayment(
+            providerId = plan.paymentProvider,
+            providerReference = plan.paymentProviderReference,
+            paymentOperationKey = plan.paymentOperationKey,
+            amountMinor = plan.amountMinor,
+            currency = null,
+            orderId = plan.orderId,
+            userId = plan.userId,
         )
-        return OrderMapper.toResponse(saved)
+
+        return requireNotNull(
+            transactionTemplate.execute {
+                val order =
+                    orderRepository.findByIdForUpdate(plan.orderId)
+                        ?: throw NotFoundException("Order not found")
+
+                when (order.status) {
+                    OrderStatus.CANCELLED -> return@execute OrderMapper.toResponse(order)
+                    OrderStatus.PAID ->
+                        throw BadRequestException("Order was paid before cancellation completed")
+                    OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
+                    OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
+                        throw BadRequestException("Order is already fulfilled")
+                }
+
+                if (order.paymentOperationState != PaymentOperationState.CANCELLING) {
+                    throw BadRequestException("Order payment state changed during cancellation")
+                }
+
+                order.cancel()
+                for (item in order.items.sortedBy { it.productId }) {
+                    productCatalog.increaseStock(item.productId, item.quantity)
+                }
+                order.paymentOperationState = PaymentOperationState.NONE
+
+                val saved = orderRepository.save(order)
+                notificationService.notifyOrderEvent(
+                    userId = saved.userId,
+                    type = "ORDER_CANCELLED",
+                    title = "Order cancelled",
+                    body = "Order ${saved.id} was cancelled. Stock restored where applicable.",
+                    orderId = saved.id,
+                )
+                OrderMapper.toResponse(saved)
+            },
+        ) { "Cancellation finalization transaction returned no result" }
+    }
+
+    private sealed interface CancellationPlanOrCompleted {
+        data class Plan(
+            val orderId: UUID,
+            val userId: UUID,
+            val paymentProvider: String?,
+            val paymentProviderReference: String?,
+            val paymentOperationKey: String?,
+            val amountMinor: Long,
+        ) : CancellationPlanOrCompleted
+
+        data class Completed(
+            val response: OrderResponse,
+        ) : CancellationPlanOrCompleted
     }
 
     fun pay(

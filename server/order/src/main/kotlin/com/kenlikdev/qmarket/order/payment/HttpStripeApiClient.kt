@@ -32,6 +32,7 @@ class HttpStripeApiClient(
         currency: String,
         orderId: UUID,
         userId: UUID,
+        idempotencyKey: String,
     ): StripePaymentIntentResult {
         val form =
             baseForm(amountMinor, currency, orderId, userId) +
@@ -40,7 +41,7 @@ class HttpStripeApiClient(
                 )
         return postPaymentIntent(
             fields = form,
-            idempotencyKey = "qmarket-payment-intent-v1-$orderId",
+            idempotencyKey = idempotencyKey,
         )
     }
 

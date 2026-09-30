@@ -13,6 +13,7 @@ interface StripeApiClient {
         currency: String,
         orderId: UUID,
         userId: UUID,
+        idempotencyKey: String,
     ): StripePaymentIntentResult
 
     /** Cancel a provider PaymentIntent for an order cancellation flow. */

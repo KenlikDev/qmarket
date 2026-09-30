@@ -18,7 +18,13 @@ class StripeApiClientClientSessionTest {
         val orderId = UUID.randomUUID()
         val userId = UUID.randomUUID()
         every {
-            api.createPaymentIntentForClient(1050L, "rub", orderId, userId)
+            api.createPaymentIntentForClient(
+                1050L,
+                "rub",
+                orderId,
+                userId,
+                "test-idempotency-key",
+            )
         } returns
             StripePaymentIntentResult(
                 id = "pi_client",
@@ -26,11 +32,26 @@ class StripeApiClientClientSessionTest {
                 clientSecret = "pi_client_secret_abc",
             )
 
-        val result = api.createPaymentIntentForClient(1050L, "rub", orderId, userId)
+        val result =
+            api.createPaymentIntentForClient(
+                1050L,
+                "rub",
+                orderId,
+                userId,
+                "test-idempotency-key",
+            )
 
         assertEquals("pi_client", result.id)
         assertEquals("pi_client_secret_abc", result.clientSecret)
         assertNotNull(result.clientSecret)
-        verify(exactly = 1) { api.createPaymentIntentForClient(1050L, "rub", orderId, userId) }
+        verify(exactly = 1) {
+            api.createPaymentIntentForClient(
+                1050L,
+                "rub",
+                orderId,
+                userId,
+                "test-idempotency-key",
+            )
+        }
     }
 }
