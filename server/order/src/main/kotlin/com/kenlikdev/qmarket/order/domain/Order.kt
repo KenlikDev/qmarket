@@ -62,6 +62,10 @@ class Order(
     var shippingAddress: String? = null,
     @Column(name = "customer_note", length = 1000)
     var customerNote: String? = null,
+    @Column(name = "payment_provider", length = 32)
+    var paymentProvider: String? = null,
+    @Column(name = "payment_provider_reference", length = 255)
+    var paymentProviderReference: String? = null,
     @OneToMany(
         mappedBy = "order",
         cascade = [CascadeType.ALL],
