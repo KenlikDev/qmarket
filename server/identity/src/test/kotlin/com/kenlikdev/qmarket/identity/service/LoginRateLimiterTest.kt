@@ -122,4 +122,45 @@ class LoginRateLimiterTest {
             lim.assertAllowed("other@test.com", client)
         }
     }
+
+    @Test
+    fun `in flight reservations count toward the limit`() {
+        val lim = limiter(max = 2)
+        val first = lim.beginAttempt("one@test.com", "10.0.0.1")
+        val second = lim.beginAttempt("two@test.com", "10.0.0.1")
+
+        assertThrows<TooManyRequestsException> {
+            lim.beginAttempt("three@test.com", "10.0.0.1")
+        }
+
+        lim.releaseAttempt(first)
+        val fourth = lim.beginAttempt("four@test.com", "10.0.0.1")
+        lim.releaseAttempt(fourth)
+
+        lim.releaseAttempt(second)
+        val third = lim.beginAttempt("five@test.com", "10.0.0.1")
+        lim.releaseAttempt(third)
+    }
+
+    @Test
+    fun `successful attempt clears account failures and releases reservation`() {
+        val lim = limiter(max = 2)
+        lim.recordFailure("user@test.com")
+        val attempt = lim.beginAttempt("user@test.com")
+
+        lim.recordSuccess(attempt, "user@test.com")
+
+        assertDoesNotThrow { lim.assertAllowed("user@test.com") }
+    }
+
+    @Test
+    fun `aborted attempt can be released without becoming a failure`() {
+        val lim = limiter(max = 1)
+        val attempt = lim.beginAttempt("user@test.com")
+
+        lim.releaseAttempt(attempt)
+
+        val next = lim.beginAttempt("user@test.com")
+        lim.releaseAttempt(next)
+    }
 }

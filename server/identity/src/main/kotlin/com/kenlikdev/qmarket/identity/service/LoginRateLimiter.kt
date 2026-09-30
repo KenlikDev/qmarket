@@ -34,6 +34,86 @@ class LoginRateLimiter(
         require(maxKeys > 0) { "qmarket.auth.login-rate-max-keys must be greater than 0" }
     }
 
+    class Attempt internal constructor(
+        internal val keys: List<String>,
+    ) {
+        internal var completed: Boolean = false
+    }
+
+    private val attemptLock = Any()
+    private val inFlight = HashMap<String, Int>()
+
+    /** Atomically reserves one expensive login verification across all limiter keys. */
+    fun beginAttempt(
+        email: String,
+        clientKey: String? = null,
+    ): Attempt =
+        synchronized(attemptLock) {
+            val now = clock.millis()
+            val keys = keysFor(email, clientKey)
+            val queues =
+                keys.map { key ->
+                    failures.computeIfAbsent(key) { ArrayDeque() }.also { pruneDeque(it, now) }
+                }
+            if (keys.indices.any { index ->
+                    queues[index].size + (inFlight[keys[index]] ?: 0) >= maxAttempts
+                }
+            ) {
+                throw TooManyRequestsException(
+                    "Too many failed login attempts; try again later",
+                )
+            }
+            keys.forEach { key -> inFlight[key] = (inFlight[key] ?: 0) + 1 }
+            Attempt(keys)
+        }
+
+    /** Record a failed login and release its in-flight reservation. */
+    fun recordFailure(attempt: Attempt) {
+        synchronized(attemptLock) {
+            if (attempt.completed) return
+            val now = clock.millis()
+            attempt.keys.forEach { key ->
+                val queue = failures.computeIfAbsent(key) { ArrayDeque() }
+                pruneDeque(queue, now)
+                inFlight[key] = ((inFlight[key] ?: 1) - 1).coerceAtLeast(0)
+                if (queue.size < maxAttempts) queue.addLast(now)
+                if (inFlight[key] == 0) inFlight.remove(key)
+            }
+            attempt.completed = true
+            boundMapSize()
+        }
+    }
+
+    /** Record a successful login, releasing its reservation and clearing account failures. */
+    fun recordSuccess(
+        attempt: Attempt,
+        email: String,
+    ) {
+        synchronized(attemptLock) {
+            if (attempt.completed) return
+            attempt.keys.forEach { key ->
+                val remaining = ((inFlight[key] ?: 1) - 1).coerceAtLeast(0)
+                if (remaining == 0) inFlight.remove(key) else inFlight[key] = remaining
+            }
+            failures.remove("email:${email.trim().lowercase()}")
+            attempt.completed = true
+            boundMapSize()
+        }
+    }
+
+    /** Release a reservation when authentication aborts before a result is recorded. */
+    fun releaseAttempt(attempt: Attempt) {
+        synchronized(attemptLock) {
+            if (attempt.completed) return
+            attempt.keys.forEach { key ->
+                val remaining = ((inFlight[key] ?: 1) - 1).coerceAtLeast(0)
+                if (remaining == 0) inFlight.remove(key) else inFlight[key] = remaining
+            }
+            attempt.completed = true
+            boundMapSize()
+        }
+    }
+
     fun assertAllowed(
         email: String,
         clientKey: String? = null,
@@ -115,6 +195,7 @@ class LoginRateLimiter(
         while (iter.hasNext() && failures.size > maxKeys) {
             val e = iter.next()
             val q = e.value
+            if ((inFlight[e.key] ?: 0) > 0) continue
             synchronized(q) {
                 pruneDeque(q, now)
                 if (q.isEmpty()) {
@@ -123,7 +204,11 @@ class LoginRateLimiter(
             }
         }
         while (failures.size > maxKeys) {
-            val key = failures.keys.firstOrNull() ?: break
+            val key =
+                failures.entries
+                    .firstOrNull { (inFlight[it.key] ?: 0) == 0 }
+                    ?.key
+                    ?: break
             failures.remove(key)
         }
     }

@@ -165,18 +165,22 @@ class AuthControllerTest {
     }
 
     @Test
-    fun `POST login passes X-Forwarded-For as clientKey`() {
-        every { authService.login(any(), clientKey = "203.0.113.10") } returns sampleResponse
+    fun `POST login uses direct remote address for clientKey`() {
+        every { authService.login(any(), clientKey = "127.0.0.1") } returns sampleResponse
 
         mockMvc
             .perform(
                 post("/api/v1/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("X-Forwarded-For", "203.0.113.10, 10.0.0.1")
-                    .content("""{"email":"user@test.com","password":"password123"}"""),
+                    .content("""{"email":"user@test.com","password":"password123"}""")
+                    .with { request ->
+                        request.remoteAddr = "127.0.0.1"
+                        request
+                    },
             ).andExpect(status().isOk)
 
-        verify(exactly = 1) { authService.login(any(), clientKey = "203.0.113.10") }
+        verify(exactly = 1) { authService.login(any(), clientKey = "127.0.0.1") }
     }
 
     @Test
