@@ -153,8 +153,6 @@ class OrderPaymentServiceTest {
 
         verify(exactly = 1) { stripeApi.cancelPaymentIntent("pi_test_123") }
     }
-}
-
 
     @Test
     fun `stripe provider rejects mismatched webhook currency`() {
