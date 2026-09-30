@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket.order.repository
 
 import com.kenlikdev.qmarket.order.domain.Order
+import com.kenlikdev.qmarket.order.domain.OrderStatus
 import jakarta.persistence.LockModeType
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable

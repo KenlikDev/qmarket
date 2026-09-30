@@ -206,8 +206,6 @@ class OrderPaymentServiceTest {
         assertEquals("pi_usd", result.paymentIntentId)
         assertEquals("usd", order.paymentCurrency)
     }
-}
-
 
     @Test
     fun `pay rejects an expired unpaid order before calling gateway`() {
