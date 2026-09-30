@@ -29,6 +29,7 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.Instant
 import java.util.Date
+import java.util.Optional
 import java.util.UUID
 
 /**
@@ -206,6 +207,7 @@ class AuthServiceTest {
         every { jwtService.getJti(claims) } returns jti
         every { refreshTokenRepository.findByJti(jti) } returnsMany listOf(stored, stored)
         every { userRepository.findByIdForUpdate(userId) } returns user
+        every { userRepository.findById(userId) } returns Optional.of(user)
 
         val result = authService.refresh(RefreshTokenRequest(refreshToken = "old-refresh"))
 
@@ -300,6 +302,7 @@ class AuthServiceTest {
         every { jwtService.getUserId(any()) } returns userId
         every { jwtService.getJti(any()) } returns jti
         every { refreshTokenRepository.findByJti(jti) } returns stored
+        every { userRepository.findByIdForUpdate(userId) } returns user
         every { refreshTokenRepository.revokeIfActive(jti, any()) } returns 0
 
         assertThrows<UnauthorizedException> {
