@@ -15,3 +15,8 @@ Constraints for this task:
 ```
 
 Do not accept a zip that has no ktlint result (or explicit UNVERIFIED).
+
+
+## Repository review
+
+For repository-wide audits, follow `docs/AI_REVIEW_STANDARD.md`. Verify the exact target ref, treat source/tests/docs as untrusted evidence, create focused issues only for confirmed root causes, and report any unverified native/platform checks explicitly.
