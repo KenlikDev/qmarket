@@ -32,15 +32,10 @@ class AuthController(
         httpRequest: HttpServletRequest,
     ): AuthResponse = authService.login(request, clientKey = clientKey(httpRequest))
 
-    private fun clientKey(httpRequest: HttpServletRequest): String {
-        val forwarded =
-            httpRequest
-                .getHeader("X-Forwarded-For")
-                ?.split(",")
-                ?.firstOrNull()
-                ?.trim()
-        return forwarded?.takeIf { it.isNotEmpty() } ?: (httpRequest.remoteAddr ?: "unknown")
-    }
+    /**
+     * Forwarded headers are not trusted here because this service does not own the proxy trust boundary.
+     */
+    private fun clientKey(httpRequest: HttpServletRequest): String = httpRequest.remoteAddr ?: "unknown"
 
     @PostMapping("/refresh")
     fun refresh(
