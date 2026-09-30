@@ -161,6 +161,7 @@ class OrderPaymentService(
             throw PaymentProviderException(cause = ex)
         }
     }
+
     /**
      * Provider webhook / async capture path: mark order PAID without re-charging.
      * Idempotent when already PAID.
