@@ -4,6 +4,7 @@ import com.kenlikdev.qmarket.catalog.domain.Category
 import com.kenlikdev.qmarket.catalog.domain.Product
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -27,6 +28,7 @@ interface ProductRepository : JpaRepository<Product, UUID> {
 
     fun existsBySku(sku: String): Boolean
 
+    @EntityGraph(attributePaths = ["category"])
     @Query(
         """
         SELECT p FROM Product p

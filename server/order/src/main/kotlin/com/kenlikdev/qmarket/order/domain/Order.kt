@@ -16,6 +16,7 @@ import jakarta.persistence.OneToMany
 import jakarta.persistence.PreUpdate
 import jakarta.persistence.Table
 import jakarta.persistence.Version
+import org.hibernate.annotations.BatchSize
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -79,6 +80,7 @@ class Order(
     var paymentOperationState: PaymentOperationState = PaymentOperationState.NONE,
     @Column(name = "payment_operation_key", length = 255)
     var paymentOperationKey: String? = null,
+    @BatchSize(size = 100)
     @OneToMany(
         mappedBy = "order",
         cascade = [CascadeType.ALL],
