@@ -204,7 +204,11 @@ class LoginRateLimiter(
             }
         }
         while (failures.size > maxKeys) {
-            val key = failures.keys.firstOrNull() ?: break
+            val key =
+                failures.entries
+                    .firstOrNull { (inFlight[it.key] ?: 0) == 0 }
+                    ?.key
+                    ?: break
             failures.remove(key)
         }
     }
