@@ -64,6 +64,8 @@ class Order(
     var status: OrderStatus = OrderStatus.PENDING,
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
     var totalAmount: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "payment_expires_at", nullable = false)
+    var paymentExpiresAt: Instant = Instant.now().plusSeconds(DEFAULT_PAYMENT_WINDOW_SECONDS),
     @Column(name = "shipping_address", length = 500)
     var shippingAddress: String? = null,
     @Column(name = "customer_note", length = 1000)
@@ -98,6 +100,8 @@ class Order(
     fun onUpdate() {
         updatedAt = Instant.now()
     }
+
+    fun isPaymentExpired(now: Instant = Instant.now()): Boolean = paymentExpiresAt <= now
 
     fun cancel() {
         if (status != OrderStatus.PENDING && status != OrderStatus.CONFIRMED) {
@@ -135,6 +139,11 @@ class Order(
                 (status == OrderStatus.PENDING || status == OrderStatus.CONFIRMED)
         status = newStatus
         return restock
+    }
+}
+
+    companion object {
+        const val DEFAULT_PAYMENT_WINDOW_SECONDS: Long = 900
     }
 }
 

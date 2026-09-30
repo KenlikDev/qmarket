@@ -24,6 +24,7 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -36,6 +37,7 @@ class OrderService(
     private val orderPaymentService: OrderPaymentService,
     private val idempotency: OrderIdempotencySupport,
     transactionManager: PlatformTransactionManager,
+    private val paymentExpiryProperties: PaymentExpiryProperties = PaymentExpiryProperties(),
 ) {
     private val transactionTemplate = TransactionTemplate(transactionManager)
 
@@ -100,6 +102,10 @@ class OrderService(
                 status = OrderStatus.PENDING,
                 shippingAddress = shipping,
                 customerNote = request.customerNote?.trim()?.takeIf { it.isNotEmpty() },
+                paymentExpiresAt =
+                    Instant.now().plusSeconds(
+                        paymentExpiryProperties.timeoutSeconds.coerceAtLeast(1),
+                    ),
             )
 
         var total = BigDecimal.ZERO
@@ -236,6 +242,13 @@ class OrderService(
                     orderRepository.findByIdForUpdate(orderId)
                         ?: throw NotFoundException("Order not found")
 
+                if (order.status != OrderStatus.CANCELLED &&
+                    order.status != OrderStatus.PAID &&
+                    order.isPaymentExpired()
+                ) {
+                    throw BadRequestException("Payment window has expired; cancel the order")
+                }
+
                 val previous = order.status
                 val needsRestock = order.applyAdminStatus(request.status)
                 check(!needsRestock) { "Cancellation must use the payment-aware cancellation flow" }
@@ -259,6 +272,9 @@ class OrderService(
         userId: UUID,
         orderId: UUID,
     ): OrderResponse = cancelOrder(orderId = orderId, expectedUserId = userId)
+
+    fun expireUnpaidOrder(orderId: UUID): OrderResponse =
+        cancelOrder(orderId = orderId, expectedUserId = null)
 
     private fun cancelOrder(
         orderId: UUID,

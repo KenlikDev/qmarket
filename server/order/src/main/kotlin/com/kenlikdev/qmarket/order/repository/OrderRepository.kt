@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.time.Instant
 import java.util.UUID
 
 interface OrderRepository : JpaRepository<Order, UUID> {
@@ -34,6 +35,21 @@ interface OrderRepository : JpaRepository<Order, UUID> {
     fun findByIdForUpdate(
         @Param("orderId") id: UUID,
     ): Order?
+
+    @Query(
+        """
+        select o.id
+        from Order o
+        where o.status in :statuses
+          and o.paymentExpiresAt <= :now
+        order by o.paymentExpiresAt asc, o.id asc
+        """,
+    )
+    fun findExpiredUnpaidOrderIds(
+        @Param("statuses") statuses: Set<OrderStatus>,
+        @Param("now") now: Instant,
+        pageable: Pageable,
+    ): List<UUID>
 
     /**
      * Order + items in one select (safe when mapping outside an open persistence context).

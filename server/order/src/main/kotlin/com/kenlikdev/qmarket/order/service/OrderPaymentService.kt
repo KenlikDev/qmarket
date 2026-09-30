@@ -58,6 +58,9 @@ class OrderPaymentService(
             OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
                 throw BadRequestException("Order is already fulfilled")
         }
+        if (order.isPaymentExpired()) {
+            throw BadRequestException("Payment window has expired; cancel the order")
+        }
 
         val charge =
             paymentGateway.charge(
@@ -107,6 +110,9 @@ class OrderPaymentService(
                         orderRepository.findByIdAndUserIdForUpdate(orderId, userId)
                             ?: throw NotFoundException("Order not found")
                     validatePayableStatus(order.status)
+                    if (order.isPaymentExpired()) {
+                        throw BadRequestException("Payment window has expired; cancel the order")
+                    }
                     if (order.totalAmount <= BigDecimal.ZERO) {
                         throw BadRequestException("Amount must be positive")
                     }

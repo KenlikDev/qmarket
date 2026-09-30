@@ -207,3 +207,23 @@ class OrderPaymentServiceTest {
         assertEquals("usd", order.paymentCurrency)
     }
 }
+
+
+    @Test
+    fun `pay rejects an expired unpaid order before calling gateway`() {
+        val expiredOrder =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentExpiresAt = java.time.Instant.now().minusSeconds(1),
+            )
+        every { orderRepository.findByIdAndUserId(orderId, userId) } returns expiredOrder
+
+        assertThrows(BadRequestException::class.java) {
+            service.pay(userId, orderId)
+        }
+
+        verify(exactly = 0) { paymentGateway.charge(any(), any(), any(), any()) }
+    }

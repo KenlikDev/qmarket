@@ -62,6 +62,14 @@ logging:
     org.hibernate.SQL: WARN
 
 qmarket:
+  order:
+    payment-expiry:
+      # Reservation is created at checkout and released after the payment window.
+      enabled: ${QMARKET_PAYMENT_EXPIRY_ENABLED:true}
+      timeout-seconds: ${QMARKET_PAYMENT_EXPIRY_TIMEOUT_SECONDS:900}
+      poll-interval-ms: ${QMARKET_PAYMENT_EXPIRY_POLL_INTERVAL_MS:60000}
+      initial-delay-ms: ${QMARKET_PAYMENT_EXPIRY_INITIAL_DELAY_MS:15000}
+      batch-size: ${QMARKET_PAYMENT_EXPIRY_BATCH_SIZE:100}
   payment:
     # mock (default) | stripe
     provider: ${QMARKET_PAYMENT_PROVIDER:mock}
