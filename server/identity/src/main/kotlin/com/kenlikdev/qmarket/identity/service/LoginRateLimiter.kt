@@ -34,7 +34,6 @@ class LoginRateLimiter(
         require(maxKeys > 0) { "qmarket.auth.login-rate-max-keys must be greater than 0" }
     }
 
-
     class Attempt internal constructor(
         internal val keys: List<String>,
     ) {
@@ -52,9 +51,10 @@ class LoginRateLimiter(
         synchronized(attemptLock) {
             val now = clock.millis()
             val keys = keysFor(email, clientKey)
-            val queues = keys.map { key ->
-                failures.computeIfAbsent(key) { ArrayDeque() }.also { pruneDeque(it, now) }
-            }
+            val queues =
+                keys.map { key ->
+                    failures.computeIfAbsent(key) { ArrayDeque() }.also { pruneDeque(it, now) }
+                }
             if (keys.indices.any { index ->
                     queues[index].size + (inFlight[keys[index]] ?: 0) >= maxAttempts
                 }
@@ -113,6 +113,7 @@ class LoginRateLimiter(
             boundMapSize()
         }
     }
+
     fun assertAllowed(
         email: String,
         clientKey: String? = null,
