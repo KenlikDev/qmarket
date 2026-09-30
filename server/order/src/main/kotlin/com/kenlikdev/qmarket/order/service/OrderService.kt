@@ -227,15 +227,18 @@ class OrderService(
     ): OrderResponse {
         val order =
             orderRepository
-                .findById(orderId)
-                .orElseThrow { NotFoundException("Order not found") }
+                .findByIdForUpdate(orderId)
+                ?: throw NotFoundException("Order not found")
 
-        // Snapshot items while session is open (LAZY collection)
-        // Match checkout's deterministic product lock order for restock operations.
-        val lines = order.items.map { it.productId to it.quantity }.sortedBy { it.first }
+        // Validate and apply the local lifecycle transition before any provider call.
+        // This prevents a PAID/SHIPPED order from reaching the provider-cancellation path.
         val previous = order.status
         val needsRestock = order.applyAdminStatus(request.status)
         if (needsRestock) {
+            orderPaymentService.cancelProviderPayment(order)
+            // Snapshot items while session is open (LAZY collection).
+            // Match checkout's deterministic product lock order for restock operations.
+            val lines = order.items.map { it.productId to it.quantity }.sortedBy { it.first }
             for ((productId, quantity) in lines) {
                 productCatalog.increaseStock(productId, quantity)
             }
@@ -260,10 +263,12 @@ class OrderService(
     ): OrderResponse {
         val order =
             orderRepository
-                .findByIdAndUserId(orderId, userId) ?: throw NotFoundException("Order not found")
+                .findByIdAndUserIdForUpdate(orderId, userId) ?: throw NotFoundException("Order not found")
 
-        // Status transition first (fails fast if already cancelled / paid)
+        // Validate and apply the local lifecycle transition before any provider call.
+        // If provider cancellation fails, the surrounding transaction remains unchanged.
         order.cancel()
+        orderPaymentService.cancelProviderPayment(order)
         // Match checkout's deterministic product lock order for restock operations.
         for (item in order.items.sortedBy { it.productId }) {
             productCatalog.increaseStock(item.productId, item.quantity)

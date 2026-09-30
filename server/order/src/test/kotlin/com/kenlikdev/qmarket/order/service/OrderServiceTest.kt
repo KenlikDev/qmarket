@@ -26,6 +26,7 @@ import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.spyk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -48,6 +49,7 @@ class OrderServiceTest {
     private lateinit var orderService: OrderService
     private lateinit var notificationService: NotificationService
     private lateinit var paymentGateway: PaymentGateway
+    private lateinit var orderPaymentService: OrderPaymentService
     private lateinit var idempotency: OrderIdempotencySupport
 
     private val userId = UUID.randomUUID()
@@ -90,14 +92,17 @@ class OrderServiceTest {
         every { stripeApiClient.getIfAvailable() } returns null
         val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
         every { stripeProperties.getIfAvailable() } returns null
-        val orderPaymentService =
-            OrderPaymentService(
-                orderRepository,
-                notificationService,
-                paymentGateway,
-                stripeApiClient,
-                stripeProperties,
+        orderPaymentService =
+            spyk(
+                OrderPaymentService(
+                    orderRepository,
+                    notificationService,
+                    paymentGateway,
+                    stripeApiClient,
+                    stripeProperties,
+                ),
             )
+        every { orderPaymentService.cancelProviderPayment(any()) } just Runs
         val idempotency =
             OrderIdempotencySupport(
                 orderRepository,
@@ -227,7 +232,7 @@ class OrderServiceTest {
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findById(order.id!!) } returns Optional.of(order)
+        every { orderRepository.findByIdForUpdate(order.id!!) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
         val result =
@@ -249,7 +254,7 @@ class OrderServiceTest {
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findById(orderId) } returns Optional.of(order)
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
 
         assertThrows<BadRequestException> {
             orderService.updateStatus(
@@ -355,6 +360,59 @@ class OrderServiceTest {
     }
 
     @Test
+    fun `admin cancellation invokes provider cancellation after local transition validation`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+            ).apply {
+                items.add(
+                    OrderItem(
+                        order = this,
+                        productId = productId,
+                        productName = "Headphones",
+                        productSlug = "headphones",
+                        unitPrice = BigDecimal("50.00"),
+                        quantity = 1,
+                        lineTotal = BigDecimal("50.00"),
+                    ),
+                )
+            }
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
+        every { productCatalog.increaseStock(productId, 1) } returns Unit
+
+        orderService.updateStatus(
+            orderId,
+            UpdateOrderStatusRequest(OrderStatus.CANCELLED),
+        )
+
+        verify(exactly = 1) { orderPaymentService.cancelProviderPayment(order) }
+    }
+
+    @Test
+    fun `user cancellation rejects paid order before provider cancellation`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PAID,
+                totalAmount = BigDecimal.TEN,
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+
+        assertThrows<BadRequestException> {
+            orderService.cancelMyOrder(userId, orderId)
+        }
+
+        verify(exactly = 0) { orderPaymentService.cancelProviderPayment(any()) }
+    }
+
+    @Test
     fun `admin cancel restocks inventory`() {
         val orderId = UUID.randomUUID()
         val order =
@@ -376,7 +434,7 @@ class OrderServiceTest {
                     ),
                 )
             }
-        every { orderRepository.findById(orderId) } returns Optional.of(order)
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 2) } returns Unit
 
@@ -400,7 +458,7 @@ class OrderServiceTest {
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findById(orderId) } returns Optional.of(order)
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
 
         assertThrows<BadRequestException> {
             orderService.updateStatus(
@@ -433,7 +491,7 @@ class OrderServiceTest {
                     ),
                 )
             }
-        every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 1) } returns Unit
 
@@ -541,7 +599,7 @@ class OrderServiceTest {
                 status = OrderStatus.PAID,
                 totalAmount = BigDecimal("10.00"),
             )
-        every { orderRepository.findById(orderId) } returns Optional.of(order)
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
         orderService.updateStatus(orderId, UpdateOrderStatusRequest(status = OrderStatus.SHIPPED))

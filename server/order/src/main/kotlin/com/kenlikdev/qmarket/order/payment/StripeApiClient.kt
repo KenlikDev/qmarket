@@ -14,6 +14,9 @@ interface StripeApiClient {
         orderId: UUID,
         userId: UUID,
     ): StripePaymentIntentResult
+
+    /** Cancel a provider PaymentIntent for an order cancellation flow. */
+    fun cancelPaymentIntent(paymentIntentId: String): StripePaymentIntentResult
 }
 
 data class StripePaymentIntentResult(
