@@ -327,8 +327,8 @@ class OrderPaymentService(
      * Idempotent when already PAID.
      *
      * When [amountMinor] is provided (Stripe PaymentIntent.amount in minor units),
-     * it must match [Order.totalAmount] converted with scale 2. Optional [currency]
-     * must be a 3-letter code when present (orders have no stored currency column yet).
+     * it must match [Order.totalAmount] converted with scale 2. Stripe [currency]
+     * must exactly match the order's persisted payment currency.
      */
     @Transactional
     fun markPaidFromProvider(
