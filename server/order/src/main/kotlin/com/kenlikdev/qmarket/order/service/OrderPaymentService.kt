@@ -19,6 +19,7 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -119,7 +120,15 @@ class OrderPaymentService(
                     val operationKey =
                         order.paymentOperationKey
                             ?: "qmarket-payment-intent-v2-$orderId"
+                    val currency =
+                        (order.paymentCurrency ?: stripeProps.defaultCurrency)
+                            .trim()
+                            .lowercase(Locale.ROOT)
+                    require(currency.matches(Regex("^[a-z]{3}$"))) {
+                        "Order payment currency is invalid"
+                    }
                     order.paymentProvider = "stripe"
+                    order.paymentCurrency = currency
                     order.paymentOperationKey = operationKey
                     order.paymentOperationState = PaymentOperationState.CREATING
                     orderRepository.save(order)
@@ -128,7 +137,7 @@ class OrderPaymentService(
                         orderId = orderId,
                         userId = userId,
                         amountMinor = Money.toMinorUnits(order.totalAmount),
-                        currency = stripeProps.defaultCurrency,
+                        currency = currency,
                         idempotencyKey = operationKey,
                     )
                 },
@@ -360,9 +369,21 @@ class OrderPaymentService(
                 )
             }
         }
-        if (!currency.isNullOrBlank()) {
-            val normalized = currency.lowercase()
-            if (normalized.length != 3) {
+        if (providerId == "stripe") {
+            val expectedCurrency =
+                order.paymentCurrency?.trim()?.lowercase(Locale.ROOT)
+                    ?: throw BadRequestException("Order payment currency is missing")
+            val normalizedCurrency =
+                currency?.trim()?.lowercase(Locale.ROOT)
+                    ?: throw BadRequestException("Provider payment currency is missing")
+            if (normalizedCurrency != expectedCurrency) {
+                throw BadRequestException(
+                    "Payment currency mismatch for order $orderId: expected $expectedCurrency, received $normalizedCurrency",
+                )
+            }
+        } else if (!currency.isNullOrBlank()) {
+            val normalized = currency.trim().lowercase(Locale.ROOT)
+            if (!normalized.matches(Regex("^[a-z]{3}$"))) {
                 throw BadRequestException("Invalid provider currency: $currency")
             }
         }

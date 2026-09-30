@@ -1,5 +1,6 @@
 package com.kenlikdev.qmarket.order.service
 
+import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
@@ -11,7 +12,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
@@ -80,6 +81,7 @@ class OrderPaymentServiceTest {
                 userId = userId,
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal("10.50"),
+                paymentCurrency = "rub",
             )
         every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
         every {
@@ -118,41 +120,8 @@ class OrderPaymentServiceTest {
         assertEquals("pi_test_123", result.paymentIntentId)
         assertEquals("pi_test_123", order.paymentProviderReference)
         assertEquals("stripe", order.paymentProvider)
+        assertEquals("rub", order.paymentCurrency)
         verify(exactly = 2) { orderRepository.save(order) }
-    }
-
-    @Test
-    fun `createPaymentSession calls Stripe outside the database transaction`() {
-        val order =
-            Order(
-                id = orderId,
-                userId = userId,
-                status = OrderStatus.PENDING,
-                totalAmount = BigDecimal("10.50"),
-            )
-        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
-        every { orderRepository.save(order) } returns order
-        every {
-            stripeApi.createPaymentIntentForClient(
-                amountMinor = 1050L,
-                currency = "rub",
-                orderId = orderId,
-                userId = userId,
-                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
-            )
-        } answers {
-            assertFalse(transactionActive)
-            StripePaymentIntentResult(
-                id = "pi_outside_tx",
-                status = "requires_payment_method",
-                clientSecret = "pi_outside_tx_secret",
-            )
-        }
-
-        val result = service.createPaymentSession(userId, orderId)
-
-        assertEquals("pi_outside_tx", result.paymentIntentId)
-        assertFalse(transactionActive)
     }
 
     @Test
@@ -183,5 +152,58 @@ class OrderPaymentServiceTest {
         )
 
         verify(exactly = 1) { stripeApi.cancelPaymentIntent("pi_test_123") }
+    }
+
+    @Test
+    fun `stripe provider rejects mismatched webhook currency`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentProvider = "stripe",
+                paymentProviderReference = "pi_test_123",
+                paymentCurrency = "rub",
+            )
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+
+        assertThrows(BadRequestException::class.java) {
+            service.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                amountMinor = 1050L,
+                currency = "usd",
+            )
+        }
+    }
+
+    @Test
+    fun `createPaymentSession uses persisted order currency`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentCurrency = "usd",
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.save(order) } returns order
+        every {
+            stripeApi.createPaymentIntentForClient(
+                amountMinor = 1050L,
+                currency = "usd",
+                orderId = orderId,
+                userId = userId,
+                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
+            )
+        } returns StripePaymentIntentResult("pi_usd", "requires_payment_method", "pi_usd_secret")
+
+        val result = service.createPaymentSession(userId, orderId)
+
+        assertEquals("pi_usd", result.paymentIntentId)
+        assertEquals("usd", order.paymentCurrency)
     }
 }

@@ -199,12 +199,9 @@ class StripeWebhookService(
         val currency =
             paymentIntent.currency?.trim()?.lowercase()
                 ?: throw BadRequestException("Stripe PaymentIntent currency is missing")
-        val expectedCurrency = props.defaultCurrency.trim().lowercase()
-        if (expectedCurrency.isNotEmpty() && currency != expectedCurrency) {
-            throw BadRequestException(
-                "Stripe PaymentIntent currency mismatch: expected $expectedCurrency, received $currency",
-            )
-        }
+        // Currency reconciliation is performed against the order's persisted payment currency
+        // in OrderPaymentService. Do not compare with the current global default here: configuration
+        // may change between PaymentIntent creation and webhook delivery.
 
         orderService.markPaidFromProvider(
             orderId = orderId,
