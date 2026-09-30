@@ -72,6 +72,8 @@ class Order(
     var paymentProvider: String? = null,
     @Column(name = "payment_provider_reference", length = 255)
     var paymentProviderReference: String? = null,
+    @Column(name = "payment_currency", length = 3)
+    var paymentCurrency: String? = null,
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_operation_state", nullable = false, length = 32)
     var paymentOperationState: PaymentOperationState = PaymentOperationState.NONE,

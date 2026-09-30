@@ -292,6 +292,7 @@ class OrderService(
                         userId = order.userId,
                         paymentProvider = order.paymentProvider,
                         paymentProviderReference = order.paymentProviderReference,
+                        paymentCurrency = order.paymentCurrency,
                         paymentOperationKey = order.paymentOperationKey,
                         amountMinor = Money.toMinorUnits(order.totalAmount),
                     )
@@ -308,7 +309,7 @@ class OrderService(
             providerReference = plan.paymentProviderReference,
             paymentOperationKey = plan.paymentOperationKey,
             amountMinor = plan.amountMinor,
-            currency = null,
+            currency = plan.paymentCurrency,
             orderId = plan.orderId,
             userId = plan.userId,
         )
@@ -357,6 +358,7 @@ class OrderService(
             val userId: UUID,
             val paymentProvider: String?,
             val paymentProviderReference: String?,
+            val paymentCurrency: String?,
             val paymentOperationKey: String?,
             val amountMinor: Long,
         ) : CancellationPlanOrCompleted
