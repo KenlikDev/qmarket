@@ -140,7 +140,6 @@ class Order(
         status = newStatus
         return restock
     }
-}
 
     companion object {
         const val DEFAULT_PAYMENT_WINDOW_SECONDS: Long = 900
