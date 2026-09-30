@@ -181,7 +181,11 @@ class QMarketApiClientTest {
                                   "status": 401,
                                   "error": "Unauthorized",
                                   "code": "AUTH_FAILED",
-                                  "message": "Bad credentials"
+                                  "message": "Bad credentials",
+                                  "details": [
+                                    {"field":"email","message":"must be a valid email"},
+                                    {"field":"password","message":"must not be blank"}
+                                  ]
                                 }
                                 """.trimIndent(),
                             ),
@@ -198,6 +202,9 @@ class QMarketApiClientTest {
                     }
                 assertEquals(401, ex.status)
                 assertEquals("Bad credentials", ex.message)
+                assertEquals(2, ex.body?.details?.size)
+                assertEquals("email", ex.body?.details?.get(0)?.field)
+                assertEquals("must not be blank", ex.body?.details?.get(1)?.message)
             } finally {
                 client.close()
             }
