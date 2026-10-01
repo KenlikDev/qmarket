@@ -15,7 +15,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Seed admin + demo catalog | ✅ |
 | Unit / controller / integration tests | ✅ |
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
-| Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V12, app: `validate`, tests: Flyway |
+| Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V17, app: `validate`, tests: Flyway |
 | Payments | ✅ mock locally; Stripe PaymentIntent + webhook path available |
 | Profile (GET/PATCH /users/me) | ✅ |
 | Shipping addresses | ✅ |
@@ -25,7 +25,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart/orders; Bearer + refresh on 401 |
 | Clients UI | ✅ screens in `app/shared/.../ui/`; `App.kt` composition root |
 | Session persistence | ✅ platform SessionStore (Android EncryptedSharedPreferences / iOS Keychain / JVM file / JS localStorage; Wasm in-memory) |
-| Compose UI tests (JVM) | ✅ Login / Register / Catalog / Cart |
+| Compose UI tests (JVM) | ✅ shopper/admin screen coverage |
 | Stock concurrency | ✅ atomic UPDATE + IT |
 
 ## Quick start
@@ -124,7 +124,7 @@ Android emulator API host: `10.0.2.2:8080`
   Demo admin: `admin@qmarket.local` / `admin123`
 - CORS: `CORS_ORIGINS` / `qmarket.security.cors.allowed-origin-patterns`
 - Stock: atomic `UPDATE … WHERE stock >= qty` with database-side concurrency control
-- Database: V12 restores foreign-key integrity for carts, orders, refresh tokens, notifications, and product references.
+- Database: V12 restores referential integrity; V13–V17 add Google subject persistence, user optimistic locking, payment provider/reference state, durable payment-operation state, and payment currency.
 
 ### Tests and quality (full project)
 
