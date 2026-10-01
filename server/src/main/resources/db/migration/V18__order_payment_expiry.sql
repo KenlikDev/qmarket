@@ -11,6 +11,7 @@ ALTER TABLE orders
     ALTER COLUMN payment_expires_at SET NOT NULL;
 
 ALTER TABLE orders
+    ADD COLUMN payment_operation_id UUID,
     ADD COLUMN payment_operation_started_at TIMESTAMPTZ;
 
 CREATE INDEX idx_orders_payment_expiry_due
