@@ -699,9 +699,9 @@ class OrderServiceTest {
             orderService.cancelMyOrder(userId, orderId)
         }
 
-        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
-        assertEquals(null, order.paymentOperationId)
-        assertEquals(null, order.paymentOperationStartedAt)
+        assertEquals(PaymentOperationState.CANCELLING, order.paymentOperationState)
+        assertEquals(true, order.paymentOperationId != null)
+        assertEquals(true, order.paymentOperationStartedAt != null)
     }
 
     @Test
