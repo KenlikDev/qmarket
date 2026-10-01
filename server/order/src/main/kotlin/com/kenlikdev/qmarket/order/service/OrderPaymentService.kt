@@ -366,6 +366,12 @@ class OrderPaymentService(
             }
 
         val current = retrieve()
+        validateProviderIntent(
+            intent = current,
+            expectedId = intentId,
+            expectedAmountMinor = amountMinor,
+            expectedCurrency = currency,
+        )
         when (current.status) {
             "canceled" -> return current
             "succeeded" -> return current
@@ -373,7 +379,13 @@ class OrderPaymentService(
 
         try {
             val result = stripeApi.cancelPaymentIntent(intentId)
-            if (result.status == "canceled") return result
+            validateProviderIntent(
+                intent = result,
+                expectedId = intentId,
+                expectedAmountMinor = amountMinor,
+                expectedCurrency = currency,
+            )
+            if (result.status == "canceled" || result.status == "succeeded") return result
         } catch (ex: StripeApiException) {
             val reconciled =
                 try {
@@ -400,6 +412,48 @@ class OrderPaymentService(
         }
     }
 
+    private fun validateProviderIntent(
+        intent: StripePaymentIntentResult,
+        expectedId: String,
+        expectedAmountMinor: Long?,
+        expectedCurrency: String?,
+    ) {
+        if (intent.id != expectedId) {
+            throw PaymentProviderException(
+                cause = IllegalStateException(
+                    "Stripe PaymentIntent reference mismatch: expected $expectedId, received ${intent.id}",
+                ),
+            )
+        }
+        if (expectedAmountMinor != null) {
+            val providerAmount =
+                intent.amountMinor
+                    ?: throw PaymentProviderException(
+                        cause = IllegalStateException("Stripe PaymentIntent amount is missing during reconciliation"),
+                    )
+            if (providerAmount != expectedAmountMinor) {
+                throw PaymentProviderException(
+                    cause = IllegalStateException(
+                        "Stripe PaymentIntent amount mismatch: expected $expectedAmountMinor, received $providerAmount",
+                    ),
+                )
+            }
+        }
+        if (expectedCurrency != null) {
+            val providerCurrency =
+                intent.currency?.trim()?.lowercase(Locale.ROOT)
+                    ?: throw PaymentProviderException(
+                        cause = IllegalStateException("Stripe PaymentIntent currency is missing during reconciliation"),
+                    )
+            if (providerCurrency != expectedCurrency.trim().lowercase(Locale.ROOT)) {
+                throw PaymentProviderException(
+                    cause = IllegalStateException(
+                        "Stripe PaymentIntent currency mismatch: expected ${expectedCurrency.trim().lowercase(Locale.ROOT)}, received $providerCurrency",
+                    ),
+                )
+            }
+        }
+    }
     private fun resetFailedPaymentOperation(plan: PaymentSessionPlan) {
         transactionTemplate.execute {
             val order = orderRepository.findByIdAndUserIdForUpdate(plan.orderId, plan.userId) ?: return@execute
