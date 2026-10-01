@@ -2,9 +2,21 @@
 
 ## What runs in CI / local
 
+Local baseline:
+
 ```bash
 ./gradlew test ktlintCheck --parallel
 ```
+
+CI additionally runs:
+
+```bash
+./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
+./gradlew :server:order:jacocoTestCoverageVerification :server:identity:jacocoTestCoverageVerification --parallel --no-daemon
+./gradlew :app:shared:compileKotlinIosSimulatorArm64 --no-daemon
+```
+
+Secret scanning is also required by the protected-branch ruleset.
 
 | Layer | Where | What it proves |
 |-------|--------|----------------|
@@ -29,9 +41,10 @@
 
 ## UI / multi-device
 
-1. **Now**: pure logic tests + API client tests + **Compose UI tests on JVM** (`./gradlew :app:shared:jvmTest`).
-2. **Next**: Android instrumented Compose tests / more screen coverage (Profile, Orders, Addresses).
-3. **Later**: screenshot tests (Roborazzi), Maestro/Appium for E2E on devices.
+1. **Current**: JVM logic/API/Compose tests (`./gradlew :app:shared:jvmTest`).
+2. **Current CI platform verification**: iOS simulator native compilation.
+3. **Next**: Android instrumented Compose tests and broader device runtime coverage.
+4. **Later**: screenshot tests and full E2E on devices.
 
 ## Manual smoke (when UI changes)
 

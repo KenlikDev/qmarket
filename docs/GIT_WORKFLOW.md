@@ -79,7 +79,7 @@ For ai/integration, require pull requests as above so AI work is still auditable
 
 ## Merge strategy
 
-Because the repository disables merge commits and the protected branches require linear history, protected-branch merges are effectively squash or rebase. Keep the repository setting and ruleset consistent with that policy.
+Because the repository disables merge commits and the protected branches require linear history, protected-branch merges are effectively squash or rebase. Keep the repository setting and ruleset consistent with that policy. Observed configuration drift: the current main ruleset still advertises the merge method even though repository-level merge commits are disabled; this must be corrected in GitHub Rulesets.
 
 Prefer squash merges for temporary work PRs.
 
@@ -120,8 +120,7 @@ Enable:
 
 **Settings → General → Pull Requests → Automatically delete head branches**
 
-GitHub can automatically remove merged temporary branches. This does not replace cleanup of already-existing stale branches. GitHub documents this setting here:
-https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-the-automatic-deletion-of-branches
+GitHub can automatically remove merged temporary branches. This does not replace cleanup of already-existing stale branches.
 
 ## Branch cleanup policy
 
@@ -147,10 +146,11 @@ After the GitHub UI changes:
 
 1. Open Settings → Rules → Rulesets or Settings → Branches and verify the three branch policies.
 2. Confirm main, develop, and ai/integration are covered by protection/rulesets.
-3. Open a test PR into develop and verify test + secret-scan are required.
+3. Confirm test + secret-scan are required on all three protected branches; confirm ios-native-check is either required or explicitly advisory.
 4. Verify direct pushes to main and develop are rejected.
 5. Verify a temporary PR can be merged into ai/integration after required checks pass.
 6. Verify merged temporary branches are automatically deleted.
+7. Correct the main ruleset so it does not advertise merge commits while repository-level merge commits are disabled.
 
 GitHub rulesets can target branch patterns and require PRs, status checks, review rules, update/deletion restrictions, and bypass actors.
 
