@@ -136,6 +136,7 @@ class OrderServiceTest {
                 orderPaymentService,
                 idempotency,
                 transactionManager,
+                PaymentExpiryProperties(),
             )
         // expose for fingerprint assertions in idempotency tests
         this.idempotency = idempotency
