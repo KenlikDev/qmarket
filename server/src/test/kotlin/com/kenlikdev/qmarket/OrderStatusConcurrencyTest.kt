@@ -3,6 +3,7 @@ package com.kenlikdev.qmarket
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.order.domain.OrderStatus
+import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import com.kenlikdev.qmarket.order.service.OrderService
 import com.kenlikdev.qmarket.support.TestJson
@@ -173,7 +174,7 @@ class OrderStatusConcurrencyTest {
         assertEquals(1, payOk.get() + cancelOk.get(), "exactly one transition should commit")
         assertTrue(rejected.get() >= 1, "loser should be rejected")
         assertEquals(
-            com.kenlikdev.qmarket.order.domain.PaymentOperationState.NONE,
+            PaymentOperationState.NONE,
             finalOrder.paymentOperationState,
             "terminal orders must not retain an in-flight payment operation",
         )
