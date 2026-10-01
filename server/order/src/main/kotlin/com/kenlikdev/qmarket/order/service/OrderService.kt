@@ -279,6 +279,44 @@ class OrderService(
     fun expireUnpaidOrder(orderId: UUID): OrderResponse =
         cancelOrder(orderId = orderId, expectedUserId = null)
 
+    fun recoverStalePaymentOperation(orderId: UUID): OrderResponse? {
+        val snapshot =
+            transactionTemplate.execute {
+                orderRepository.findByIdForUpdate(orderId)?.let { order ->
+                    PaymentRecoverySnapshot(
+                        userId = order.userId,
+                        status = order.status,
+                        operationState = order.paymentOperationState,
+                        paymentExpired = order.isPaymentExpired(),
+                    )
+                }
+            } ?: return null
+
+        return when {
+            snapshot.status == OrderStatus.PAID || snapshot.status == OrderStatus.CANCELLED ->
+                getMyOrder(snapshot.userId, orderId)
+            snapshot.operationState == PaymentOperationState.CANCELLING ->
+                cancelOrder(orderId = orderId, expectedUserId = null)
+            snapshot.operationState == PaymentOperationState.CREATING && snapshot.paymentExpired ->
+                cancelOrder(orderId = orderId, expectedUserId = null)
+            snapshot.operationState == PaymentOperationState.CREATING -> {
+                createPaymentSession(snapshot.userId, orderId)
+                getMyOrder(snapshot.userId, orderId)
+            }
+            snapshot.paymentExpired ->
+                cancelOrder(orderId = orderId, expectedUserId = null)
+            else ->
+                getMyOrder(snapshot.userId, orderId)
+        }
+    }
+
+    private data class PaymentRecoverySnapshot(
+        val userId: UUID,
+        val status: OrderStatus,
+        val operationState: PaymentOperationState,
+        val paymentExpired: Boolean,
+    )
+
     private fun cancelOrder(
         orderId: UUID,
         expectedUserId: UUID?,
