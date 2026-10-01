@@ -37,7 +37,7 @@ class OrderService(
     private val orderPaymentService: OrderPaymentService,
     private val idempotency: OrderIdempotencySupport,
     transactionManager: PlatformTransactionManager,
-    private val paymentExpiryProperties: PaymentExpiryProperties = PaymentExpiryProperties(),
+    private val paymentExpiryProperties: PaymentExpiryProperties,
 ) {
     private val transactionTemplate = TransactionTemplate(transactionManager)
 
