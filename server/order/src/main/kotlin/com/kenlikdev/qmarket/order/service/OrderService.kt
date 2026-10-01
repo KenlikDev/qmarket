@@ -349,15 +349,26 @@ class OrderService(
         }
 
         val plan = planOrCompleted as CancellationPlanOrCompleted.Plan
-        orderPaymentService.cancelProviderPayment(
-            providerId = plan.paymentProvider,
-            providerReference = plan.paymentProviderReference,
-            paymentOperationKey = plan.paymentOperationKey,
-            amountMinor = plan.amountMinor,
-            currency = plan.paymentCurrency,
-            orderId = plan.orderId,
-            userId = plan.userId,
-        )
+        val cancellationResult =
+            orderPaymentService.cancelProviderPayment(
+                providerId = plan.paymentProvider,
+                providerReference = plan.paymentProviderReference,
+                paymentOperationKey = plan.paymentOperationKey,
+                amountMinor = plan.amountMinor,
+                currency = plan.paymentCurrency,
+                orderId = plan.orderId,
+                userId = plan.userId,
+            )
+        if (cancellationResult?.status == "succeeded") {
+            orderPaymentService.markPaidFromProvider(
+                orderId = plan.orderId,
+                providerId = "stripe",
+                providerReference = cancellationResult.id,
+                amountMinor = cancellationResult.amountMinor ?: plan.amountMinor,
+                currency = cancellationResult.currency ?: plan.paymentCurrency,
+            )
+            throw BadRequestException("Order was paid before cancellation completed")
+        }
 
         return requireNotNull(
             transactionTemplate.execute {
