@@ -276,6 +276,9 @@ class OrderService(
         orderId: UUID,
     ): OrderResponse = cancelOrder(orderId = orderId, expectedUserId = userId)
 
+    fun expireUnpaidOrder(orderId: UUID): OrderResponse =
+        cancelOrder(orderId = orderId, expectedUserId = null)
+
     private fun cancelOrder(
         orderId: UUID,
         expectedUserId: UUID?,
