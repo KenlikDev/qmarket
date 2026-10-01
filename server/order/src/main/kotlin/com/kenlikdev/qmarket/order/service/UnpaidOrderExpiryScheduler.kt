@@ -30,8 +30,8 @@ class UnpaidOrderExpiryScheduler(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Scheduled(
-        fixedDelayString = "${qmarket.order.payment-expiry.poll-interval-ms:60000}",
-        initialDelayString = "${qmarket.order.payment-expiry.initial-delay-ms:15000}",
+        fixedDelayString = "\${qmarket.order.payment-expiry.poll-interval-ms:60000}",
+        initialDelayString = "\${qmarket.order.payment-expiry.initial-delay-ms:15000}",
     )
     fun expireDueOrders() {
         val batchSize = properties.batchSize.coerceIn(1, 1000)
