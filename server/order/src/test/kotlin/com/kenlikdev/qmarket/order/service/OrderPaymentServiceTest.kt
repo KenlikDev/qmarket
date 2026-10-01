@@ -181,6 +181,41 @@ class OrderPaymentServiceTest {
     }
 
     @Test
+    fun `provider success wins cancellation race and clears operation state`() {
+        val operationId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentProvider = "stripe",
+                paymentProviderReference = "pi_test_123",
+                paymentCurrency = "rub",
+                paymentOperationState = PaymentOperationState.CANCELLING,
+                paymentOperationId = operationId,
+                paymentOperationStartedAt = Instant.now(),
+            )
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(order) } returns order
+
+        val result =
+            service.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                amountMinor = 1050L,
+                currency = "rub",
+            )
+
+        assertEquals(OrderStatus.PAID, result.status)
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
+        assertEquals(null, order.paymentOperationStartedAt)
+        verify(exactly = 1) { orderRepository.save(order) }
+    }
+
+    @Test
     fun `expired order cannot start stripe payment session`() {
         val order =
             Order(
