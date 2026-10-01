@@ -2,6 +2,7 @@ package com.kenlikdev.qmarket.order.service
 
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.order.domain.OrderStatus
+import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import io.mockk.every
 import io.mockk.mockk
@@ -36,12 +37,12 @@ class UnpaidOrderExpirySchedulerTest {
                 pageable = any(),
             )
         } returns listOf(first, second)
-        every { orderService.expireUnpaidOrder(any()) } returns mockk(relaxed = true)
+        every { orderService.recoverStalePaymentOperation(any()) } returns mockk<OrderResponse>(relaxed = true)
 
         scheduler.expireDueOrders()
 
-        verify(exactly = 1) { orderService.expireUnpaidOrder(first) }
-        verify(exactly = 1) { orderService.expireUnpaidOrder(second) }
+        verify(exactly = 1) { orderService.recoverStalePaymentOperation(first) }
+        verify(exactly = 1) { orderService.recoverStalePaymentOperation(second) }
     }
 
     @Test
@@ -56,12 +57,12 @@ class UnpaidOrderExpirySchedulerTest {
                 pageable = any(),
             )
         } returns listOf(first, second)
-        every { orderService.expireUnpaidOrder(first) } throws BadRequestException("already paid")
-        every { orderService.expireUnpaidOrder(second) } returns mockk(relaxed = true)
+        every { orderService.recoverStalePaymentOperation(first) } throws BadRequestException("already paid")
+        every { orderService.recoverStalePaymentOperation(second) } returns mockk<OrderResponse>(relaxed = true)
 
         scheduler.expireDueOrders()
 
-        verify(exactly = 1) { orderService.expireUnpaidOrder(second) }
+        verify(exactly = 1) { orderService.recoverStalePaymentOperation(second) }
     }
 
     @Test
@@ -75,14 +76,31 @@ class UnpaidOrderExpirySchedulerTest {
                 pageable = any(),
             )
         } returns listOf(first, second)
-        every { orderService.expireUnpaidOrder(first) } throws IllegalStateException("database unavailable")
-        every { orderService.expireUnpaidOrder(second) } returns mockk(relaxed = true)
+        every { orderService.recoverStalePaymentOperation(first) } throws IllegalStateException("database unavailable")
+        every { orderService.recoverStalePaymentOperation(second) } returns mockk<OrderResponse>(relaxed = true)
 
         scheduler.expireDueOrders()
 
-        verify(exactly = 1) { orderService.expireUnpaidOrder(second) }
+        verify(exactly = 1) { orderService.recoverStalePaymentOperation(second) }
     }
 
+    @Test
+    fun `recovers stale payment creation`() {
+        val staleOrder = UUID.randomUUID()
+        every {
+            repository.findOrdersRequiringPaymentRecovery(
+                statuses = setOf(OrderStatus.PENDING, OrderStatus.CONFIRMED),
+                now = any(),
+                staleBefore = any(),
+                pageable = any(),
+            )
+        } returns listOf(staleOrder)
+        every { orderService.recoverStalePaymentOperation(staleOrder) } returns mockk(relaxed = true)
+
+        scheduler.expireDueOrders()
+
+        verify(exactly = 1) { orderService.recoverStalePaymentOperation(staleOrder) }
+    }
     @Test
     fun `retries stale cancellation operations`() {
         val staleOrder = UUID.randomUUID()
@@ -94,10 +112,10 @@ class UnpaidOrderExpirySchedulerTest {
                 pageable = any(),
             )
         } returns listOf(staleOrder)
-        every { orderService.expireUnpaidOrder(staleOrder) } returns mockk(relaxed = true)
+        every { orderService.recoverStalePaymentOperation(staleOrder) } returns mockk<OrderResponse>(relaxed = true)
 
         scheduler.expireDueOrders()
 
-        verify(exactly = 1) { orderService.expireUnpaidOrder(staleOrder) }
+        verify(exactly = 1) { orderService.recoverStalePaymentOperation(staleOrder) }
     }
 }
