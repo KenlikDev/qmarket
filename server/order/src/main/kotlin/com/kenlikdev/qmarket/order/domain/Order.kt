@@ -109,7 +109,8 @@ class Order(
         updatedAt = Instant.now()
     }
 
-    fun isPaymentExpired(now: Instant = Instant.now()): Boolean = paymentExpiresAt <= now
+    fun isPaymentExpired(now: Instant = Instant.now()): Boolean =
+        paymentExpiresAt <= now
 
     fun isPaymentOperationStale(
         now: Instant = Instant.now(),
