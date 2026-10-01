@@ -450,6 +450,14 @@ class OrderPaymentService(
                 )
         }
 
+        // Provider success is authoritative when it wins the external race against local cancellation.
+        // A later cancellation finalization will observe PAID and cannot restore inventory.
+        if (order.paymentOperationState == PaymentOperationState.CANCELLING &&
+            order.paymentProvider != providerId
+        ) {
+            throw BadRequestException("Payment provider does not match the cancellation operation")
+        }
+
         if (amountMinor != null) {
             val expectedMinor = Money.toMinorUnits(order.totalAmount)
             if (amountMinor != expectedMinor) {
@@ -479,7 +487,8 @@ class OrderPaymentService(
         }
 
         if (order.paymentOperationState == PaymentOperationState.CANCELLING) {
-            throw BadRequestException("Order cancellation is already in progress")
+            // Stripe/PSP success wins the cancellation race. The cancellation caller will
+            // observe PAID during its finalization transaction and must not restore stock.
         }
         order.paymentOperationState = PaymentOperationState.NONE
         order.paymentOperationId = null
