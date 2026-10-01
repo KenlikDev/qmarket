@@ -59,6 +59,37 @@ Before changing code:
 
 Do not build on stale refactor branches when ai/integration contains the current integration state.
 
+## 4. Instruction refresh cadence
+
+AI context can be long-lived and may be compacted or resumed. To prevent instruction drift, refresh the repository rules at deterministic boundaries.
+
+The AI MUST re-read:
+
+- AGENTS.md at the start of every task phase;
+- docs/AI_REVIEW_STANDARD.md for repository-wide reviews and whenever the review scope changes;
+- docs/GIT_WORKFLOW.md before any branch, PR, or merge decision;
+- relevant module/domain documentation before changing that subsystem.
+
+The AI MUST refresh these instructions again:
+
+1. after context compaction, conversation resume, or any interruption that may have discarded working context;
+2. after rebasing, retargeting, or otherwise changing the reviewed base ref;
+3. before modifying CI/CD, branch rules, authentication, payments, database migrations, or public API contracts;
+4. before opening, retargeting, approving, or merging a PR;
+5. before declaring a temporary branch ready for integration;
+6. after resolving conflicts or incorporating another branch.
+
+Before a merge into ai/integration, verify all of the following against the current remote state:
+
+- current ai/integration commit SHA;
+- PR base and head SHA;
+- required CI checks for that target;
+- unresolved review threads;
+- database/API/concurrency impact;
+- whether the branch contains changes already integrated elsewhere.
+
+Instruction refresh is an engineering control, not optional reading.
+
 ## 4. Scope discipline
 
 - One logical concern per PR.
@@ -90,6 +121,8 @@ Required checks include:
 CI is authoritative. If local execution is impossible, say so explicitly and mark the change UNVERIFIED.
 
 Never disable or weaken a CI gate to make a branch mergeable.
+
+A PR is not integration-ready merely because its code looks correct. Its PR head must be based on the current target branch and its required checks must be green for that actual head SHA.
 
 ## 6. Kotlin / Spring / KMP conventions
 
