@@ -169,7 +169,8 @@ class OrderPaymentServiceTest {
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(order) } returns order
 
-        val result = service.markPaidFromProvider(
+        val result =
+            service.markPaidFromProvider(
                 orderId = orderId,
                 providerId = "stripe",
                 providerReference = "pi_test_123",
@@ -297,6 +298,7 @@ class OrderPaymentServiceTest {
         assertEquals(null, order.paymentOperationId)
         assertEquals(null, order.paymentOperationStartedAt)
     }
+
     @Test
     fun `createPaymentSession rejects a live payment operation`() {
         val order =
