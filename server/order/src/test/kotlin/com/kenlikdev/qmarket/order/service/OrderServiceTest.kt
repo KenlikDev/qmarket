@@ -14,6 +14,7 @@ import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderIdempotencyKey
 import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
+import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
@@ -37,6 +38,7 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.Optional
 import java.util.UUID
 
@@ -286,7 +288,7 @@ class OrderServiceTest {
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
         val result = orderService.pay(userId, orderId)
@@ -645,6 +647,96 @@ class OrderServiceTest {
                 orderId = orderId,
             )
         }
+    }
+
+    @Test
+    fun `pay rejects order while cancellation is in progress`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+                paymentOperationState = PaymentOperationState.CANCELLING,
+                paymentOperationStartedAt = Instant.now(),
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+
+        assertThrows<BadRequestException> {
+            orderService.pay(userId, orderId)
+        }
+
+        verify(exactly = 0) { paymentGateway.charge(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `failed cancellation releases operation state for retry`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+            )
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
+        every {
+            orderPaymentService.cancelProviderPayment(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } throws IllegalStateException("provider unavailable")
+
+        assertThrows<IllegalStateException> {
+            orderService.cancelMyOrder(userId, orderId)
+        }
+
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationStartedAt)
+    }
+
+    @Test
+    fun `stale cancellation can be retried and finalized`() {
+        val orderId = UUID.randomUUID()
+        val startedAt = Instant.now().minusSeconds(300)
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+                paymentOperationState = PaymentOperationState.CANCELLING,
+                paymentOperationStartedAt = startedAt,
+            ).apply {
+                items.add(
+                    OrderItem(
+                        order = this,
+                        productId = productId,
+                        productName = "Headphones",
+                        productSlug = "headphones",
+                        unitPrice = BigDecimal("50.00"),
+                        quantity = 1,
+                        lineTotal = BigDecimal("50.00"),
+                    ),
+                )
+            }
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
+        every { productCatalog.increaseStock(productId, 1) } returns Unit
+
+        val result = orderService.updateStatus(orderId, UpdateOrderStatusRequest(OrderStatus.CANCELLED))
+
+        assertEquals(OrderStatus.CANCELLED, result.status)
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationStartedAt)
+        verify(exactly = 1) { productCatalog.increaseStock(productId, 1) }
     }
 
     @Test
