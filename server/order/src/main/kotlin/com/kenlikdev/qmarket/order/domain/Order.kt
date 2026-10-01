@@ -82,6 +82,8 @@ class Order(
     var paymentOperationState: PaymentOperationState = PaymentOperationState.NONE,
     @Column(name = "payment_operation_key", length = 255)
     var paymentOperationKey: String? = null,
+    @Column(name = "payment_operation_id")
+    var paymentOperationId: UUID? = null,
     @Column(name = "payment_operation_started_at")
     var paymentOperationStartedAt: Instant? = null,
     @BatchSize(size = 100)
