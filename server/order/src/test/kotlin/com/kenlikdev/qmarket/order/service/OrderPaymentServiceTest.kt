@@ -7,6 +7,7 @@ import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
 import com.kenlikdev.qmarket.order.payment.StripeApiClient
+import com.kenlikdev.qmarket.order.payment.StripeApiException
 import com.kenlikdev.qmarket.order.payment.StripePaymentIntentResult
 import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderRepository
