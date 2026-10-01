@@ -9,7 +9,6 @@ import io.mockk.verify
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.util.UUID
-import kotlin.test.assertFailsWith
 
 class UnpaidOrderExpirySchedulerTest {
     private lateinit var repository: OrderRepository
