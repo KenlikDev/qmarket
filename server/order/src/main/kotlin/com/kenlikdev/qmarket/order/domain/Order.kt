@@ -109,14 +109,12 @@ class Order(
         updatedAt = Instant.now()
     }
 
-    fun isPaymentExpired(now: Instant = Instant.now()): Boolean =
-        paymentExpiresAt <= now
+    fun isPaymentExpired(now: Instant = Instant.now()): Boolean = paymentExpiresAt <= now
 
     fun isPaymentOperationStale(
         now: Instant = Instant.now(),
         staleAfterSeconds: Long,
-    ): Boolean =
-        paymentOperationStartedAt?.plusSeconds(staleAfterSeconds.coerceAtLeast(1))?.isBefore(now) == true
+    ): Boolean = paymentOperationStartedAt?.plusSeconds(staleAfterSeconds.coerceAtLeast(1))?.isBefore(now) == true
 
     fun cancel() {
         if (status != OrderStatus.PENDING && status != OrderStatus.CONFIRMED) {
