@@ -23,6 +23,16 @@ interface StripeApiClient {
     fun cancelPaymentIntent(paymentIntentId: String): StripePaymentIntentResult
 }
 
+sealed interface PaymentCancellationResult {
+    data object Canceled : PaymentCancellationResult
+
+    data class AlreadySucceeded(
+        val providerReference: String,
+        val amountMinor: Long?,
+        val currency: String?,
+    ) : PaymentCancellationResult
+}
+
 data class StripePaymentIntentResult(
     val id: String,
     val status: String,
