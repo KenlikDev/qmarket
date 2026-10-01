@@ -349,20 +349,15 @@ class OrderService(
         }
 
         val plan = planOrCompleted as CancellationPlanOrCompleted.Plan
-        try {
-            orderPaymentService.cancelProviderPayment(
-                providerId = plan.paymentProvider,
-                providerReference = plan.paymentProviderReference,
-                paymentOperationKey = plan.paymentOperationKey,
-                amountMinor = plan.amountMinor,
-                currency = plan.paymentCurrency,
-                orderId = plan.orderId,
-                userId = plan.userId,
-            )
-        } catch (exception: Exception) {
-            resetFailedCancellation(plan)
-            throw exception
-        }
+        orderPaymentService.cancelProviderPayment(
+            providerId = plan.paymentProvider,
+            providerReference = plan.paymentProviderReference,
+            paymentOperationKey = plan.paymentOperationKey,
+            amountMinor = plan.amountMinor,
+            currency = plan.paymentCurrency,
+            orderId = plan.orderId,
+            userId = plan.userId,
+        )
 
         return requireNotNull(
             transactionTemplate.execute {
