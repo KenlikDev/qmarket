@@ -34,6 +34,7 @@ class OrderPaymentService(
     private val paymentGateway: PaymentGateway,
     private val stripeApiClient: ObjectProvider<StripeApiClient>,
     private val stripeProperties: ObjectProvider<StripeProperties>,
+    private val paymentExpiryProperties: PaymentExpiryProperties,
     transactionManager: PlatformTransactionManager,
 ) {
     private val transactionTemplate = TransactionTemplate(transactionManager)
@@ -135,8 +136,20 @@ class OrderPaymentService(
                     if (order.paymentProvider != null && order.paymentProvider != "stripe") {
                         throw BadRequestException("Order already has a different payment provider")
                     }
-                    if (order.paymentOperationState == PaymentOperationState.CANCELLING) {
-                        throw BadRequestException("Order payment is being cancelled")
+                    when (order.paymentOperationState) {
+                        PaymentOperationState.NONE -> Unit
+                        PaymentOperationState.CANCELLING ->
+                            throw BadRequestException("Order payment is being cancelled")
+                        PaymentOperationState.CREATING -> {
+                            if (
+                                !order.isPaymentOperationStale(
+                                    now = Instant.now(),
+                                    staleAfterSeconds = paymentExpiryProperties.operationStaleAfterSeconds,
+                                )
+                            ) {
+                                throw BadRequestException("Order payment session is already in progress")
+                            }
+                        }
                     }
 
                     val operationKey =
@@ -205,10 +218,49 @@ class OrderPaymentService(
 
                     when (order.status) {
                         OrderStatus.PENDING, OrderStatus.CONFIRMED -> {
-                            if (order.paymentOperationState == PaymentOperationState.CANCELLING) {
-                                PaymentSessionFinalization.CANCEL_PROVIDER
-                            } else {
-                                if (order.paymentProvider != null && order.paymentProvider != "stripe") {
+                            when (order.paymentOperationState) {
+                                PaymentOperationState.CANCELLING -> PaymentSessionFinalization.CANCEL_PROVIDER
+                                PaymentOperationState.CREATING -> {
+                                    if (order.paymentOperationId != plan.operationId) {
+                                        throw BadRequestException("Another payment session operation owns this order")
+                                    }
+                                    if (
+                                        order.paymentProviderReference != null &&
+                                        order.paymentProviderReference != intent.id
+                                    ) {
+                                        throw BadRequestException(
+                                            "Stripe PaymentIntent does not match the order payment session",
+                                        )
+                                    }
+                                    order.paymentProvider = "stripe"
+                                    order.paymentProviderReference = intent.id
+                                    order.paymentOperationState = PaymentOperationState.NONE
+                                    order.paymentOperationId = null
+                                    order.paymentOperationStartedAt = null
+                                    orderRepository.save(order)
+                                    PaymentSessionFinalization.PERSISTED
+                                }
+                                PaymentOperationState.NONE -> {
+                                    if (
+                                        order.paymentProviderReference != null &&
+                                        order.paymentProviderReference != intent.id
+                                    ) {
+                                        throw BadRequestException(
+                                            "Stripe PaymentIntent does not match the order payment session",
+                                        )
+                                    }
+                                    order.paymentProvider = "stripe"
+                                    order.paymentProviderReference = intent.id
+                                    orderRepository.save(order)
+                                    PaymentSessionFinalization.PERSISTED
+                                }
+                            }
+                        }
+                        OrderStatus.PAID -> PaymentSessionFinalization.PAID
+                        OrderStatus.CANCELLED -> PaymentSessionFinalization.CANCEL_PROVIDER
+                        OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
+                            throw BadRequestException("Order is already fulfilled")
+                    }
                                     throw BadRequestException("Order already has a different payment provider")
                                 }
                                 if (
