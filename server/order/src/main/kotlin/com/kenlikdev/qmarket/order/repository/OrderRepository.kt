@@ -42,13 +42,20 @@ interface OrderRepository : JpaRepository<Order, UUID> {
         select o.id
         from Order o
         where o.status in :statuses
-          and o.paymentExpiresAt <= :now
+          and (
+            o.paymentExpiresAt <= :now
+            or (
+                o.paymentOperationState = com.kenlikdev.qmarket.order.domain.PaymentOperationState.CANCELLING
+                and o.paymentOperationStartedAt <= :staleBefore
+            )
+          )
         order by o.paymentExpiresAt asc, o.id asc
         """,
     )
-    fun findExpiredUnpaidOrderIds(
+    fun findOrdersRequiringPaymentRecovery(
         @Param("statuses") statuses: Set<OrderStatus>,
         @Param("now") now: Instant,
+        @Param("staleBefore") staleBefore: Instant,
         pageable: Pageable,
     ): List<UUID>
 
