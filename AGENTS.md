@@ -120,6 +120,20 @@ Required checks include:
 
 CI is authoritative. If local execution is impossible, say so explicitly and mark the change UNVERIFIED.
 
+### 6.1 Runtime / UI verification
+When the project or affected artifact is runnable in the available environment, AI MUST perform a real runtime smoke test in addition to source inspection and CI.
+
+For application/UI work this means:
+- launch the actual application target that is available (for example Android, iOS simulator, JVM/Desktop, JS, or Wasm);
+- exercise the main affected user flow with real input;
+- click/tap the relevant controls and verify the resulting state, navigation, network behavior, and errors;
+- test at least one happy path and one failure/cancellation/retry path when the feature has them;
+- record the exact target and commands/scenarios used in the PR validation section.
+
+Static analysis, unit tests, screenshots, or CI compilation do not count as a substitute for a runnable smoke test when a runnable target is available.
+
+If the target cannot be launched or interacted with in the available environment, explicitly mark runtime verification UNVERIFIED and state the concrete environmental/tooling limitation. Never claim that a button, screen, or end-to-end flow was manually tested when it was not.
+
 Never disable or weaken a CI gate to make a branch mergeable.
 
 A PR is not integration-ready merely because its code looks correct. Its PR head must be based on the current target branch and its required checks must be green for that actual head SHA.
