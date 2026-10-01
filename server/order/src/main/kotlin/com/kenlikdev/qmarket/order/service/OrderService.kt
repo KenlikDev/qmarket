@@ -322,7 +322,9 @@ class OrderService(
                         }
                     }
 
+                    val operationId = UUID.randomUUID()
                     order.paymentOperationState = PaymentOperationState.CANCELLING
+                    order.paymentOperationId = operationId
                     order.paymentOperationStartedAt = now
                     orderRepository.save(order)
 
@@ -334,7 +336,7 @@ class OrderService(
                         paymentCurrency = order.paymentCurrency,
                         paymentOperationKey = order.paymentOperationKey,
                         amountMinor = Money.toMinorUnits(order.totalAmount),
-                        operationStartedAt = now,
+                        operationId = operationId,
                     )
                 },
             ) { "Cancellation preparation transaction returned no result" }
@@ -375,7 +377,7 @@ class OrderService(
                 }
 
                 if (order.paymentOperationState != PaymentOperationState.CANCELLING ||
-                    order.paymentOperationStartedAt != plan.operationStartedAt
+                    order.paymentOperationId != plan.operationId
                 ) {
                     throw BadRequestException("Order payment state changed during cancellation")
                 }
@@ -385,6 +387,7 @@ class OrderService(
                     productCatalog.increaseStock(item.productId, item.quantity)
                 }
                 order.paymentOperationState = PaymentOperationState.NONE
+                order.paymentOperationId = null
                 order.paymentOperationStartedAt = null
 
                 val saved = orderRepository.save(order)
@@ -405,9 +408,10 @@ class OrderService(
             val order = orderRepository.findByIdForUpdate(plan.orderId) ?: return@execute
             if (
                 order.paymentOperationState == PaymentOperationState.CANCELLING &&
-                order.paymentOperationStartedAt == plan.operationStartedAt
+                order.paymentOperationId == plan.operationId
             ) {
                 order.paymentOperationState = PaymentOperationState.NONE
+                order.paymentOperationId = null
                 order.paymentOperationStartedAt = null
                 orderRepository.save(order)
             }
@@ -423,7 +427,7 @@ class OrderService(
             val paymentCurrency: String?,
             val paymentOperationKey: String?,
             val amountMinor: Long,
-            val operationStartedAt: Instant,
+            val operationId: UUID,
         ) : CancellationPlanOrCompleted
 
         data class Completed(
