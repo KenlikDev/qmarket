@@ -49,9 +49,10 @@ class UnpaidOrderExpirySchedulerTest {
         val first = UUID.randomUUID()
         val second = UUID.randomUUID()
         every {
-            repository.findExpiredUnpaidOrderIds(
+            repository.findOrdersRequiringPaymentRecovery(
                 statuses = setOf(OrderStatus.PENDING, OrderStatus.CONFIRMED),
                 now = any(),
+                staleBefore = any(),
                 pageable = any(),
             )
         } returns listOf(first, second)
@@ -68,7 +69,7 @@ class UnpaidOrderExpirySchedulerTest {
         val first = UUID.randomUUID()
         val second = UUID.randomUUID()
         every {
-            repository.findExpiredUnpaidOrderIds(
+            repository.findOrdersRequiringPaymentRecovery(
                 statuses = setOf(OrderStatus.PENDING, OrderStatus.CONFIRMED),
                 now = any(),
                 pageable = any(),
@@ -81,6 +82,7 @@ class UnpaidOrderExpirySchedulerTest {
 
         verify(exactly = 1) { orderService.expireUnpaidOrder(second) }
     }
+
     @Test
     fun `retries stale cancellation operations`() {
         val staleOrder = UUID.randomUUID()
