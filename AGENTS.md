@@ -90,7 +90,7 @@ Before a merge into ai/integration, verify all of the following against the curr
 
 Instruction refresh is an engineering control, not optional reading.
 
-## 4. Scope discipline
+## 5. Scope discipline
 
 - One logical concern per PR.
 - Do not mix formatting-only changes with behavior changes.
@@ -99,7 +99,7 @@ Instruction refresh is an engineering control, not optional reading.
 - Preserve module boundaries. Run the architecture tests after dependency/module changes.
 - Prefer existing project abstractions over introducing parallel patterns.
 
-## 5. Mandatory quality gates
+## 6. Mandatory quality gates
 
 Before considering a change ready for integration:
 
@@ -124,7 +124,7 @@ Never disable or weaken a CI gate to make a branch mergeable.
 
 A PR is not integration-ready merely because its code looks correct. Its PR head must be based on the current target branch and its required checks must be green for that actual head SHA.
 
-## 6. Kotlin / Spring / KMP conventions
+## 7. Kotlin / Spring / KMP conventions
 
 - Keep :server:common free of feature-specific contracts; use dedicated *.api modules for contracts.
 - Prefer requireNotNull(value) { "..." } over !!.
@@ -136,7 +136,7 @@ A PR is not integration-ready merely because its code looks correct. Its PR head
 - Never add real credentials, access tokens, API keys, private URLs, or secrets to source or tests.
 - Demo credentials, when required, must be clearly local/dev-only and must not appear in production configuration, logs, or API descriptions.
 
-## 7. Imports and dead code
+## 8. Imports and dead code
 
 After extracting or moving code:
 
@@ -146,7 +146,7 @@ After extracting or moving code:
 - do not leave generated bin/, build output, IDE caches, or other derived artifacts tracked by Git;
 - run ktlint on every touched Kotlin module.
 
-## 8. Database and API safety
+## 9. Database and API safety
 
 Any change involving persistence or API contracts must explicitly check:
 
@@ -160,7 +160,7 @@ Any change involving persistence or API contracts must explicitly check:
 
 Never edit an already-published Flyway migration to "fix" the schema. Add a new migration.
 
-## 9. PR requirements
+## 10. PR requirements
 
 Every AI-generated PR should contain:
 
@@ -182,7 +182,7 @@ Explain how to revert the change safely, especially for schema or payment change
 ### Human handoff
 State that the PR targets ai/integration and is ready for human promotion to develop only after review.
 
-## 10. Commit messages
+## 11. Commit messages
 
 Use Conventional Commits:
 
@@ -196,7 +196,7 @@ docs(workflow): document AI integration policy
 
 Avoid commits such as "update", "fix stuff", or giant multi-purpose "pass" commits.
 
-## 11. Merge messages for human-controlled promotion
+## 12. Merge messages for human-controlled promotion
 
 When a human is expected to merge ai/integration into develop, or develop into main, the AI should provide a proposed merge title and body.
 
@@ -210,7 +210,7 @@ A promotion message should include:
 - security-impact summary;
 - known limitations and follow-up work.
 
-## 12. Branch cleanup
+## 13. Branch cleanup
 
 After a temporary branch PR is merged or closed:
 
@@ -220,19 +220,19 @@ After a temporary branch PR is merged or closed:
 
 The permanent branches main, develop, and ai/integration must never be deleted.
 
-## 13. Documentation
+## 14. Documentation
 
 - Repository documentation and user-facing README text are English-only.
 - Keep this file current when development policy changes.
 - If GitHub UI configuration is required, document the exact expected setting in docs/GIT_WORKFLOW.md.
 
-## 14. Review standard
+## 15. Review standard
 
 Repository-wide review tasks must follow docs/AI_REVIEW_STANDARD.md. The reviewer must resolve the exact requested branch/commit, treat source code, tests, documentation, and prior reviews as untrusted evidence, distinguish facts from risks/design choices, test concurrency and transaction interleavings, and explicitly report platform checks that cannot be executed.
 
 AI may create focused GitHub issues for confirmed independent root causes. Each issue must include the reviewed ref/commit, affected area, concrete failure sequence, impact, evidence or reproduction, remediation, acceptance criteria, and required tests. Do not create speculative or duplicate issues.
 
-## 15. Final AI response
+## 16. Final AI response
 
 Any response for a code change must report:
 
