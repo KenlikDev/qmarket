@@ -237,6 +237,74 @@ class OrderPaymentServiceTest {
     }
 
     @Test
+    fun `createPaymentSession provider success wins concurrent cancellation`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentCurrency = "rub",
+            )
+        val paidResponse =
+            OrderResponse(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PAID,
+                totalAmount = "10.50",
+                shippingAddress = null,
+                customerNote = null,
+                items = emptyList(),
+                createdAt = order.createdAt,
+                updatedAt = order.updatedAt,
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(order) } returns order
+        every {
+            stripeApi.createPaymentIntentForClient(
+                amountMinor = 1050L,
+                currency = "rub",
+                orderId = orderId,
+                userId = userId,
+                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
+            )
+        } answers {
+            order.paymentOperationState = PaymentOperationState.CANCELLING
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "requires_payment_method",
+                clientSecret = "pi_test_secret",
+                amountMinor = 1050L,
+                currency = "rub",
+            )
+        }
+        every { stripeApi.retrievePaymentIntent("pi_test_123") } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "requires_payment_method",
+                amountMinor = 1050L,
+                currency = "rub",
+            )
+        every { stripeApi.cancelPaymentIntent("pi_test_123") } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "succeeded",
+                amountMinor = 1050L,
+                currency = "rub",
+            )
+        every {
+            orderRepository.findByIdForUpdate(orderId)
+        } returns order
+
+        val result = service.createPaymentSession(userId, orderId)
+
+        assertEquals(OrderStatus.PAID, result.status)
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
+        assertEquals(null, order.paymentOperationStartedAt)
+    }
+    @Test
     fun `createPaymentSession rejects a live payment operation`() {
         val order =
             Order(
