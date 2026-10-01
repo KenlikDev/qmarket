@@ -286,15 +286,25 @@ class OrderPaymentService(
             PaymentSessionFinalization.PAID ->
                 throw BadRequestException("Order is already paid")
             PaymentSessionFinalization.CANCEL_PROVIDER -> {
-                cancelProviderPayment(
-                    providerId = "stripe",
-                    providerReference = intent.id,
-                    paymentOperationKey = null,
-                    amountMinor = null,
-                    currency = null,
-                    orderId = orderId,
-                    userId = userId,
-                )
+                val cancellationResult =
+                    cancelProviderPayment(
+                        providerId = "stripe",
+                        providerReference = intent.id,
+                        paymentOperationKey = null,
+                        amountMinor = plan.amountMinor,
+                        currency = plan.currency,
+                        orderId = orderId,
+                        userId = userId,
+                    )
+                if (cancellationResult?.status == "succeeded") {
+                    return markPaidFromProvider(
+                        orderId = orderId,
+                        providerId = "stripe",
+                        providerReference = cancellationResult.id,
+                        amountMinor = cancellationResult.amountMinor ?: plan.amountMinor,
+                        currency = cancellationResult.currency ?: plan.currency,
+                    )
+                }
                 throw BadRequestException("Order was cancelled while the payment session was being created")
             }
         }
