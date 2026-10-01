@@ -1,5 +1,7 @@
 package com.kenlikdev.qmarket.order.domain
 
+private const val DEFAULT_PAYMENT_WINDOW_SECONDS: Long = 900
+
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
