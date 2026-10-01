@@ -17,14 +17,12 @@ import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
-import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
 import com.kenlikdev.qmarket.order.payment.StripeApiClient
 import com.kenlikdev.qmarket.order.payment.StripeApiException
 import com.kenlikdev.qmarket.order.payment.StripePaymentIntentResult
-import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import io.mockk.Runs
@@ -669,7 +667,7 @@ class OrderServiceTest {
     }
 
     @Test
-    fun `failed cancellation releases operation state for retry`() {
+    fun `failed cancellation keeps operation state for retry`() {
         val orderId = UUID.randomUUID()
         val order =
             Order(
@@ -683,9 +681,7 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
-        every {
-            stripeApi.retrievePaymentIntent("pi_fail")
-        } throws StripeApiException("provider unavailable", 503, null)
+        every { stripeApiClient.getIfAvailable() } returns null
 
         assertThrows<PaymentProviderException> {
             orderService.cancelMyOrder(userId, orderId)
@@ -708,13 +704,33 @@ class OrderServiceTest {
                 paymentProvider = "stripe",
                 paymentProviderReference = "pi_test_123",
                 paymentCurrency = "rub",
-
             )
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
+        every { stripeApi.retrievePaymentIntent("pi_test_123") } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "requires_payment_method",
+                amountMinor = 1000L,
+                currency = "rub",
+            )
+        every { stripeApi.cancelPaymentIntent("pi_test_123") } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "succeeded",
+                amountMinor = 1000L,
+                currency = "rub",
+            )
+
         val result = orderService.cancelMyOrder(userId, orderId)
 
         assertEquals(OrderStatus.PAID, result.status)
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
+        assertEquals(null, order.paymentOperationStartedAt)
         verify(exactly = 0) { productCatalog.increaseStock(any(), any()) }
     }
+
     @Test
     fun `stale cancellation can be retried and finalized`() {
         val orderId = UUID.randomUUID()
