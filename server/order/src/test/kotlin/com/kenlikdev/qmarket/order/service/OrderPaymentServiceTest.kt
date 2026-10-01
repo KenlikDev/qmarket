@@ -153,7 +153,7 @@ class OrderPaymentServiceTest {
     }
 
     @Test
-    fun `provider webhook cannot mark order paid during cancellation`() {
+    fun `provider webhook marks order paid during cancellation`() {
         val order =
             Order(
                 id = orderId,
@@ -167,18 +167,20 @@ class OrderPaymentServiceTest {
                 paymentOperationStartedAt = Instant.now(),
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(order) } returns order
 
-        assertThrows(BadRequestException::class.java) {
-            service.markPaidFromProvider(
+        val result = service.markPaidFromProvider(
                 orderId = orderId,
                 providerId = "stripe",
                 providerReference = "pi_test_123",
                 amountMinor = 1050L,
                 currency = "rub",
             )
-        }
 
-        assertEquals(PaymentOperationState.CANCELLING, order.paymentOperationState)
+        assertEquals(OrderStatus.PAID, result.status)
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
+        assertEquals(null, order.paymentOperationStartedAt)
     }
 
     @Test
