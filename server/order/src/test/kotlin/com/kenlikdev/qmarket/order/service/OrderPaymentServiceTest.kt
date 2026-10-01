@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
-import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
