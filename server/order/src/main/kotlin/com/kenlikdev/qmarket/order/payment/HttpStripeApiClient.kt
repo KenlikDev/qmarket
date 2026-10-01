@@ -74,7 +74,7 @@ class HttpStripeApiClient(
         return parsePaymentIntentResponse(response)
     }
 
-    override fun cancelPaymentIntent(paymentIntentId: String): StripePaymentIntentResult {
+    override fun retrievePaymentIntent(paymentIntentId: String): StripePaymentIntentResult {,        require(Regex("^pi_[A-Za-z0-9_]+$").matches(paymentIntentId)) {,            "Invalid Stripe PaymentIntent id",        },        require(props.secretKey.isNotBlank()) {,            "qmarket.payment.stripe.secret-key is required when qmarket.payment.provider=stripe",        },,        val request =,            HttpRequest,                .newBuilder(),                .uri(URI.create(props.apiBaseUrl.trimEnd('/') + "/v1/payment_intents/" + paymentIntentId)),                .timeout(Duration.ofSeconds(30)),                .header("Authorization", "Bearer " + props.secretKey),                .GET(),                .build(),,        val response =,            try {,                httpClient.send(request, HttpResponse.BodyHandlers.ofString()),            } catch (ex: InterruptedException) {,                Thread.currentThread().interrupt(),                throw StripeApiException("Stripe request was interrupted", 503, null, ex),            } catch (ex: IOException) {,                throw StripeApiException("Stripe request failed", 503, null, ex),            },,        return parsePaymentIntentResponse(response),    },    override fun cancelPaymentIntent(paymentIntentId: String): StripePaymentIntentResult {
         require(Regex("^pi_[A-Za-z0-9_]+$").matches(paymentIntentId)) {
             "Invalid Stripe PaymentIntent id"
         }
@@ -97,6 +97,45 @@ class HttpStripeApiClient(
             "metadata[user_id]" to userId.toString(),
         )
 
+    private fun parsePaymentIntentResponse(response: HttpResponse<String>): StripePaymentIntentResult {
+        val body = response.body()
+        val root =
+            try {
+                objectMapper.readTree(body)
+            } catch (_: Exception) {
+                throw StripeApiException(
+                    message = "Stripe returned invalid JSON",
+                    statusCode = response.statusCode(),
+                    responseBody = body,
+                )
+            }
+
+        if (response.statusCode() !in 200..299) {
+            val message =
+                root
+                    .path("error")
+                    .path("message")
+                    .asString(null)
+                    ?: "Stripe HTTP ${response.statusCode()}"
+            throw StripeApiException(message, response.statusCode(), body)
+        }
+
+        val id =
+            root.path("id").asString(null)
+                ?: throw StripeApiException(
+                    message = "Stripe response missing id",
+                    statusCode = response.statusCode(),
+                    responseBody = body,
+                )
+        return StripePaymentIntentResult(
+            id = id,
+            status = root.path("status").asString("unknown") ?: "unknown",
+            clientSecret = root.path("client_secret").asString(null),
+            amountMinor = root.path("amount").takeIf { it.isNumber }?.asLong(),
+            currency = root.path("currency").asText(null)?.lowercase(),
+            rawBody = body,
+        )
+    }
     private fun postPaymentIntent(
         fields: Map<String, String>,
         idempotencyKey: String,
@@ -175,6 +214,8 @@ class HttpStripeApiClient(
             id = id,
             status = status,
             clientSecret = clientSecret,
+            amountMinor = root.path("amount").takeIf { it.isNumber }?.asLong(),
+            currency = root.path("currency").asText(null)?.lowercase(),
             rawBody = body,
         )
     }
@@ -255,6 +296,8 @@ class HttpStripeApiClient(
             id = id,
             status = root.path("status").asString("unknown") ?: "unknown",
             clientSecret = root.path("client_secret").asString(null),
+            amountMinor = root.path("amount").takeIf { it.isNumber }?.asLong(),
+            currency = root.path("currency").asText(null)?.lowercase(),
             rawBody = body,
         )
     }
