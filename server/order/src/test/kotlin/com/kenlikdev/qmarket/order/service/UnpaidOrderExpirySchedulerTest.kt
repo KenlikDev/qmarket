@@ -73,6 +73,7 @@ class UnpaidOrderExpirySchedulerTest {
             repository.findOrdersRequiringPaymentRecovery(
                 statuses = setOf(OrderStatus.PENDING, OrderStatus.CONFIRMED),
                 now = any(),
+                staleBefore = any(),
                 pageable = any(),
             )
         } returns listOf(first, second)
@@ -101,6 +102,7 @@ class UnpaidOrderExpirySchedulerTest {
 
         verify(exactly = 1) { orderService.recoverStalePaymentOperation(staleOrder) }
     }
+
     @Test
     fun `retries stale cancellation operations`() {
         val staleOrder = UUID.randomUUID()
