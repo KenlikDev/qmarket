@@ -212,80 +212,62 @@ class OrderPaymentService(
             try {
                 requireNotNull(
                     transactionTemplate.execute {
-                    val order =
-                        orderRepository.findByIdAndUserIdForUpdate(orderId, userId)
-                            ?: throw NotFoundException("Order not found")
+                        val order =
+                            orderRepository.findByIdAndUserIdForUpdate(orderId, userId)
+                                ?: throw NotFoundException("Order not found")
 
-                    when (order.status) {
-                        OrderStatus.PENDING, OrderStatus.CONFIRMED -> {
-                            when (order.paymentOperationState) {
-                                PaymentOperationState.CANCELLING -> PaymentSessionFinalization.CANCEL_PROVIDER
-                                PaymentOperationState.CREATING -> {
-                                    if (order.paymentOperationId != plan.operationId) {
-                                        throw BadRequestException("Another payment session operation owns this order")
+                        when (order.status) {
+                            OrderStatus.PENDING, OrderStatus.CONFIRMED -> {
+                                when (order.paymentOperationState) {
+                                    PaymentOperationState.CANCELLING ->
+                                        PaymentSessionFinalization.CANCEL_PROVIDER
+
+                                    PaymentOperationState.CREATING -> {
+                                        if (order.paymentOperationId != plan.operationId) {
+                                            throw BadRequestException(
+                                                "Another payment session operation owns this order",
+                                            )
+                                        }
+                                        if (
+                                            order.paymentProviderReference != null &&
+                                            order.paymentProviderReference != intent.id
+                                        ) {
+                                            throw BadRequestException(
+                                                "Stripe PaymentIntent does not match the order payment session",
+                                            )
+                                        }
+                                        order.paymentProvider = "stripe"
+                                        order.paymentProviderReference = intent.id
+                                        order.paymentOperationState = PaymentOperationState.NONE
+                                        order.paymentOperationId = null
+                                        order.paymentOperationStartedAt = null
+                                        orderRepository.save(order)
+                                        PaymentSessionFinalization.PERSISTED
                                     }
-                                    if (
-                                        order.paymentProviderReference != null &&
-                                        order.paymentProviderReference != intent.id
-                                    ) {
-                                        throw BadRequestException(
-                                            "Stripe PaymentIntent does not match the order payment session",
-                                        )
+
+                                    PaymentOperationState.NONE -> {
+                                        if (
+                                            order.paymentProviderReference != null &&
+                                            order.paymentProviderReference != intent.id
+                                        ) {
+                                            throw BadRequestException(
+                                                "Stripe PaymentIntent does not match the order payment session",
+                                            )
+                                        }
+                                        order.paymentProvider = "stripe"
+                                        order.paymentProviderReference = intent.id
+                                        orderRepository.save(order)
+                                        PaymentSessionFinalization.PERSISTED
                                     }
-                                    order.paymentProvider = "stripe"
-                                    order.paymentProviderReference = intent.id
-                                    order.paymentOperationState = PaymentOperationState.NONE
-                                    order.paymentOperationId = null
-                                    order.paymentOperationStartedAt = null
-                                    orderRepository.save(order)
-                                    PaymentSessionFinalization.PERSISTED
-                                }
-                                PaymentOperationState.NONE -> {
-                                    if (
-                                        order.paymentProviderReference != null &&
-                                        order.paymentProviderReference != intent.id
-                                    ) {
-                                        throw BadRequestException(
-                                            "Stripe PaymentIntent does not match the order payment session",
-                                        )
-                                    }
-                                    order.paymentProvider = "stripe"
-                                    order.paymentProviderReference = intent.id
-                                    orderRepository.save(order)
-                                    PaymentSessionFinalization.PERSISTED
                                 }
                             }
+
+                            OrderStatus.PAID -> PaymentSessionFinalization.PAID
+                            OrderStatus.CANCELLED -> PaymentSessionFinalization.CANCEL_PROVIDER
+                            OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
+                                throw BadRequestException("Order is already fulfilled")
                         }
-                        OrderStatus.PAID -> PaymentSessionFinalization.PAID
-                        OrderStatus.CANCELLED -> PaymentSessionFinalization.CANCEL_PROVIDER
-                        OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
-                            throw BadRequestException("Order is already fulfilled")
-                    }
-                                    throw BadRequestException("Order already has a different payment provider")
-                                }
-                                if (
-                                    order.paymentProviderReference != null &&
-                                    order.paymentProviderReference != intent.id
-                                ) {
-                                    throw BadRequestException(
-                                        "Stripe PaymentIntent does not match the order payment session",
-                                    )
-                                }
-                                order.paymentProvider = "stripe"
-                                order.paymentProviderReference = intent.id
-                                order.paymentOperationState = PaymentOperationState.NONE
-                                order.paymentOperationId = null
-                                order.paymentOperationStartedAt = null
-                                orderRepository.save(order)
-                                PaymentSessionFinalization.PERSISTED
-                            }
-                        }
-                        OrderStatus.PAID -> PaymentSessionFinalization.PAID
-                        OrderStatus.CANCELLED -> PaymentSessionFinalization.CANCEL_PROVIDER
-                        OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
-                            throw BadRequestException("Order is already fulfilled")
-                    }
-                },
+                    },
                 ) { "Payment-session finalization transaction returned no result" }
             } catch (exception: Exception) {
                 resetFailedPaymentOperation(plan)
