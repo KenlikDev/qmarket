@@ -401,21 +401,6 @@ class OrderService(
         ) { "Cancellation finalization transaction returned no result" }
     }
 
-    private fun resetFailedCancellation(plan: CancellationPlanOrCompleted.Plan) {
-        transactionTemplate.execute {
-            val order = orderRepository.findByIdForUpdate(plan.orderId) ?: return@execute
-            if (
-                order.paymentOperationState == PaymentOperationState.CANCELLING &&
-                order.paymentOperationId == plan.operationId
-            ) {
-                order.paymentOperationState = PaymentOperationState.NONE
-                order.paymentOperationId = null
-                order.paymentOperationStartedAt = null
-                orderRepository.save(order)
-            }
-        }
-    }
-
     private sealed interface CancellationPlanOrCompleted {
         data class Plan(
             val orderId: UUID,
