@@ -448,6 +448,7 @@ class OrderPaymentService(
             throw BadRequestException("Order cancellation is already in progress")
         }
         order.paymentOperationState = PaymentOperationState.NONE
+        order.paymentOperationId = null
         order.paymentOperationStartedAt = null
         order.markPaid()
         val saved = orderRepository.save(order)
