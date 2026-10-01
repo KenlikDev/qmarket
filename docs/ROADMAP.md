@@ -26,7 +26,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Profile + shipping addresses
 - [x] Unit + controller slice + integration tests (incl. stock concurrency)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize
-- [x] Flyway SoT V1–V12, app `ddl-auto=validate`
+- [x] Flyway SoT V1–V17, app `ddl-auto=validate`
 - [x] `ProductCatalog` port + ArchUnit boundaries
 - [x] Atomic stock `UPDATE … WHERE stock >= qty`
 
@@ -94,6 +94,8 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Prod: actuator exposure limited to health/info
 - [x] JwtProperties rejects known placeholder/dev secrets
 - [x] Database foreign-key integrity restored for user aggregates and product references
+- [x] Google subject persistence and user optimistic locking (V13–V14)
+- [x] Payment provider/reference state, durable payment-operation state, and payment currency (V15–V17)
 
 ## v1.0 MVP (from plan)
 
@@ -108,6 +110,14 @@ Done: correlation id (X-Correlation-Id / MDC), payment webhook Micrometer counte
 Google OAuth backend ready (enable via config).
 
 Already closed from earlier scope: login rate limit, admin catalog/orders UI, refresh revoke/rotation, in-app notifications.
+
+## Current engineering risks
+
+- [ ] P1: recoverable cancellation when payment-provider I/O fails after CANCELLING is persisted (#140)
+- [ ] P2: make ios-native-check a protected-branch required check, or explicitly remove it from the hard supported-target gate
+- [ ] P2: correct main ruleset merge-method configuration drift
+- [ ] P2: clean stale AI branches after confirming no active PR depends on them
+- [ ] P2: expand API contract testing and native/device runtime coverage
 
 ## Architecture
 
