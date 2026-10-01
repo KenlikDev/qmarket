@@ -314,8 +314,8 @@ class OrderPaymentService(
         currency: String?,
         orderId: UUID,
         userId: UUID,
-    ) {
-        if (providerId != "stripe") return
+    ): StripePaymentIntentResult? {
+        if (providerId != "stripe") return null
 
         val stripeApi =
             stripeApiClient.ifAvailable
@@ -358,18 +358,45 @@ class OrderPaymentService(
                     }
                 }
 
+        fun retrieve(): StripePaymentIntentResult =
+            try {
+                stripeApi.retrievePaymentIntent(intentId)
+            } catch (ex: StripeApiException) {
+                throw PaymentProviderException(cause = ex)
+            }
+
+        val current = retrieve()
+        when (current.status) {
+            "canceled" -> return current
+            "succeeded" -> return current
+        }
+
         try {
             val result = stripeApi.cancelPaymentIntent(intentId)
-            if (result.status != "canceled") {
+            if (result.status == "canceled") return result
+        } catch (ex: StripeApiException) {
+            val reconciled =
+                try {
+                    retrieve()
+                } catch (_: PaymentProviderException) {
+                    throw PaymentProviderException(cause = ex)
+                }
+            when (reconciled.status) {
+                "canceled", "succeeded" -> return reconciled
+                else -> throw PaymentProviderException(cause = ex)
+            }
+        }
+
+        val reconciled = retrieve()
+        return when (reconciled.status) {
+            "canceled", "succeeded" -> reconciled
+            else ->
                 throw PaymentProviderException(
                     cause =
                         IllegalStateException(
-                            "Stripe PaymentIntent $intentId was not canceled: ${result.status}",
+                            "Stripe PaymentIntent $intentId was not canceled: ${reconciled.status}",
                         ),
                 )
-            }
-        } catch (ex: StripeApiException) {
-            throw PaymentProviderException(cause = ex)
         }
     }
 
