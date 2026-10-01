@@ -108,18 +108,7 @@ class OrderServiceTest {
                     transactionManager,
                 ),
             )
-        every {
-            orderPaymentService.cancelProviderPayment(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-            )
-        } returns null
-        val idempotency =
+       val idempotency =
             OrderIdempotencySupport(
                 orderRepository,
                 idempotencyKeyRepository,
@@ -719,9 +708,7 @@ class OrderServiceTest {
                 paymentProvider = "stripe",
                 paymentProviderReference = "pi_test_123",
                 paymentCurrency = "rub",
-                paymentOperationState = PaymentOperationState.CANCELLING,
-                paymentOperationId = UUID.randomUUID(),
-                paymentOperationStartedAt = Instant.now(),
+
             )
         val paidResponse =
             OrderResponse(
