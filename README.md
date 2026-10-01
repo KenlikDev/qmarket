@@ -15,7 +15,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Seed admin + demo catalog | ✅ |
 | Unit / controller / integration tests | ✅ |
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
-| Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V17, app: `validate`, tests: Flyway |
+| Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V18, app: `validate`, tests: Flyway |
 | Payments | ✅ mock locally; Stripe PaymentIntent + webhook path available |
 | Profile (GET/PATCH /users/me) | ✅ |
 | Shipping addresses | ✅ |
@@ -124,7 +124,7 @@ Android emulator API host: `10.0.2.2:8080`
   Demo admin: `admin@qmarket.local` / `admin123`
 - CORS: `CORS_ORIGINS` / `qmarket.security.cors.allowed-origin-patterns`
 - Stock: atomic `UPDATE … WHERE stock >= qty` with database-side concurrency control
-- Database: V12 restores referential integrity; V13–V17 add Google subject persistence, user optimistic locking, payment provider/reference state, durable payment-operation state, and payment currency.
+- Database: V12 restores referential integrity; V13–V18 add Google subject persistence, user optimistic locking, payment provider/reference state, durable payment-operation state, payment currency, and payment expiry/recovery.
 
 ### Tests and quality (full project)
 
