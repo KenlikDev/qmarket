@@ -1,7 +1,5 @@
 package com.kenlikdev.qmarket.order.domain
 
-private const val DEFAULT_PAYMENT_WINDOW_SECONDS: Long = 900
-
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
@@ -22,6 +20,8 @@ import org.hibernate.annotations.BatchSize
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
+
+private const val DEFAULT_PAYMENT_WINDOW_SECONDS: Long = 900
 
 enum class PaymentOperationState {
     NONE,
