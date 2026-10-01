@@ -19,6 +19,8 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
 import java.math.BigDecimal
+import java.time.Instant
+import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import java.util.UUID
 
 class OrderPaymentServiceTest {
@@ -121,7 +123,109 @@ class OrderPaymentServiceTest {
         assertEquals("pi_test_123", order.paymentProviderReference)
         assertEquals("stripe", order.paymentProvider)
         assertEquals("rub", order.paymentCurrency)
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationStartedAt)
         verify(exactly = 2) { orderRepository.save(order) }
+    }
+
+    @Test
+    fun `pay rejects order while cancellation is in progress`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentOperationState = PaymentOperationState.CANCELLING,
+                paymentOperationStartedAt = Instant.now(),
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+
+        assertThrows(BadRequestException::class.java) {
+            service.pay(userId, orderId)
+        }
+
+        verify(exactly = 0) { paymentGateway.charge(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `provider webhook cannot mark order paid during cancellation`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentProvider = "stripe",
+                paymentProviderReference = "pi_test_123",
+                paymentCurrency = "rub",
+                paymentOperationState = PaymentOperationState.CANCELLING,
+                paymentOperationStartedAt = Instant.now(),
+            )
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+
+        assertThrows(BadRequestException::class.java) {
+            service.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                amountMinor = 1050L,
+                currency = "rub",
+            )
+        }
+
+        assertEquals(PaymentOperationState.CANCELLING, order.paymentOperationState)
+    }
+
+    @Test
+    fun `expired order cannot start stripe payment session`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentExpiresAt = Instant.now().minusSeconds(1),
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+
+        assertThrows(BadRequestException::class.java) {
+            service.createPaymentSession(userId, orderId)
+        }
+
+        verify(exactly = 0) {
+            stripeApi.createPaymentIntentForClient(any(), any(), any(), any(), any())
+        }
+    }
+
+    @Test
+    fun `failed stripe payment-session creation clears in-flight state`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentCurrency = "rub",
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.save(order) } returns order
+        every {
+            stripeApi.createPaymentIntentForClient(
+                amountMinor = 1050L,
+                currency = "rub",
+                orderId = orderId,
+                userId = userId,
+                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
+            )
+        } throws StripeApiException("provider unavailable", 503, null)
+
+        assertThrows(com.kenlikdev.qmarket.common.exception.PaymentProviderException::class.java) {
+            service.createPaymentSession(userId, orderId)
+        }
+
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationStartedAt)
     }
 
     @Test
