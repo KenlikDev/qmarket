@@ -231,7 +231,7 @@ class OrderStatusConcurrencyTest {
         assertEquals(2, cancelOk.get() + rejected.get(), "both callers must complete")
         assertTrue(cancelOk.get() in 1..2, "at least one cancellation caller must complete the terminal transition")
         assertEquals(
-            com.kenlikdev.qmarket.order.domain.PaymentOperationState.NONE,
+            PaymentOperationState.NONE,
             finalOrder.paymentOperationState,
             "cancelled orders must not retain an in-flight payment operation",
         )
