@@ -65,6 +65,8 @@ class Order(
     var status: OrderStatus = OrderStatus.PENDING,
     @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
     var totalAmount: BigDecimal = BigDecimal.ZERO,
+    @Column(name = "payment_expires_at", nullable = false)
+    var paymentExpiresAt: Instant = Instant.now().plusSeconds(DEFAULT_PAYMENT_WINDOW_SECONDS),
     @Column(name = "shipping_address", length = 500)
     var shippingAddress: String? = null,
     @Column(name = "customer_note", length = 1000)
@@ -80,6 +82,8 @@ class Order(
     var paymentOperationState: PaymentOperationState = PaymentOperationState.NONE,
     @Column(name = "payment_operation_key", length = 255)
     var paymentOperationKey: String? = null,
+    @Column(name = "payment_operation_started_at")
+    var paymentOperationStartedAt: Instant? = null,
     @BatchSize(size = 100)
     @OneToMany(
         mappedBy = "order",
@@ -100,6 +104,14 @@ class Order(
     fun onUpdate() {
         updatedAt = Instant.now()
     }
+
+    fun isPaymentExpired(now: Instant = Instant.now()): Boolean = paymentExpiresAt <= now
+
+    fun isPaymentOperationStale(
+        now: Instant = Instant.now(),
+        staleAfterSeconds: Long,
+    ): Boolean =
+        paymentOperationStartedAt?.plusSeconds(staleAfterSeconds.coerceAtLeast(1))?.isBefore(now) == true
 
     fun cancel() {
         if (status != OrderStatus.PENDING && status != OrderStatus.CONFIRMED) {
