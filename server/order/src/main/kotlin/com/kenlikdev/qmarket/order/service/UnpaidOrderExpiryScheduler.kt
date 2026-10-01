@@ -50,7 +50,7 @@ class UnpaidOrderExpiryScheduler(
 
         ids.forEach { orderId ->
             try {
-                orderService.expireUnpaidOrder(orderId)
+                orderService.recoverStalePaymentOperation(orderId)
             } catch (_: BadRequestException) {
                 // A concurrent payment or lifecycle transition may have changed the state.
             } catch (exception: Exception) {
