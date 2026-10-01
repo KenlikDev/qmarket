@@ -72,6 +72,7 @@ class OrderPaymentServiceTest {
                 paymentGateway = paymentGateway,
                 stripeApiClient = stripeApiProvider,
                 stripeProperties = stripePropertiesProvider,
+                paymentExpiryProperties = PaymentExpiryProperties(),
                 transactionManager = transactionManager,
             )
     }
