@@ -35,10 +35,16 @@ class UnpaidOrderExpiryScheduler(
     )
     fun expireDueOrders() {
         val batchSize = properties.batchSize.coerceIn(1, 1000)
+        val now = Instant.now()
+        val staleBefore =
+            now.minusSeconds(
+                properties.operationStaleAfterSeconds.coerceAtLeast(1),
+            )
         val ids =
-            orderRepository.findExpiredUnpaidOrderIds(
+            orderRepository.findOrdersRequiringPaymentRecovery(
                 statuses = setOf(OrderStatus.PENDING, OrderStatus.CONFIRMED),
-                now = Instant.now(),
+                now = now,
+                staleBefore = staleBefore,
                 pageable = PageRequest.of(0, batchSize),
             )
 
