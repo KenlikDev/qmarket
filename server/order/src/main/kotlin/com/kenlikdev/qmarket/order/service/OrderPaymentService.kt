@@ -434,9 +434,10 @@ class OrderPaymentService(
     ) {
         if (intent.id != expectedId) {
             throw PaymentProviderException(
-                cause = IllegalStateException(
-                    "Stripe PaymentIntent reference mismatch: expected $expectedId, received ${intent.id}",
-                ),
+                cause =
+                    IllegalStateException(
+                        "Stripe PaymentIntent reference mismatch: expected $expectedId, received ${intent.id}",
+                    ),
             )
         }
         if (expectedAmountMinor != null) {
@@ -447,9 +448,10 @@ class OrderPaymentService(
                     )
             if (providerAmount != expectedAmountMinor) {
                 throw PaymentProviderException(
-                    cause = IllegalStateException(
-                        "Stripe PaymentIntent amount mismatch: expected $expectedAmountMinor, received $providerAmount",
-                    ),
+                    cause =
+                        IllegalStateException(
+                            "Stripe PaymentIntent amount mismatch: expected $expectedAmountMinor, received $providerAmount",
+                        ),
                 )
             }
         }
@@ -457,16 +459,17 @@ class OrderPaymentService(
             val providerCurrency =
                 intent.currency?.trim()?.lowercase(Locale.ROOT)
                     ?: throw PaymentProviderException(
-                        cause = IllegalStateException("Stripe PaymentIntent currency is missing during reconciliation"),
+                        cause =
+                            IllegalStateException("Stripe PaymentIntent currency is missing during reconciliation"),
                     )
             if (providerCurrency != expectedCurrency.trim().lowercase(Locale.ROOT)) {
                 throw PaymentProviderException(
-                    cause = IllegalStateException(
-                        "Stripe PaymentIntent currency mismatch: expected " +
-                        expectedCurrency.trim().lowercase(Locale.ROOT) +
-                        ", received " +
-                        providerCurrency,
-                    ),
+                    cause =
+                        IllegalStateException(
+                            "Stripe PaymentIntent currency mismatch: " +
+                                "expected ${expectedCurrency.trim().lowercase(Locale.ROOT)}, " +
+                                "received $providerCurrency",
+                        ),
                 )
             }
         }
