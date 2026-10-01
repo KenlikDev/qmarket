@@ -320,7 +320,7 @@ class OrderServiceTest {
     @Test
     fun `pay fails for other user order`() {
         val orderId = UUID.randomUUID()
-        every { orderRepository.findByIdAndUserId(orderId, userId) } returns null
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns null
 
         assertThrows<NotFoundException> {
             orderService.pay(userId, orderId)
@@ -688,13 +688,13 @@ class OrderServiceTest {
         every { orderRepository.save(any()) } answers { firstArg() }
         every {
             orderPaymentService.cancelProviderPayment(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
+                providerId = null,
+                providerReference = null,
+                paymentOperationKey = null,
+                amountMinor = 1000L,
+                currency = null,
+                orderId = orderId,
+                userId = userId,
             )
         } throws IllegalStateException("provider unavailable")
 
@@ -737,7 +737,15 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every {
-            orderPaymentService.cancelProviderPayment(any(), any(), any(), any(), any(), any(), any())
+            orderPaymentService.cancelProviderPayment(
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                paymentOperationKey = null,
+                amountMinor = 1000L,
+                currency = "rub",
+                orderId = orderId,
+                userId = userId,
+            )
         } returns
             StripePaymentIntentResult(
                 id = "pi_test_123",
@@ -746,7 +754,13 @@ class OrderServiceTest {
                 currency = "rub",
             )
         every {
-            orderPaymentService.markPaidFromProvider(any(), any(), any(), any(), any())
+            orderPaymentService.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                amountMinor = 1000L,
+                currency = "rub",
+            )
         } returns paidResponse
 
         val result = orderService.cancelMyOrder(userId, orderId)
