@@ -246,18 +246,6 @@ class OrderPaymentServiceTest {
                 totalAmount = BigDecimal("10.50"),
                 paymentCurrency = "rub",
             )
-        val paidResponse =
-            OrderResponse(
-                id = orderId,
-                userId = userId,
-                status = OrderStatus.PAID,
-                totalAmount = "10.50",
-                shippingAddress = null,
-                customerNote = null,
-                items = emptyList(),
-                createdAt = order.createdAt,
-                updatedAt = order.updatedAt,
-            )
         every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(order) } returns order
@@ -297,9 +285,11 @@ class OrderPaymentServiceTest {
             orderRepository.findByIdForUpdate(orderId)
         } returns order
 
-        val result = service.createPaymentSession(userId, orderId)
+        assertThrows(BadRequestException::class.java) {
+            service.createPaymentSession(userId, orderId)
+        }
 
-        assertEquals(OrderStatus.PAID, result.status)
+        assertEquals(OrderStatus.PAID, order.status)
         assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
         assertEquals(null, order.paymentOperationId)
         assertEquals(null, order.paymentOperationStartedAt)
