@@ -302,6 +302,11 @@ class OrderPaymentServiceTest {
                 paymentProvider = "stripe",
                 paymentProviderReference = "pi_test_123",
             )
+        every { stripeApi.retrievePaymentIntent("pi_test_123") } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "requires_payment_method",
+            )
         every { stripeApi.cancelPaymentIntent("pi_test_123") } returns
             StripePaymentIntentResult(
                 id = "pi_test_123",
@@ -319,6 +324,56 @@ class OrderPaymentServiceTest {
         )
 
         verify(exactly = 1) { stripeApi.cancelPaymentIntent("pi_test_123") }
+    }
+
+    @Test
+    fun `already canceled Stripe intent is reconciled as success`() {
+        every { stripeApi.retrievePaymentIntent("pi_test_123") } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "canceled",
+            )
+
+        val result =
+            service.cancelProviderPayment(
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                paymentOperationKey = null,
+                amountMinor = null,
+                currency = null,
+                orderId = orderId,
+                userId = userId,
+            )
+
+        assertEquals("canceled", result?.status)
+        verify(exactly = 0) { stripeApi.cancelPaymentIntent(any()) }
+    }
+
+    @Test
+    fun `succeeded Stripe intent is returned for local payment reconciliation`() {
+        every { stripeApi.retrievePaymentIntent("pi_test_123") } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "succeeded",
+                amountMinor = 1050L,
+                currency = "rub",
+            )
+
+        val result =
+            service.cancelProviderPayment(
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                paymentOperationKey = null,
+                amountMinor = 1050L,
+                currency = "rub",
+                orderId = orderId,
+                userId = userId,
+            )
+
+        assertEquals("succeeded", result?.status)
+        assertEquals(1050L, result?.amountMinor)
+        assertEquals("rub", result?.currency)
+        verify(exactly = 0) { stripeApi.cancelPaymentIntent(any()) }
     }
 
     @Test
