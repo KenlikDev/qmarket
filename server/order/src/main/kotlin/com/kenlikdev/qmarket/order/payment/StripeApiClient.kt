@@ -16,6 +16,9 @@ interface StripeApiClient {
         idempotencyKey: String,
     ): StripePaymentIntentResult
 
+    /** Retrieve the provider PaymentIntent to reconcile ambiguous cancel/network outcomes. */
+    fun retrievePaymentIntent(paymentIntentId: String): StripePaymentIntentResult
+
     /** Cancel a provider PaymentIntent for an order cancellation flow. */
     fun cancelPaymentIntent(paymentIntentId: String): StripePaymentIntentResult
 }
@@ -24,5 +27,7 @@ data class StripePaymentIntentResult(
     val id: String,
     val status: String,
     val clientSecret: String? = null,
+    val amountMinor: Long? = null,
+    val currency: String? = null,
     val rawBody: String? = null,
 )
