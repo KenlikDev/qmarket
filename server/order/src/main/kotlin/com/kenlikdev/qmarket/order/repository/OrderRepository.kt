@@ -45,7 +45,10 @@ interface OrderRepository : JpaRepository<Order, UUID> {
           and (
             o.paymentExpiresAt <= :now
             or (
-                o.paymentOperationState = com.kenlikdev.qmarket.order.domain.PaymentOperationState.CANCELLING
+                o.paymentOperationState in (
+                    com.kenlikdev.qmarket.order.domain.PaymentOperationState.CANCELLING,
+                    com.kenlikdev.qmarket.order.domain.PaymentOperationState.CREATING
+                )
                 and o.paymentOperationStartedAt <= :staleBefore
             )
           )
