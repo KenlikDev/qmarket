@@ -118,7 +118,7 @@ class OrderServiceTest {
                 any(),
                 any(),
             )
-        } just Runs
+        } returns null
         val idempotency =
             OrderIdempotencySupport(
                 orderRepository,
