@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket.order.service
 
 import com.kenlikdev.qmarket.common.exception.BadRequestException
+import com.kenlikdev.qmarket.common.exception.PaymentProviderException
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
@@ -124,6 +125,7 @@ class OrderPaymentServiceTest {
         assertEquals("stripe", order.paymentProvider)
         assertEquals("rub", order.paymentCurrency)
         assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
         assertEquals(null, order.paymentOperationStartedAt)
         verify(exactly = 2) { orderRepository.save(order) }
     }
@@ -220,11 +222,12 @@ class OrderPaymentServiceTest {
             )
         } throws StripeApiException("provider unavailable", 503, null)
 
-        assertThrows(com.kenlikdev.qmarket.common.exception.PaymentProviderException::class.java) {
+        assertThrows(PaymentProviderException::class.java) {
             service.createPaymentSession(userId, orderId)
         }
 
         assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
         assertEquals(null, order.paymentOperationStartedAt)
     }
 
