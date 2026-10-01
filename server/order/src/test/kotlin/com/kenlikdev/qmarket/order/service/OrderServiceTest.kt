@@ -21,7 +21,6 @@ import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
 import com.kenlikdev.qmarket.order.payment.StripeApiClient
-import com.kenlikdev.qmarket.order.payment.StripeApiException
 import com.kenlikdev.qmarket.order.payment.StripePaymentIntentResult
 import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
@@ -97,7 +96,7 @@ class OrderServiceTest {
         every { nativeQuery.singleResult } returns 1
         stripeApi = mockk()
         stripeApiClient = mockk(relaxed = true)
-        every { stripeApiClient.getIfAvailable() } returns stripeApi
+        every { stripeApiClient.getIfAvailable() } returns null
         val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
         every { stripeProperties.getIfAvailable() } returns null
         orderPaymentService =
@@ -682,8 +681,6 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
-        every { stripeApiClient.getIfAvailable() } returns null
-
         assertThrows<PaymentProviderException> {
             orderService.cancelMyOrder(userId, orderId)
         }
@@ -708,14 +705,15 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
-        every { stripeApi.retrievePaymentIntent("pi_test_123") } returns
+        every { stripeApiClient.getIfAvailable() } returns stripeApi
+        every { stripeApi.retrievePaymentIntent(any()) } returns
             StripePaymentIntentResult(
                 id = "pi_test_123",
                 status = "requires_payment_method",
                 amountMinor = 1000L,
                 currency = "rub",
             )
-        every { stripeApi.cancelPaymentIntent("pi_test_123") } returns
+        every { stripeApi.cancelPaymentIntent(any()) } returns
             StripePaymentIntentResult(
                 id = "pi_test_123",
                 status = "succeeded",
