@@ -699,6 +699,7 @@ class OrderServiceTest {
         }
 
         assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
         assertEquals(null, order.paymentOperationStartedAt)
     }
 
@@ -735,6 +736,7 @@ class OrderServiceTest {
 
         assertEquals(OrderStatus.CANCELLED, result.status)
         assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
         assertEquals(null, order.paymentOperationStartedAt)
         verify(exactly = 1) { productCatalog.increaseStock(productId, 1) }
     }
