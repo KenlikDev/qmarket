@@ -202,6 +202,30 @@ class OrderPaymentServiceTest {
     }
 
     @Test
+    fun `createPaymentSession rejects a live payment operation`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentCurrency = "rub",
+                paymentOperationState = PaymentOperationState.CREATING,
+                paymentOperationId = UUID.randomUUID(),
+                paymentOperationStartedAt = Instant.now(),
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+
+        assertThrows(BadRequestException::class.java) {
+            service.createPaymentSession(userId, orderId)
+        }
+
+        verify(exactly = 0) {
+            stripeApi.createPaymentIntentForClient(any(), any(), any(), any(), any())
+        }
+    }
+
+    @Test
     fun `failed stripe payment-session creation clears in-flight state`() {
         val order =
             Order(
