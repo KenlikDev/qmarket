@@ -11,6 +11,7 @@ import com.kenlikdev.qmarket.order.dto.PaymentSessionResponse
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
 import com.kenlikdev.qmarket.order.payment.StripeApiClient
 import com.kenlikdev.qmarket.order.payment.StripeApiException
+import com.kenlikdev.qmarket.order.payment.StripePaymentIntentResult
 import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import org.springframework.beans.factory.ObjectProvider
@@ -297,12 +298,15 @@ class OrderPaymentService(
                         userId = userId,
                     )
                 if (cancellationResult?.status == "succeeded") {
-                    return markPaidFromProvider(
+                    markPaidFromProvider(
                         orderId = orderId,
                         providerId = "stripe",
                         providerReference = cancellationResult.id,
                         amountMinor = cancellationResult.amountMinor ?: plan.amountMinor,
                         currency = cancellationResult.currency ?: plan.currency,
+                    )
+                    throw BadRequestException(
+                        "Order was paid while the payment session was being created",
                     )
                 }
                 throw BadRequestException("Order was cancelled while the payment session was being created")
