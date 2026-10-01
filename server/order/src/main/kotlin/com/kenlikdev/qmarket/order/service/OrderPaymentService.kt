@@ -458,12 +458,16 @@ class OrderPaymentService(
             if (providerCurrency != expectedCurrency.trim().lowercase(Locale.ROOT)) {
                 throw PaymentProviderException(
                     cause = IllegalStateException(
-                        "Stripe PaymentIntent currency mismatch: expected ${expectedCurrency.trim().lowercase(Locale.ROOT)}, received $providerCurrency",
+                        "Stripe PaymentIntent currency mismatch: expected " +
+                        expectedCurrency.trim().lowercase(Locale.ROOT) +
+                        ", received " +
+                        providerCurrency,
                     ),
                 )
             }
         }
     }
+
     private fun resetFailedPaymentOperation(plan: PaymentSessionPlan) {
         transactionTemplate.execute {
             val order = orderRepository.findByIdAndUserIdForUpdate(plan.orderId, plan.userId) ?: return@execute
