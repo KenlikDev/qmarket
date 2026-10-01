@@ -86,6 +86,7 @@ class OrderPaymentService(
         order.paymentProvider = paymentGateway.providerId
         order.paymentProviderReference = charge.providerReference
         order.paymentOperationState = PaymentOperationState.NONE
+        order.paymentOperationId = null
         order.paymentOperationStartedAt = null
         order.markPaid()
 
@@ -151,7 +152,9 @@ class OrderPaymentService(
                     order.paymentProvider = "stripe"
                     order.paymentCurrency = currency
                     order.paymentOperationKey = operationKey
+                    val operationId = UUID.randomUUID()
                     order.paymentOperationState = PaymentOperationState.CREATING
+                    order.paymentOperationId = operationId
                     order.paymentOperationStartedAt = Instant.now()
                     orderRepository.save(order)
 
@@ -161,6 +164,7 @@ class OrderPaymentService(
                         amountMinor = Money.toMinorUnits(order.totalAmount),
                         currency = currency,
                         idempotencyKey = operationKey,
+                        operationId = operationId,
                     )
                 },
             ) { "Payment-session preparation transaction returned no result" }
@@ -175,7 +179,7 @@ class OrderPaymentService(
                     idempotencyKey = plan.idempotencyKey,
                 )
             } catch (exception: Exception) {
-                resetFailedPaymentOperation(plan.orderId, plan.userId)
+                resetFailedPaymentOperation(plan)
                 if (exception is StripeApiException) {
                     throw PaymentProviderException(cause = exception)
                 }
@@ -185,7 +189,7 @@ class OrderPaymentService(
         val clientSecret =
             intent.clientSecret
                 ?: run {
-                    resetFailedPaymentOperation(plan.orderId, plan.userId)
+                    resetFailedPaymentOperation(plan)
                     throw PaymentProviderException(
                         cause = IllegalStateException("Stripe did not return client_secret"),
                     )
@@ -218,6 +222,7 @@ class OrderPaymentService(
                                 order.paymentProvider = "stripe"
                                 order.paymentProviderReference = intent.id
                                 order.paymentOperationState = PaymentOperationState.NONE
+                                order.paymentOperationId = null
                                 order.paymentOperationStartedAt = null
                                 orderRepository.save(order)
                                 PaymentSessionFinalization.PERSISTED
@@ -231,7 +236,7 @@ class OrderPaymentService(
                 },
                 ) { "Payment-session finalization transaction returned no result" }
             } catch (exception: Exception) {
-                resetFailedPaymentOperation(orderId, userId)
+                resetFailedPaymentOperation(plan)
                 throw exception
             }
 
@@ -334,14 +339,15 @@ class OrderPaymentService(
         }
     }
 
-    private fun resetFailedPaymentOperation(
-        orderId: UUID,
-        userId: UUID,
-    ) {
+    private fun resetFailedPaymentOperation(plan: PaymentSessionPlan) {
         transactionTemplate.execute {
-            val order = orderRepository.findByIdAndUserIdForUpdate(orderId, userId) ?: return@execute
-            if (order.paymentOperationState == PaymentOperationState.CREATING) {
+            val order = orderRepository.findByIdAndUserIdForUpdate(plan.orderId, plan.userId) ?: return@execute
+            if (
+                order.paymentOperationState == PaymentOperationState.CREATING &&
+                order.paymentOperationId == plan.operationId
+            ) {
                 order.paymentOperationState = PaymentOperationState.NONE
+                order.paymentOperationId = null
                 order.paymentOperationStartedAt = null
                 orderRepository.save(order)
             }
@@ -363,6 +369,7 @@ class OrderPaymentService(
         val amountMinor: Long,
         val currency: String,
         val idempotencyKey: String,
+        val operationId: UUID,
     )
 
     private enum class PaymentSessionFinalization {
