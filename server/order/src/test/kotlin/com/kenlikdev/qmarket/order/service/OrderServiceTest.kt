@@ -102,6 +102,7 @@ class OrderServiceTest {
                     paymentGateway,
                     stripeApiClient,
                     stripeProperties,
+                    PaymentExpiryProperties(),
                     transactionManager,
                 ),
             )
