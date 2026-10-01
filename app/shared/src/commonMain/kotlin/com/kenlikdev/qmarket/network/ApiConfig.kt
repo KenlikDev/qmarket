@@ -18,7 +18,7 @@ fun validateApiBaseUrl(raw: String): String {
     require(value.isNotEmpty()) { "API base URL must not be blank" }
 
     val match =
-        Regex("""^(https?)://([^/?#]+)(/[^?#]*)?$​""".replace("​", ""))
+        Regex("""^(https?)://([^/?#]+)(/[^?#]*)?$""")
             .matchEntire(value)
             ?: throw IllegalArgumentException("API base URL must be an absolute HTTP(S) URL")
 
