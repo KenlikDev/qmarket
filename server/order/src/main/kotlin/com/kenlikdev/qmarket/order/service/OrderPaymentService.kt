@@ -451,12 +451,7 @@ class OrderPaymentService(
         }
 
         // Provider success is authoritative when it wins the external race against local cancellation.
-        // A later cancellation finalization will observe PAID and cannot restore inventory.
-        if (order.paymentOperationState == PaymentOperationState.CANCELLING &&
-            order.paymentProvider != providerId
-        ) {
-            throw BadRequestException("Payment provider does not match the cancellation operation")
-        }
+        // A later cancellation finalization will observe PAID and must not restore inventory.
 
         if (amountMinor != null) {
             val expectedMinor = Money.toMinorUnits(order.totalAmount)
