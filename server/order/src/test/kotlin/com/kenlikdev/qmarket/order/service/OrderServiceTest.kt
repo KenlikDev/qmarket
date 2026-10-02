@@ -799,6 +799,7 @@ class OrderServiceTest {
                 totalAmount = BigDecimal("10.00"),
             )
         every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
         every { paymentGateway.charge(any(), any(), any(), any()) } returns
             PaymentChargeResult(success = false, message = "Insufficient funds")
 
