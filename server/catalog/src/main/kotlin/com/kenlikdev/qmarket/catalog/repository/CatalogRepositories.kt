@@ -40,7 +40,7 @@ interface ProductRepository : JpaRepository<Product, UUID> {
           AND (
             :query IS NULL OR :query = '' OR
             LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '\' OR
-            LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '\\'
+            LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '\'
           )
         """,
     )
