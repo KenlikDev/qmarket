@@ -43,6 +43,10 @@ For every endpoint verify authentication/authorization, input bounds, normalizat
 
 ### Client/platform matrix
 Review common state management plus Android, iOS, JVM/Desktop, JS, and Wasm independently. Verify URL configuration, TLS/ATS/network security, token persistence, process death/restart, cancellation, retry, refresh races, accessibility, pagination, and release-vs-debug behavior. A Linux/JVM test does not prove a native iOS/Android build.
+When a runnable target is available in the review environment, dynamically launch the affected application and execute the relevant user flow. For UI behavior, actually click/tap the affected controls and verify navigation, state changes, visible errors, network outcomes, and retry/cancellation behavior. Use both a successful scenario and a representative failure/retry scenario when applicable.
+
+Runtime verification is mandatory for runnable UI targets; static review and CI are complementary, not substitutes. When runtime execution is unavailable, record the exact limitation and mark the runtime portion UNVERIFIED rather than inferring behavior from code.
+
 
 ### CI/CD and operations
 Verify required checks actually run on every protected branch and PR, workflow permissions are least-privilege, third-party actions/dependencies are maintained and reasonably pinned, artifacts are safe, deployment config is valid, Docker runtime is non-root, health/metrics exposure is deliberate, and production configuration fails closed.
