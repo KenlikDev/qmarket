@@ -113,13 +113,13 @@ class OrderServiceTest {
         }
         every {
             orderPaymentService.cancelProviderPayment(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
+                any<String?>(),
+                any<String?>(),
+                any<String?>(),
+                any<Long?>(),
+                any<String?>(),
+                any<UUID>(),
+                any<UUID>(),
             )
         } returns null
 
@@ -685,13 +685,13 @@ class OrderServiceTest {
         every { orderRepository.save(any()) } answers { firstArg() }
         every {
             orderPaymentService.cancelProviderPayment(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
+                providerId = "stripe",
+                providerReference = "pi_fail",
+                paymentOperationKey = null,
+                amountMinor = 1000L,
+                currency = "rub",
+                orderId = orderId,
+                userId = userId,
             )
         } throws PaymentProviderException(cause = IllegalStateException("provider unavailable"))
 
@@ -756,44 +756,6 @@ class OrderServiceTest {
                 createdAt = order.createdAt,
                 updatedAt = order.updatedAt,
             )
-        every {
-            orderPaymentService.cancelProviderPayment(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-            )
-        } returns
-            StripePaymentIntentResult(
-                id = "pi_test_123",
-                status = "succeeded",
-                amountMinor = 1000L,
-                currency = "rub",
-            )
-        every {
-            orderPaymentService.markPaidFromProvider(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-            )
-        } returns
-            OrderResponse(
-                id = orderId,
-                userId = userId,
-                status = OrderStatus.PAID,
-                totalAmount = "10.00",
-                shippingAddress = null,
-                customerNote = null,
-                items = emptyList(),
-                createdAt = order.createdAt,
-                updatedAt = order.updatedAt,
-            )
-
         val result = orderService.cancelMyOrder(userId, orderId)
 
         assertEquals(OrderStatus.PAID, result.status)
