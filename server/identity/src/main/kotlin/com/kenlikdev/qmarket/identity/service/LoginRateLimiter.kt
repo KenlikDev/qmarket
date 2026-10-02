@@ -68,7 +68,7 @@ class LoginRateLimiter(
             }
 
             boundMapSize()
-            val newKeyCount = keys.count { it !in failures }
+            val newKeyCount = keys.count { !failures.containsKey(it) }
             if (failures.size + newKeyCount > maxKeys) {
                 throw TooManyRequestsException(
                     "Login rate limiter capacity is temporarily exhausted; try again later",
