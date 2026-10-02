@@ -114,6 +114,19 @@ release: promote develop to main
 
 The description should identify the release scope, validation status, database/security impact, known limitations, and rollback considerations. The merge is human-controlled.
 
+## Supply-chain pin updates
+
+Keep third-party CI actions and Docker base images pinned to immutable revisions.
+
+When updating a pinned action or image:
+1. Resolve the intended upstream version/tag to its immutable commit SHA or image digest.
+2. Update the repository reference and keep the human-readable upstream version in a comment.
+3. Review the upstream release/changelog and security notes before changing the pin.
+4. Run the full CI workflow and confirm all required checks remain green.
+5. Merge the pin update through the normal temporary-branch → ai/integration flow; do not retag an immutable reference.
+
+Dependabot may identify version updates, but the resulting change must preserve immutable SHA/digest pinning.
+
 ## Automatic branch deletion
 
 Enable:
