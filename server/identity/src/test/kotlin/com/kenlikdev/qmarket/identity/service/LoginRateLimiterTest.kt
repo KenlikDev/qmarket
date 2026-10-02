@@ -2,6 +2,7 @@ package com.kenlikdev.qmarket.identity.service
 
 import com.kenlikdev.qmarket.common.exception.TooManyRequestsException
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Clock
@@ -140,6 +141,34 @@ class LoginRateLimiterTest {
         lim.releaseAttempt(second)
         val third = lim.beginAttempt("five@test.com", "10.0.0.1")
         lim.releaseAttempt(third)
+    }
+
+    @Test
+    fun `rejected attempts do not grow limiter keys past capacity`() {
+        val lim =
+            LoginRateLimiter(
+                maxAttempts = 1,
+                windowSeconds = 300,
+                maxKeys = 2,
+            ).also {
+                it.clock = Clock.fixed(Instant.parse("2026-08-01T12:00:00Z"), ZoneOffset.UTC)
+            }
+        val blockedClient = "10.0.0.1"
+
+        val seed = lim.beginAttempt("seed@test.com", blockedClient)
+        lim.recordFailure(seed)
+
+        repeat(100) { index ->
+            assertThrows<TooManyRequestsException> {
+                lim.beginAttempt("attacker-$index@test.com", blockedClient)
+            }
+        }
+
+        val failuresField = LoginRateLimiter::class.java.getDeclaredField("failures")
+        failuresField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val failures = failuresField.get(lim) as Map<String, *>
+        assertEquals(2, failures.size)
     }
 
     @Test

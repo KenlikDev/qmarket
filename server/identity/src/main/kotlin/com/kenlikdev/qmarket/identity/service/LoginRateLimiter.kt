@@ -51,17 +51,32 @@ class LoginRateLimiter(
         synchronized(attemptLock) {
             val now = clock.millis()
             val keys = keysFor(email, clientKey)
-            val queues =
-                keys.map { key ->
-                    failures.computeIfAbsent(key) { ArrayDeque() }.also { pruneDeque(it, now) }
+
+            val existingQueues =
+                keys.associateWith { key ->
+                    failures[key]?.also { pruneDeque(it, now) }
                 }
-            if (keys.indices.any { index ->
-                    queues[index].size + (inFlight[keys[index]] ?: 0) >= maxAttempts
+            if (
+                keys.any { key ->
+                    val queueSize = existingQueues[key]?.size ?: 0
+                    queueSize + (inFlight[key] ?: 0) >= maxAttempts
                 }
             ) {
                 throw TooManyRequestsException(
                     "Too many failed login attempts; try again later",
                 )
+            }
+
+            boundMapSize()
+            val newKeyCount = keys.count { !failures.containsKey(it) }
+            if (failures.size + newKeyCount > maxKeys) {
+                throw TooManyRequestsException(
+                    "Login rate limiter capacity is temporarily exhausted; try again later",
+                )
+            }
+
+            keys.forEach { key ->
+                failures.computeIfAbsent(key) { ArrayDeque() }
             }
             keys.forEach { key -> inFlight[key] = (inFlight[key] ?: 0) + 1 }
             Attempt(keys)
