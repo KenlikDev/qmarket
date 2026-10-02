@@ -26,23 +26,26 @@ import com.kenlikdev.qmarket.order.payment.StripePaymentIntentResult
 import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
+import io.mockk.Runs
+import io.mockk.eq
 import io.mockk.every
+import io.mockk.isNull
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.Runs
 import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionStatus
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.Optional
 import java.util.UUID
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.assertThrows
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.ObjectProvider
-import org.springframework.transaction.PlatformTransactionManager
-import org.springframework.transaction.TransactionStatus
+
 class OrderServiceTest {
     private lateinit var orderRepository: OrderRepository
     private lateinit var cartRepository: CartRepository
@@ -660,13 +663,13 @@ class OrderServiceTest {
         every { orderRepository.save(any()) } answers { firstArg() }
         every {
             orderPaymentService.cancelProviderPayment(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
+                eq("stripe"),
+                eq("pi_fail"),
+                isNull(),
+                eq(1000L),
+                eq("rub"),
+                eq(orderId),
+                eq(userId),
             )
         } throws PaymentProviderException(cause = IllegalStateException("provider unavailable"))
 
@@ -696,13 +699,13 @@ class OrderServiceTest {
         every { orderRepository.save(any()) } answers { firstArg() }
         every {
             orderPaymentService.cancelProviderPayment(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
+                eq("stripe"),
+                eq("pi_test_123"),
+                isNull(),
+                eq(1000L),
+                eq("rub"),
+                eq(orderId),
+                eq(userId),
             )
         } returns
             StripePaymentIntentResult(
