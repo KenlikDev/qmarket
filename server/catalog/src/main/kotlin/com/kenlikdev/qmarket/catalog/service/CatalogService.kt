@@ -134,8 +134,17 @@ class CatalogService(
         if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
             throw BadRequestException("minPrice must be less than or equal to maxPrice")
         }
-        val direction =
-            if (sortDir.equals("asc", ignoreCase = true)) {
+        val normalizedQuery =
+            query
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.also {
+                    if (it.length > MAX_SEARCH_QUERY_LENGTH) {
+                        throw BadRequestException(
+                            "query must be at most $MAX_SEARCH_QUERY_LENGTH characters",
+                        )
+                    }
+                }
                 Sort.Direction.ASC
             } else {
                 Sort.Direction.DESC
@@ -155,7 +164,7 @@ class CatalogService(
             )
         val result =
             productRepository.search(
-                query,
+                query = escapeLikeWildcards(normalizedQuery),
                 categoryId,
                 activeOnly,
                 featuredOnly,
@@ -345,6 +354,16 @@ class CatalogService(
             createdAt = createdAt,
             updatedAt = updatedAt,
         )
+
+    private fun escapeLikeWildcards(query: String): String =
+        query
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+
+    private companion object {
+        const val MAX_SEARCH_QUERY_LENGTH = 100
+    }
 
     private fun Product.toResponse() =
         ProductResponse(
