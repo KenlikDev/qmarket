@@ -111,6 +111,50 @@ class OrderServiceTest {
         every { orderPaymentService.pay(any(), any()) } answers {
             realOrderPaymentService.pay(firstArg(), secondArg())
         }
+        every {
+            orderPaymentService.cancelProviderPayment(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } answers {
+            when (secondArg<String?>()) {
+                "pi_fail" -> throw PaymentProviderException(cause = IllegalStateException("provider unavailable"))
+                "pi_test_123" ->
+                    StripePaymentIntentResult(
+                        id = "pi_test_123",
+                        status = "succeeded",
+                        amountMinor = 1000L,
+                        currency = "rub",
+                    )
+                else -> null
+            }
+        }
+        every {
+            orderPaymentService.markPaidFromProvider(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } answers {
+            OrderResponse(
+                id = firstArg(),
+                userId = userId,
+                status = OrderStatus.PAID,
+                totalAmount = "10.00",
+                shippingAddress = null,
+                customerNote = null,
+                items = emptyList(),
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        }
 
         val idempotency =
             OrderIdempotencySupport(
@@ -659,18 +703,6 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
-        every {
-            orderPaymentService.cancelProviderPayment(
-                eq("stripe"),
-                eq("pi_fail"),
-                isNull(),
-                eq(1000L),
-                eq("rub"),
-                eq(orderId),
-                eq(userId),
-            )
-        } throws PaymentProviderException(cause = IllegalStateException("provider unavailable"))
-
         assertThrows<PaymentProviderException> {
             orderService.cancelMyOrder(userId, orderId)
         }
@@ -695,43 +727,6 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
-        every {
-            orderPaymentService.cancelProviderPayment(
-                eq("stripe"),
-                eq("pi_test_123"),
-                isNull(),
-                eq(1000L),
-                eq("rub"),
-                eq(orderId),
-                eq(userId),
-            )
-        } returns
-            StripePaymentIntentResult(
-                id = "pi_test_123",
-                status = "succeeded",
-                amountMinor = 1000L,
-                currency = "rub",
-            )
-        every {
-            orderPaymentService.markPaidFromProvider(
-                orderId = orderId,
-                providerId = "stripe",
-                providerReference = "pi_test_123",
-                amountMinor = 1000L,
-                currency = "rub",
-            )
-        } returns
-            OrderResponse(
-                id = orderId,
-                userId = userId,
-                status = OrderStatus.PAID,
-                totalAmount = "10.00",
-                shippingAddress = null,
-                customerNote = null,
-                items = emptyList(),
-                createdAt = order.createdAt,
-                updatedAt = order.updatedAt,
-            )
         val result = orderService.cancelMyOrder(userId, orderId)
 
         assertEquals(OrderStatus.PAID, result.status)
@@ -769,7 +764,11 @@ class OrderServiceTest {
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 1) } returns Unit
-        val result = orderService.updateStatus(orderId, UpdateOrderStatusRequest(OrderStatus.CANCELLED))
+        val result =
+            orderService.updateStatus(
+                orderId,
+                UpdateOrderStatusRequest(OrderStatus.CANCELLED),
+            )
 
         assertEquals(OrderStatus.CANCELLED, result.status)
         assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
