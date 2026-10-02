@@ -145,6 +145,50 @@ class CatalogServiceTest {
     }
 
     @Test
+    fun `searchProducts rejects query longer than 100 characters`() {
+        assertThrows<BadRequestException> {
+            catalogService.searchProducts(query = "x".repeat(101))
+        }
+    }
+
+    @Test
+    fun `searchProducts escapes SQL like wildcards before repository search`() {
+        val product =
+            Product(
+                id = UUID.randomUUID(),
+                name = "100%_match",
+                slug = "100-match",
+                price = BigDecimal("10"),
+                stockQuantity = 5,
+            )
+        every {
+            productRepository.search(
+                query = "100\\%\\_match",
+                categoryId = null,
+                activeOnly = true,
+                featuredOnly = false,
+                minPrice = null,
+                maxPrice = null,
+                pageable = any(),
+            )
+        } returns PageImpl(listOf(product))
+
+        val result = catalogService.searchProducts(query = " 100%_match ")
+
+        assertEquals("100%_match", result.content[0].name)
+        verify(exactly = 1) {
+            productRepository.search(
+                query = "100\\%\\_match",
+                categoryId = null,
+                activeOnly = true,
+                featuredOnly = false,
+                minPrice = null,
+                maxPrice = null,
+                pageable = any(),
+            )
+        }
+    }
+    @Test
     fun `updateCategory rejects self parent`() {
         val id = UUID.randomUUID()
         val category =
