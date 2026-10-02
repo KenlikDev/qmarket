@@ -145,6 +145,53 @@ class CatalogServiceTest {
     }
 
     @Test
+    fun `searchProducts rejects an oversized query`() {
+        assertThrows<BadRequestException> {
+            catalogService.searchProducts(query = "a".repeat(101))
+        }
+    }
+
+    @Test
+    fun `searchProducts rejects wildcard query characters`() {
+        assertThrows<BadRequestException> {
+            catalogService.searchProducts(query = "head%phones")
+        }
+
+        assertThrows<BadRequestException> {
+            catalogService.searchProducts(query = "head_phones")
+        }
+    }
+
+    @Test
+    fun `searchProducts trims the query before repository search`() {
+        val product =
+            Product(
+                id = UUID.randomUUID(),
+                name = "Headphones",
+                slug = "headphones",
+                price = BigDecimal("10.00"),
+                stockQuantity = 5,
+            )
+        every {
+            productRepository.search(any(), any(), any(), any(), any(), any(), any())
+        } returns PageImpl(listOf(product))
+
+        catalogService.searchProducts(query = "  headphones  ")
+
+        verify {
+            productRepository.search(
+                "headphones",
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
+    }
+
+    @Test
     fun `updateCategory rejects self parent`() {
         val id = UUID.randomUUID()
         val category =
