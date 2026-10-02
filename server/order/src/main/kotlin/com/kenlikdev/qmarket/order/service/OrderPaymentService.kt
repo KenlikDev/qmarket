@@ -41,68 +41,155 @@ class OrderPaymentService(
     private val transactionTemplate = TransactionTemplate(transactionManager)
 
     /**
-     * Charge via [PaymentGateway] then mark order PAID.
-     * Default gateway is mock; swap with a real PSP adapter without changing this flow.
+     * Charge via [PaymentGateway] without holding a database transaction during external I/O.
+     *
+     * A short transaction marks the order as owned by a durable payment operation. The gateway
+     * call runs after that transaction commits. A second short transaction finalizes the result.
+     * If the provider call fails with an unknown outcome, the CREATING marker remains durable so
+     * the scheduler can retry the same idempotent order operation later.
      */
-    @Transactional
     fun pay(
         userId: UUID,
         orderId: UUID,
+    ): OrderResponse = payInternal(userId, orderId, allowStaleCreatingRecovery = false)
+
+    /**
+     * Retry a stale generic payment operation after its original provider call may have timed out
+     * or the process may have crashed before local finalization.
+     */
+    fun recoverStaleGenericPaymentOperation(
+        userId: UUID,
+        orderId: UUID,
+    ): OrderResponse = payInternal(userId, orderId, allowStaleCreatingRecovery = true)
+
+    private fun payInternal(
+        userId: UUID,
+        orderId: UUID,
+        allowStaleCreatingRecovery: Boolean,
     ): OrderResponse {
-        val order =
-            orderRepository
-                .findByIdAndUserIdForUpdate(orderId, userId)
-                ?: throw NotFoundException("Order not found")
+        val plan =
+            requireNotNull(
+                transactionTemplate.execute {
+                    val order =
+                        orderRepository.findByIdAndUserIdForUpdate(orderId, userId)
+                            ?: throw NotFoundException("Order not found")
 
-        if (order.paymentOperationState == PaymentOperationState.CANCELLING) {
-            throw BadRequestException("Order cancellation is already in progress")
-        }
-        if (order.paymentOperationState == PaymentOperationState.CREATING) {
-            throw BadRequestException("Order payment is already in progress")
-        }
+                    when (order.paymentOperationState) {
+                        PaymentOperationState.NONE -> Unit
+                        PaymentOperationState.CANCELLING ->
+                            throw BadRequestException("Order cancellation is already in progress")
+                        PaymentOperationState.CREATING -> {
+                            if (
+                                !allowStaleCreatingRecovery ||
+                                !order.isPaymentOperationStale(
+                                    now = Instant.now(),
+                                    staleAfterSeconds = paymentExpiryProperties.operationStaleAfterSeconds,
+                                )
+                            ) {
+                                throw BadRequestException("Order payment is already in progress")
+                            }
+                        }
+                    }
 
-        // Fail closed before the gateway if status cannot become PAID.
-        when (order.status) {
-            OrderStatus.PENDING, OrderStatus.CONFIRMED -> Unit
-            OrderStatus.PAID -> throw BadRequestException("Order is already paid")
-            OrderStatus.CANCELLED -> throw BadRequestException("Cannot pay a cancelled order")
-            OrderStatus.SHIPPED, OrderStatus.DELIVERED ->
-                throw BadRequestException("Order is already fulfilled")
-        }
-        if (order.isPaymentExpired()) {
-            throw BadRequestException("Payment window has expired; cancel the order")
-        }
+                    validatePayableStatus(order.status)
+                    if (order.isPaymentExpired()) {
+                        throw BadRequestException("Payment window has expired; cancel the order")
+                    }
 
-        // Production Stripe direct charging is disabled. The row lock + state guard still
-        // prevents a generic PaymentGateway implementation from racing with cancellation.
+                    val providerId = paymentGateway.providerId
+                    val currency =
+                        (order.paymentCurrency ?: "RUB")
+                            .trim()
+                            .lowercase(Locale.ROOT)
+                    require(currency.matches(Regex("^[a-z]{3}$"))) {
+                        "Order payment currency is invalid"
+                    }
+
+                    order.paymentProvider = providerId
+                    order.paymentCurrency = currency
+                    val operationId = UUID.randomUUID()
+                    order.paymentOperationState = PaymentOperationState.CREATING
+                    order.paymentOperationId = operationId
+                    order.paymentOperationStartedAt = Instant.now()
+                    orderRepository.save(order)
+
+                    PaymentChargePlan(
+                        orderId = orderId,
+                        userId = userId,
+                        amount = order.totalAmount,
+                        currency = currency,
+                        providerId = providerId,
+                        operationId = operationId,
+                    )
+                },
+            ) { "Payment preparation transaction returned no result" }
+
         val charge =
+            // No Spring transaction is active here: provider I/O must not hold a DB connection.
             paymentGateway.charge(
-                orderId = orderId,
-                userId = userId,
-                amount = order.totalAmount,
+                orderId = plan.orderId,
+                userId = plan.userId,
+                amount = plan.amount,
+                currency = plan.currency.uppercase(Locale.ROOT),
             )
+
         if (!charge.success) {
-            throw BadRequestException(charge.message ?: "Payment declined by ${paymentGateway.providerId}")
+            requireNotNull(
+                transactionTemplate.execute {
+                    val order =
+                        orderRepository.findByIdForUpdate(plan.orderId)
+                            ?: throw NotFoundException("Order not found")
+                    if (
+                        order.paymentOperationState == PaymentOperationState.CREATING &&
+                        order.paymentOperationId == plan.operationId
+                    ) {
+                        order.paymentOperationState = PaymentOperationState.NONE
+                        order.paymentOperationId = null
+                        order.paymentOperationStartedAt = null
+                        orderRepository.save(order)
+                    }
+                },
+            ) { "Payment decline finalization transaction returned no result" }
+            throw BadRequestException(charge.message ?: "Payment declined by \${paymentGateway.providerId}")
         }
 
-        order.paymentProvider = paymentGateway.providerId
-        order.paymentProviderReference = charge.providerReference
-        order.paymentOperationState = PaymentOperationState.NONE
-        order.paymentOperationId = null
-        order.paymentOperationStartedAt = null
-        order.markPaid()
+        return requireNotNull(
+            transactionTemplate.execute {
+                val order =
+                    orderRepository.findByIdForUpdate(plan.orderId)
+                        ?: throw NotFoundException("Order not found")
 
-        val saved = orderRepository.save(order)
-        notificationService.notifyOrderEvent(
-            userId = userId,
-            type = "ORDER_PAID",
-            title = "Payment received",
-            body = "Order ${saved.id} is paid. Total ${saved.totalAmount}.",
-            orderId = saved.id,
-        )
-        return OrderMapper.toResponse(saved)
+                if (order.status == OrderStatus.PAID) {
+                    return@execute OrderMapper.toResponse(order)
+                }
+
+                if (
+                    order.paymentOperationState != PaymentOperationState.CREATING ||
+                    order.paymentOperationId != plan.operationId
+                ) {
+                    throw BadRequestException("Order payment state changed during payment")
+                }
+
+                order.paymentProvider = plan.providerId
+                order.paymentProviderReference = charge.providerReference
+                order.paymentCurrency = plan.currency
+                order.paymentOperationState = PaymentOperationState.NONE
+                order.paymentOperationId = null
+                order.paymentOperationStartedAt = null
+                order.markPaid()
+
+                val saved = orderRepository.save(order)
+                notificationService.notifyOrderEvent(
+                    userId = saved.userId,
+                    type = "ORDER_PAID",
+                    title = "Payment received",
+                    body = "Order \${saved.id} is paid. Total \${saved.totalAmount}.",
+                    orderId = saved.id,
+                )
+                OrderMapper.toResponse(saved)
+            },
+        ) { "Payment finalization transaction returned no result" }
     }
-
     /**
      * Create a Stripe PaymentIntent without holding a database transaction during network I/O.
      *
@@ -499,6 +586,14 @@ class OrderPaymentService(
         }
     }
 
+    private data class PaymentChargePlan(
+        val orderId: UUID,
+        val userId: UUID,
+        val amount: BigDecimal,
+        val currency: String,
+        val providerId: String,
+        val operationId: UUID,
+    )
     private data class PaymentSessionPlan(
         val orderId: UUID,
         val userId: UUID,
