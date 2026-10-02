@@ -357,11 +357,11 @@ class CatalogService(
             updatedAt = updatedAt,
         )
 
-    private fun escapeLikeWildcards(query: String): String =
+    private fun escapeLikeWildcards(query: String?): String? =
         query
-            .replace("\\", "\\\\")
-            .replace("%", "\\%")
-            .replace("_", "\\_")
+            ?.replace("\\", "\\\\")
+            ?.replace("%", "\\%")
+            ?.replace("_", "\\_")
 
     private companion object {
         const val MAX_SEARCH_QUERY_LENGTH = 100
