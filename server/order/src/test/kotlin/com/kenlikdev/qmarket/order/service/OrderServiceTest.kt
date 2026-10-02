@@ -53,9 +53,7 @@ class OrderServiceTest {
     private lateinit var notificationService: NotificationService
     private lateinit var paymentGateway: PaymentGateway
     private lateinit var orderPaymentService: OrderPaymentService
-    private lateinit var stripeApi: StripeApiClient
-    private lateinit var stripeApiClient: ObjectProvider<StripeApiClient>
-    private lateinit var stripeProperties: ObjectProvider<StripeProperties>
+    private lateinit var realOrderPaymentService: OrderPaymentService
     private lateinit var idempotency: OrderIdempotencySupport
 
     private val userId = UUID.randomUUID()
@@ -94,12 +92,11 @@ class OrderServiceTest {
         every { entityManager.createNativeQuery(any<String>()) } returns nativeQuery
         every { nativeQuery.setParameter(any<String>(), any()) } returns nativeQuery
         every { nativeQuery.singleResult } returns 1
-        stripeApi = mockk()
-        stripeApiClient = mockk(relaxed = true)
+        val stripeApiClient = mockk<ObjectProvider<StripeApiClient>>(relaxed = true)
         every { stripeApiClient.getIfAvailable() } returns null
-        stripeProperties = mockk(relaxed = true)
+        val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
         every { stripeProperties.getIfAvailable() } returns null
-        orderPaymentService =
+        realOrderPaymentService =
             OrderPaymentService(
                 orderRepository,
                 notificationService,
@@ -109,7 +106,10 @@ class OrderServiceTest {
                 PaymentExpiryProperties(),
                 transactionManager,
             )
-
+        orderPaymentService = mockk(relaxed = true)
+        every { orderPaymentService.pay(any(), any()) } answers {
+            realOrderPaymentService.pay(firstArg(), secondArg())
+        }
 
         val idempotency =
             OrderIdempotencySupport(
@@ -416,7 +416,6 @@ class OrderServiceTest {
         assertThrows<BadRequestException> {
             orderService.cancelMyOrder(userId, orderId)
         }
-
     }
 
     @Test
@@ -659,6 +658,18 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
+        every {
+            orderPaymentService.cancelProviderPayment(
+                providerId = "stripe",
+                providerReference = "pi_fail",
+                paymentOperationKey = null,
+                amountMinor = 1000L,
+                currency = "rub",
+                orderId = orderId,
+                userId = userId,
+            )
+        } throws PaymentProviderException(cause = IllegalStateException("provider unavailable"))
+
         assertThrows<PaymentProviderException> {
             orderService.cancelMyOrder(userId, orderId)
         }
@@ -683,20 +694,42 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
-        every { stripeApiClient.getIfAvailable() } returns stripeApi
-        every { stripeApi.retrievePaymentIntent("pi_test_123") } returns
-            StripePaymentIntentResult(
-                id = "pi_test_123",
-                status = "requires_payment_method",
+        every {
+            orderPaymentService.cancelProviderPayment(
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                paymentOperationKey = null,
                 amountMinor = 1000L,
                 currency = "rub",
+                orderId = orderId,
+                userId = userId,
             )
-        every { stripeApi.cancelPaymentIntent("pi_test_123") } returns
+        } returns
             StripePaymentIntentResult(
                 id = "pi_test_123",
                 status = "succeeded",
                 amountMinor = 1000L,
                 currency = "rub",
+            )
+        every {
+            orderPaymentService.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                amountMinor = 1000L,
+                currency = "rub",
+            )
+        } returns
+            OrderResponse(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PAID,
+                totalAmount = "10.00",
+                shippingAddress = null,
+                customerNote = null,
+                items = emptyList(),
+                createdAt = order.createdAt,
+                updatedAt = order.updatedAt,
             )
         val result = orderService.cancelMyOrder(userId, orderId)
 
