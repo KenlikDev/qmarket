@@ -735,18 +735,6 @@ class OrderServiceTest {
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 1) } returns Unit
-        every {
-            orderPaymentService.cancelProviderPayment(
-                providerId = null,
-                providerReference = null,
-                paymentOperationKey = null,
-                amountMinor = any(),
-                currency = null,
-                orderId = orderId,
-                userId = userId,
-            )
-        } returns null
-
         val result = orderService.updateStatus(orderId, UpdateOrderStatusRequest(OrderStatus.CANCELLED))
 
         assertEquals(OrderStatus.CANCELLED, result.status)
