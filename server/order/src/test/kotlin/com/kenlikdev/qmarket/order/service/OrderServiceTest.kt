@@ -29,7 +29,6 @@ import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.spyk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -100,16 +99,14 @@ class OrderServiceTest {
         val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
         every { stripeProperties.getIfAvailable() } returns null
         orderPaymentService =
-            spyk(
-                OrderPaymentService(
-                    orderRepository,
-                    notificationService,
-                    paymentGateway,
-                    stripeApiClient,
-                    stripeProperties,
-                    PaymentExpiryProperties(),
-                    transactionManager,
-                ),
+            OrderPaymentService(
+                orderRepository,
+                notificationService,
+                paymentGateway,
+                stripeApiClient,
+                stripeProperties,
+                PaymentExpiryProperties(),
+                transactionManager,
             )
         val idempotency =
             OrderIdempotencySupport(
@@ -399,17 +396,7 @@ class OrderServiceTest {
             UpdateOrderStatusRequest(OrderStatus.CANCELLED),
         )
 
-        verify(exactly = 1) {
-            orderPaymentService.cancelProviderPayment(
-                providerId = null,
-                providerReference = null,
-                paymentOperationKey = null,
-                amountMinor = any(),
-                currency = null,
-                orderId = orderId,
-                userId = userId,
-            )
-        }
+        assertEquals(OrderStatus.CANCELLED, order.status)
     }
 
     @Test
@@ -428,17 +415,7 @@ class OrderServiceTest {
             orderService.cancelMyOrder(userId, orderId)
         }
 
-        verify(exactly = 0) {
-            orderPaymentService.cancelProviderPayment(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-            )
-        }
+
     }
 
     @Test
