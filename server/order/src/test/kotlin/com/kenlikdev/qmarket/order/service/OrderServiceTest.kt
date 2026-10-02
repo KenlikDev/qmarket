@@ -21,16 +21,13 @@ import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
-import com.kenlikdev.qmarket.order.payment.StripeApiClient
 import com.kenlikdev.qmarket.order.payment.StripePaymentIntentResult
-import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.spyk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -55,6 +52,7 @@ class OrderServiceTest {
     private lateinit var notificationService: NotificationService
     private lateinit var paymentGateway: PaymentGateway
     private lateinit var orderPaymentService: OrderPaymentService
+    private lateinit var realOrderPaymentService: OrderPaymentService
     private lateinit var idempotency: OrderIdempotencySupport
 
     private val userId = UUID.randomUUID()
@@ -97,18 +95,20 @@ class OrderServiceTest {
         every { stripeApiClient.getIfAvailable() } returns null
         val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
         every { stripeProperties.getIfAvailable() } returns null
-        orderPaymentService =
-            spyk(
-                OrderPaymentService(
-                    orderRepository,
-                    notificationService,
-                    paymentGateway,
-                    stripeApiClient,
-                    stripeProperties,
-                    PaymentExpiryProperties(),
-                    transactionManager,
-                ),
+        realOrderPaymentService =
+            OrderPaymentService(
+                orderRepository,
+                notificationService,
+                paymentGateway,
+                stripeApiClient,
+                stripeProperties,
+                PaymentExpiryProperties(),
+                transactionManager,
             )
+        orderPaymentService = mockk(relaxed = true)
+        every { orderPaymentService.pay(any(), any()) } answers {
+            realOrderPaymentService.pay(firstArg(), secondArg())
+        }
 
         val idempotency =
             OrderIdempotencySupport(
