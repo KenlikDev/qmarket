@@ -166,7 +166,7 @@ class CatalogService(
             )
         val result =
             productRepository.search(
-                query = escapeLikeWildcards(normalizedQuery),
+                escapeLikeWildcards(normalizedQuery),
                 categoryId,
                 activeOnly,
                 featuredOnly,
