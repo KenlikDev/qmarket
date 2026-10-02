@@ -286,6 +286,7 @@ class OrderService(
                         userId = order.userId,
                         status = order.status,
                         operationState = order.paymentOperationState,
+                        paymentProvider = order.paymentProvider,
                         paymentExpired = order.isPaymentExpired(),
                     )
                 }
@@ -296,11 +297,17 @@ class OrderService(
                 getMyOrder(snapshot.userId, orderId)
             snapshot.operationState == PaymentOperationState.CANCELLING ->
                 cancelOrder(orderId = orderId, expectedUserId = null)
-            snapshot.operationState == PaymentOperationState.CREATING && snapshot.paymentExpired ->
+            snapshot.operationState == PaymentOperationState.CREATING &&
+                snapshot.paymentProvider == "stripe" &&
+                snapshot.paymentExpired ->
                 cancelOrder(orderId = orderId, expectedUserId = null)
-            snapshot.operationState == PaymentOperationState.CREATING -> {
+            snapshot.operationState == PaymentOperationState.CREATING &&
+                snapshot.paymentProvider == "stripe" -> {
                 createPaymentSession(snapshot.userId, orderId)
                 getMyOrder(snapshot.userId, orderId)
+            }
+            snapshot.operationState == PaymentOperationState.CREATING -> {
+                orderPaymentService.recoverStaleGenericPaymentOperation(snapshot.userId, orderId)
             }
             snapshot.paymentExpired ->
                 cancelOrder(orderId = orderId, expectedUserId = null)
@@ -313,6 +320,7 @@ class OrderService(
         val userId: UUID,
         val status: OrderStatus,
         val operationState: PaymentOperationState,
+        val paymentProvider: String?,
         val paymentExpired: Boolean,
     )
 
