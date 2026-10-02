@@ -735,9 +735,15 @@ class OrderServiceTest {
         val result = orderService.cancelMyOrder(userId, orderId)
 
         assertEquals(OrderStatus.PAID, result.status)
-        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
-        assertEquals(null, order.paymentOperationId)
-        assertEquals(null, order.paymentOperationStartedAt)
+        verify(exactly = 1) {
+            orderPaymentService.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                amountMinor = 1000L,
+                currency = "rub",
+            )
+        }
         verify(exactly = 0) { productCatalog.increaseStock(any(), any()) }
     }
 
