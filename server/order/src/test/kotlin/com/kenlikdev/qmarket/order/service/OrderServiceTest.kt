@@ -22,12 +22,14 @@ import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
 import com.kenlikdev.qmarket.order.payment.StripePaymentIntentResult
+import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.spyk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -90,7 +92,22 @@ class OrderServiceTest {
         every { entityManager.createNativeQuery(any<String>()) } returns nativeQuery
         every { nativeQuery.setParameter(any<String>(), any()) } returns nativeQuery
         every { nativeQuery.singleResult } returns 1
-        orderPaymentService = mockk()
+        val stripeApiClient = mockk<ObjectProvider<StripeApiClient>>(relaxed = true)
+        every { stripeApiClient.getIfAvailable() } returns null
+        val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
+        every { stripeProperties.getIfAvailable() } returns null
+        orderPaymentService =
+            spyk(
+                OrderPaymentService(
+                    orderRepository,
+                    notificationService,
+                    paymentGateway,
+                    stripeApiClient,
+                    stripeProperties,
+                    PaymentExpiryProperties(),
+                    transactionManager,
+                ),
+            )
 
         val idempotency =
             OrderIdempotencySupport(
@@ -664,6 +681,17 @@ class OrderServiceTest {
                 userId = userId,
             )
         } throws PaymentProviderException(cause = IllegalStateException("provider unavailable"))
+        every {
+            orderPaymentService.cancelProviderPayment(
+                providerId = "stripe",
+                providerReference = "pi_fail",
+                paymentOperationKey = null,
+                amountMinor = 1000L,
+                currency = "rub",
+                orderId = orderId,
+                userId = userId,
+            )
+        } throws PaymentProviderException(cause = IllegalStateException("provider unavailable"))
 
         assertThrows<PaymentProviderException> {
             orderService.cancelMyOrder(userId, orderId)
@@ -689,6 +717,43 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
+        every {
+            orderPaymentService.cancelProviderPayment(
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                paymentOperationKey = null,
+                amountMinor = 1000L,
+                currency = "rub",
+                orderId = orderId,
+                userId = userId,
+            )
+        } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "succeeded",
+                amountMinor = 1000L,
+                currency = "rub",
+            )
+        every {
+            orderPaymentService.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                amountMinor = 1000L,
+                currency = "rub",
+            )
+        } returns
+            OrderResponse(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PAID,
+                totalAmount = "10.00",
+                shippingAddress = null,
+                customerNote = null,
+                items = emptyList(),
+                createdAt = order.createdAt,
+                updatedAt = order.updatedAt,
+            )
         every {
             orderPaymentService.cancelProviderPayment(
                 providerId = "stripe",
