@@ -55,6 +55,7 @@ class OrderServiceTest {
     private lateinit var paymentGateway: PaymentGateway
     private lateinit var orderPaymentService: OrderPaymentService
     private lateinit var realOrderPaymentService: OrderPaymentService
+    private lateinit var transactionManager: PlatformTransactionManager
     private lateinit var idempotency: OrderIdempotencySupport
 
     private val userId = UUID.randomUUID()
@@ -83,7 +84,7 @@ class OrderServiceTest {
         every { paymentGateway.providerId } returns "mock"
         every { paymentGateway.charge(any(), any(), any(), any()) } returns
             PaymentChargeResult(success = true, providerReference = "mock_ref")
-        val transactionManager = mockk<PlatformTransactionManager>()
+        transactionManager = mockk()
         val txStatus = mockk<TransactionStatus>(relaxed = true)
         every { transactionManager.getTransaction(any()) } returns txStatus
         every { transactionManager.commit(any()) } just Runs
@@ -178,6 +179,36 @@ class OrderServiceTest {
         // expose for fingerprint assertions in idempotency tests
         this.idempotency = idempotency
     }
+
+    private fun createPaymentService(stripeApi: StripeApiClient?): OrderPaymentService {
+        val stripeApiClient = mockk<ObjectProvider<StripeApiClient>>(relaxed = true)
+        every { stripeApiClient.getIfAvailable() } returns stripeApi
+        val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
+        every { stripeProperties.getIfAvailable() } returns null
+
+        return OrderPaymentService(
+            orderRepository,
+            notificationService,
+            paymentGateway,
+            stripeApiClient,
+            stripeProperties,
+            PaymentExpiryProperties(),
+            transactionManager,
+        )
+    }
+
+    private fun createOrderService(paymentService: OrderPaymentService): OrderService =
+        OrderService(
+            orderRepository,
+            cartRepository,
+            productCatalog,
+            addressRepository,
+            notificationService,
+            paymentService,
+            idempotency,
+            transactionManager,
+            PaymentExpiryProperties(),
+        )
 
     @Test
     fun `createFromCart creates order and clears cart`() {
@@ -703,15 +734,17 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
+
+        val serviceUnderTest = createOrderService(createPaymentService(stripeApi = null))
+
         assertThrows<PaymentProviderException> {
-            orderService.cancelMyOrder(userId, orderId)
+            serviceUnderTest.cancelMyOrder(userId, orderId)
         }
 
         assertEquals(PaymentOperationState.CANCELLING, order.paymentOperationState)
-        assertEquals(true, order.paymentOperationId != null)
-        assertEquals(true, order.paymentOperationStartedAt != null)
+        assertTrue(order.paymentOperationId != null)
+        assertTrue(order.paymentOperationStartedAt != null)
     }
-
     @Test
     fun `provider succeeded cancellation becomes paid without restocking`() {
         val orderId = UUID.randomUUID()
@@ -727,7 +760,26 @@ class OrderServiceTest {
             )
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
-        val result = orderService.cancelMyOrder(userId, orderId)
+
+        val stripeApi = mockk<StripeApiClient>()
+        every { stripeApi.retrievePaymentIntent("pi_test_123") } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "requires_payment_method",
+                amountMinor = 1000L,
+                currency = "rub",
+            )
+        every { stripeApi.cancelPaymentIntent("pi_test_123") } returns
+            StripePaymentIntentResult(
+                id = "pi_test_123",
+                status = "succeeded",
+                amountMinor = 1000L,
+                currency = "rub",
+            )
+
+        val serviceUnderTest = createOrderService(createPaymentService(stripeApi))
+
+        val result = serviceUnderTest.cancelMyOrder(userId, orderId)
 
         assertEquals(OrderStatus.PAID, result.status)
         assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
@@ -735,7 +787,6 @@ class OrderServiceTest {
         assertEquals(null, order.paymentOperationStartedAt)
         verify(exactly = 0) { productCatalog.increaseStock(any(), any()) }
     }
-
     @Test
     fun `stale cancellation can be retried and finalized`() {
         val orderId = UUID.randomUUID()
