@@ -111,17 +111,7 @@ class OrderServiceTest {
         every { orderPaymentService.pay(any(), any()) } answers {
             realOrderPaymentService.pay(firstArg(), secondArg())
         }
-        every {
-            orderPaymentService.cancelProviderPayment(
-                any<String?>(),
-                any<String?>(),
-                any<String?>(),
-                any<Long?>(),
-                any<String?>(),
-                any<UUID>(),
-                any<UUID>(),
-            )
-        } returns null
+
 
         val idempotency =
             OrderIdempotencySupport(
@@ -410,6 +400,17 @@ class OrderServiceTest {
                 providerId = null,
                 providerReference = null,
                 paymentOperationKey = null,
+                amountMinor = any(),
+                currency = null,
+                orderId = orderId,
+                userId = userId,
+            )
+        } returns null
+        every {
+            orderPaymentService.cancelProviderPayment(
+                providerId = null,
+                providerReference = null,
+                paymentOperationKey = null,
                 amountMinor = any<Long>(),
                 currency = null,
                 orderId = orderId,
@@ -468,6 +469,17 @@ class OrderServiceTest {
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 2) } returns Unit
+        every {
+            orderPaymentService.cancelProviderPayment(
+                providerId = null,
+                providerReference = null,
+                paymentOperationKey = null,
+                amountMinor = any(),
+                currency = null,
+                orderId = orderId,
+                userId = userId,
+            )
+        } returns null
 
         val result =
             orderService.updateStatus(
@@ -793,6 +805,17 @@ class OrderServiceTest {
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 1) } returns Unit
+        every {
+            orderPaymentService.cancelProviderPayment(
+                providerId = null,
+                providerReference = null,
+                paymentOperationKey = null,
+                amountMinor = any(),
+                currency = null,
+                orderId = orderId,
+                userId = userId,
+            )
+        } returns null
 
         val result = orderService.updateStatus(orderId, UpdateOrderStatusRequest(OrderStatus.CANCELLED))
 
