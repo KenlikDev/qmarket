@@ -17,6 +17,7 @@ import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
+import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
@@ -89,11 +90,7 @@ class OrderServiceTest {
         every { entityManager.createNativeQuery(any<String>()) } returns nativeQuery
         every { nativeQuery.setParameter(any<String>(), any()) } returns nativeQuery
         every { nativeQuery.singleResult } returns 1
-        stripeApi = mockk()
-        stripeApiClient = mockk(relaxed = true)
-        every { stripeApiClient.getIfAvailable() } returns null
-        val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
-        every { stripeProperties.getIfAvailable() } returns null
+        orderPaymentService = mockk()
 
         val idempotency =
             OrderIdempotencySupport(
