@@ -92,7 +92,14 @@ class OrderPaymentService(
                     }
 
                     validatePayableStatus(order.status)
-                    if (order.isPaymentExpired()) {
+                    val recoveringStaleOperation =
+                        allowStaleCreatingRecovery &&
+                            order.paymentOperationState == PaymentOperationState.CREATING &&
+                            order.isPaymentOperationStale(
+                                now = Instant.now(),
+                                staleAfterSeconds = paymentExpiryProperties.operationStaleAfterSeconds,
+                            )
+                    if (order.isPaymentExpired() && !recoveringStaleOperation) {
                         throw BadRequestException("Payment window has expired; cancel the order")
                     }
 
@@ -137,7 +144,7 @@ class OrderPaymentService(
             requireNotNull(
                 transactionTemplate.execute {
                     val order =
-                        orderRepository.findByIdForUpdate(plan.orderId)
+                        orderRepository.findByIdAndUserIdForUpdate(plan.orderId, plan.userId)
                             ?: throw NotFoundException("Order not found")
                     if (
                         order.paymentOperationState == PaymentOperationState.CREATING &&
@@ -150,13 +157,13 @@ class OrderPaymentService(
                     }
                 },
             ) { "Payment decline finalization transaction returned no result" }
-            throw BadRequestException(charge.message ?: "Payment declined by \${paymentGateway.providerId}")
+            throw BadRequestException(charge.message ?: "Payment declined by ${paymentGateway.providerId}")
         }
 
         return requireNotNull(
             transactionTemplate.execute {
                 val order =
-                    orderRepository.findByIdForUpdate(plan.orderId)
+                    orderRepository.findByIdAndUserIdForUpdate(plan.orderId, plan.userId)
                         ?: throw NotFoundException("Order not found")
 
                 if (order.status == OrderStatus.PAID) {
@@ -183,7 +190,7 @@ class OrderPaymentService(
                     userId = saved.userId,
                     type = "ORDER_PAID",
                     title = "Payment received",
-                    body = "Order \${saved.id} is paid. Total \${saved.totalAmount}.",
+                    body = "Order ${saved.id} is paid. Total ${saved.totalAmount}.",
                     orderId = saved.id,
                 )
                 OrderMapper.toResponse(saved)
