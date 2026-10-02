@@ -180,37 +180,6 @@ class OrderServiceTest {
         this.idempotency = idempotency
     }
 
-    // Recovery tests exercise the real payment service; only the Stripe API boundary is mocked.
-    private fun createPaymentService(stripeApi: StripeApiClient?): OrderPaymentService {
-        val stripeApiClient = mockk<ObjectProvider<StripeApiClient>>(relaxed = true)
-        every { stripeApiClient.getIfAvailable() } returns stripeApi
-        val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
-        every { stripeProperties.getIfAvailable() } returns null
-
-        return OrderPaymentService(
-            orderRepository,
-            notificationService,
-            paymentGateway,
-            stripeApiClient,
-            stripeProperties,
-            PaymentExpiryProperties(),
-            transactionManager,
-        )
-    }
-
-    private fun createOrderService(paymentService: OrderPaymentService): OrderService =
-        OrderService(
-            orderRepository,
-            cartRepository,
-            productCatalog,
-            addressRepository,
-            notificationService,
-            paymentService,
-            idempotency,
-            transactionManager,
-            PaymentExpiryProperties(),
-        )
-
     @Test
     fun `createFromCart creates order and clears cart`() {
         val cart =
@@ -737,10 +706,8 @@ class OrderServiceTest {
         every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
-        val serviceUnderTest = createOrderService(createPaymentService(stripeApi = null))
-
         assertThrows<PaymentProviderException> {
-            serviceUnderTest.cancelMyOrder(userId, orderId)
+            orderService.cancelMyOrder(userId, orderId)
         }
 
         assertEquals(PaymentOperationState.CANCELLING, order.paymentOperationState)
@@ -765,25 +732,7 @@ class OrderServiceTest {
         every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
-        val stripeApi = mockk<StripeApiClient>()
-        every { stripeApi.retrievePaymentIntent("pi_test_123") } returns
-            StripePaymentIntentResult(
-                id = "pi_test_123",
-                status = "requires_payment_method",
-                amountMinor = 1000L,
-                currency = "rub",
-            )
-        every { stripeApi.cancelPaymentIntent("pi_test_123") } returns
-            StripePaymentIntentResult(
-                id = "pi_test_123",
-                status = "succeeded",
-                amountMinor = 1000L,
-                currency = "rub",
-            )
-
-        val serviceUnderTest = createOrderService(createPaymentService(stripeApi))
-
-        val result = serviceUnderTest.cancelMyOrder(userId, orderId)
+        val result = orderService.cancelMyOrder(userId, orderId)
 
         assertEquals(OrderStatus.PAID, result.status)
         assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
