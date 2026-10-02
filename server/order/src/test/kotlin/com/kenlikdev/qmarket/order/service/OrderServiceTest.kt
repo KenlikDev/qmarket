@@ -180,6 +180,7 @@ class OrderServiceTest {
         this.idempotency = idempotency
     }
 
+    // Recovery tests exercise the real payment service; only the Stripe API boundary is mocked.
     private fun createPaymentService(stripeApi: StripeApiClient?): OrderPaymentService {
         val stripeApiClient = mockk<ObjectProvider<StripeApiClient>>(relaxed = true)
         every { stripeApiClient.getIfAvailable() } returns stripeApi
