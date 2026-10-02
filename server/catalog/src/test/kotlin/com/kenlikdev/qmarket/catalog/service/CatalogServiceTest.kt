@@ -188,6 +188,7 @@ class CatalogServiceTest {
             )
         }
     }
+
     @Test
     fun `updateCategory rejects self parent`() {
         val id = UUID.randomUUID()
