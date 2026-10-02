@@ -732,7 +732,7 @@ class OrderServiceTest {
                 paymentProviderReference = "pi_fail",
                 paymentCurrency = "rub",
             )
-        every { orderRepository.findByIdForUpdate(orderId) } returns order 
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
@@ -746,6 +746,7 @@ class OrderServiceTest {
         assertTrue(order.paymentOperationId != null)
         assertTrue(order.paymentOperationStartedAt != null)
     }
+
     @Test
     fun `provider succeeded cancellation becomes paid without restocking`() {
         val orderId = UUID.randomUUID()
@@ -789,6 +790,7 @@ class OrderServiceTest {
         assertEquals(null, order.paymentOperationStartedAt)
         verify(exactly = 0) { productCatalog.increaseStock(any(), any()) }
     }
+
     @Test
     fun `stale cancellation can be retried and finalized`() {
         val orderId = UUID.randomUUID()
