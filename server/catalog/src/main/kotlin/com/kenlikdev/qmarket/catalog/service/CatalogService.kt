@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.util.UUID
 
+private const val MAX_SEARCH_QUERY_LENGTH = 100
+
 @Service
 class CatalogService(
     private val productRepository: ProductRepository,
@@ -134,6 +136,20 @@ class CatalogService(
         if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
             throw BadRequestException("minPrice must be less than or equal to maxPrice")
         }
+        val normalizedQuery =
+            query
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.also {
+                    if (it.length > MAX_SEARCH_QUERY_LENGTH) {
+                        throw BadRequestException(
+                            "Search query must be at most $MAX_SEARCH_QUERY_LENGTH characters",
+                        )
+                    }
+                    if ('%' in it || '_' in it) {
+                        throw BadRequestException("Search query cannot contain '%' or '_'")
+                    }
+                }
         val direction =
             if (sortDir.equals("asc", ignoreCase = true)) {
                 Sort.Direction.ASC
@@ -155,7 +171,7 @@ class CatalogService(
             )
         val result =
             productRepository.search(
-                query,
+                normalizedQuery,
                 categoryId,
                 activeOnly,
                 featuredOnly,
