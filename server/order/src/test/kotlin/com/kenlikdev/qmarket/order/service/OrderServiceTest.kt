@@ -27,13 +27,7 @@ import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import io.mockk.Runs
-import io.mockk.any
-import io.mockk.eq
 import io.mockk.every
-import io.mockk.firstArg
-import io.mockk.eq
-import io.mockk.every
-import io.mockk.isNull
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
