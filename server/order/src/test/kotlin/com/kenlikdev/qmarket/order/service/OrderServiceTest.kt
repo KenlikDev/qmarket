@@ -8,17 +8,21 @@ import com.kenlikdev.qmarket.catalog.api.ProductInfo
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
+import com.kenlikdev.qmarket.common.exception.PaymentProviderException
 import com.kenlikdev.qmarket.identity.domain.Address
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderIdempotencyKey
 import com.kenlikdev.qmarket.order.domain.OrderItem
 import com.kenlikdev.qmarket.order.domain.OrderStatus
+import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
+import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
 import com.kenlikdev.qmarket.order.payment.StripeApiClient
+import com.kenlikdev.qmarket.order.payment.StripePaymentIntentResult
 import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
@@ -26,7 +30,6 @@ import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.spyk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -37,6 +40,7 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.Optional
 import java.util.UUID
 
@@ -50,6 +54,8 @@ class OrderServiceTest {
     private lateinit var notificationService: NotificationService
     private lateinit var paymentGateway: PaymentGateway
     private lateinit var orderPaymentService: OrderPaymentService
+    private lateinit var realOrderPaymentService: OrderPaymentService
+    private lateinit var transactionManager: PlatformTransactionManager
     private lateinit var idempotency: OrderIdempotencySupport
 
     private val userId = UUID.randomUUID()
@@ -78,7 +84,7 @@ class OrderServiceTest {
         every { paymentGateway.providerId } returns "mock"
         every { paymentGateway.charge(any(), any(), any(), any()) } returns
             PaymentChargeResult(success = true, providerReference = "mock_ref")
-        val transactionManager = mockk<PlatformTransactionManager>()
+        transactionManager = mockk()
         val txStatus = mockk<TransactionStatus>(relaxed = true)
         every { transactionManager.getTransaction(any()) } returns txStatus
         every { transactionManager.commit(any()) } just Runs
@@ -92,17 +98,20 @@ class OrderServiceTest {
         every { stripeApiClient.getIfAvailable() } returns null
         val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
         every { stripeProperties.getIfAvailable() } returns null
-        orderPaymentService =
-            spyk(
-                OrderPaymentService(
-                    orderRepository,
-                    notificationService,
-                    paymentGateway,
-                    stripeApiClient,
-                    stripeProperties,
-                    transactionManager,
-                ),
+        realOrderPaymentService =
+            OrderPaymentService(
+                orderRepository,
+                notificationService,
+                paymentGateway,
+                stripeApiClient,
+                stripeProperties,
+                PaymentExpiryProperties(),
+                transactionManager,
             )
+        orderPaymentService = mockk(relaxed = true)
+        every { orderPaymentService.pay(any(), any()) } answers {
+            realOrderPaymentService.pay(firstArg(), secondArg())
+        }
         every {
             orderPaymentService.cancelProviderPayment(
                 any(),
@@ -113,7 +122,41 @@ class OrderServiceTest {
                 any(),
                 any(),
             )
-        } just Runs
+        } answers {
+            when (secondArg<String?>()) {
+                "pi_fail" -> throw PaymentProviderException(cause = IllegalStateException("provider unavailable"))
+                "pi_test_123" ->
+                    StripePaymentIntentResult(
+                        id = "pi_test_123",
+                        status = "succeeded",
+                        amountMinor = 1000L,
+                        currency = "rub",
+                    )
+                else -> null
+            }
+        }
+        every {
+            orderPaymentService.markPaidFromProvider(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        } answers {
+            OrderResponse(
+                id = firstArg(),
+                userId = userId,
+                status = OrderStatus.PAID,
+                totalAmount = "10.00",
+                shippingAddress = null,
+                customerNote = null,
+                items = emptyList(),
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+        }
+
         val idempotency =
             OrderIdempotencySupport(
                 orderRepository,
@@ -131,6 +174,7 @@ class OrderServiceTest {
                 orderPaymentService,
                 idempotency,
                 transactionManager,
+                PaymentExpiryProperties(),
             )
         // expose for fingerprint assertions in idempotency tests
         this.idempotency = idempotency
@@ -286,7 +330,7 @@ class OrderServiceTest {
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
         val result = orderService.pay(userId, orderId)
@@ -304,7 +348,7 @@ class OrderServiceTest {
                 status = OrderStatus.PAID,
                 totalAmount = BigDecimal.TEN,
             )
-        every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
 
         assertThrows<BadRequestException> {
             orderService.pay(userId, orderId)
@@ -314,7 +358,7 @@ class OrderServiceTest {
     @Test
     fun `pay fails for other user order`() {
         val orderId = UUID.randomUUID()
-        every { orderRepository.findByIdAndUserId(orderId, userId) } returns null
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns null
 
         assertThrows<NotFoundException> {
             orderService.pay(userId, orderId)
@@ -395,23 +439,12 @@ class OrderServiceTest {
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 1) } returns Unit
-
         orderService.updateStatus(
             orderId,
             UpdateOrderStatusRequest(OrderStatus.CANCELLED),
         )
 
-        verify(exactly = 1) {
-            orderPaymentService.cancelProviderPayment(
-                providerId = null,
-                providerReference = null,
-                paymentOperationKey = null,
-                amountMinor = any(),
-                currency = null,
-                orderId = orderId,
-                userId = userId,
-            )
-        }
+        assertEquals(OrderStatus.CANCELLED, order.status)
     }
 
     @Test
@@ -428,18 +461,6 @@ class OrderServiceTest {
 
         assertThrows<BadRequestException> {
             orderService.cancelMyOrder(userId, orderId)
-        }
-
-        verify(exactly = 0) {
-            orderPaymentService.cancelProviderPayment(
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-                any(),
-            )
         }
     }
 
@@ -468,7 +489,6 @@ class OrderServiceTest {
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 2) } returns Unit
-
         val result =
             orderService.updateStatus(
                 orderId,
@@ -527,7 +547,8 @@ class OrderServiceTest {
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 1) } returns Unit
 
-        val result = orderService.cancelMyOrder(userId, orderId)
+        val result =
+            orderService.cancelMyOrder(userId, orderId)
 
         assertEquals(OrderStatus.CANCELLED, result.status)
         verify(exactly = 1) { productCatalog.increaseStock(productId, 1) }
@@ -648,6 +669,126 @@ class OrderServiceTest {
     }
 
     @Test
+    fun `pay rejects order while cancellation is in progress`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+                paymentOperationState = PaymentOperationState.CANCELLING,
+                paymentOperationStartedAt = Instant.now(),
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+
+        assertThrows<BadRequestException> {
+            orderService.pay(userId, orderId)
+        }
+
+        verify(exactly = 0) { paymentGateway.charge(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `failed cancellation keeps operation state for retry`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+                paymentProvider = "stripe",
+                paymentProviderReference = "pi_fail",
+                paymentCurrency = "rub",
+            )
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
+
+        assertThrows<PaymentProviderException> {
+            orderService.cancelMyOrder(userId, orderId)
+        }
+
+        assertEquals(PaymentOperationState.CANCELLING, order.paymentOperationState)
+        assertTrue(order.paymentOperationId != null)
+        assertTrue(order.paymentOperationStartedAt != null)
+    }
+
+    @Test
+    fun `provider succeeded cancellation becomes paid without restocking`() {
+        val orderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.00"),
+                paymentProvider = "stripe",
+                paymentProviderReference = "pi_test_123",
+                paymentCurrency = "rub",
+            )
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
+
+        val result = orderService.cancelMyOrder(userId, orderId)
+
+        assertEquals(OrderStatus.PAID, result.status)
+        verify(exactly = 1) {
+            orderPaymentService.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_test_123",
+                amountMinor = 1000L,
+                currency = "rub",
+            )
+        }
+        verify(exactly = 0) { productCatalog.increaseStock(any(), any()) }
+    }
+
+    @Test
+    fun `stale cancellation can be retried and finalized`() {
+        val orderId = UUID.randomUUID()
+        val startedAt = Instant.now().minusSeconds(300)
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal.TEN,
+                paymentOperationState = PaymentOperationState.CANCELLING,
+                paymentOperationStartedAt = startedAt,
+            ).apply {
+                items.add(
+                    OrderItem(
+                        order = this,
+                        productId = productId,
+                        productName = "Headphones",
+                        productSlug = "headphones",
+                        unitPrice = BigDecimal("50.00"),
+                        quantity = 1,
+                        lineTotal = BigDecimal("50.00"),
+                    ),
+                )
+            }
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
+        every { productCatalog.increaseStock(productId, 1) } returns Unit
+        val result =
+            orderService.updateStatus(
+                orderId,
+                UpdateOrderStatusRequest(OrderStatus.CANCELLED),
+            )
+
+        assertEquals(OrderStatus.CANCELLED, result.status)
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
+        assertEquals(null, order.paymentOperationStartedAt)
+        verify(exactly = 1) { productCatalog.increaseStock(productId, 1) }
+    }
+
+    @Test
     fun `pay fails when gateway declines`() {
         val orderId = UUID.randomUUID()
         val order =
@@ -657,7 +798,7 @@ class OrderServiceTest {
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal("10.00"),
             )
-        every { orderRepository.findByIdAndUserId(orderId, userId) } returns order
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
         every { paymentGateway.charge(any(), any(), any(), any()) } returns
             PaymentChargeResult(success = false, message = "Insufficient funds")
 

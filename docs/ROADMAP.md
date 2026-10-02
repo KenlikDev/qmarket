@@ -26,7 +26,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Profile + shipping addresses
 - [x] Unit + controller slice + integration tests (incl. stock concurrency)
 - [x] ktlint, JaCoCo, Docker Compose, Swagger JWT Authorize
-- [x] Flyway SoT V1–V17, app `ddl-auto=validate`
+- [x] Flyway SoT V1–V18, app `ddl-auto=validate`
 - [x] `ProductCatalog` port + ArchUnit boundaries
 - [x] Atomic stock `UPDATE … WHERE stock >= qty`
 
@@ -96,6 +96,7 @@ Source of truth for the agreed delivery plan. A version is released only after s
 - [x] Database foreign-key integrity restored for user aggregates and product references
 - [x] Google subject persistence and user optimistic locking (V13–V14)
 - [x] Payment provider/reference state, durable payment-operation state, and payment currency (V15–V17)
+- [x] Payment expiry deadline and recoverable cancellation operation (V18)
 
 ## v1.0 MVP (from plan)
 
@@ -113,7 +114,7 @@ Already closed from earlier scope: login rate limit, admin catalog/orders UI, re
 
 ## Current engineering risks
 
-- [ ] P1: recoverable cancellation when payment-provider I/O fails after CANCELLING is persisted (#140)
+- [ ] P1: verify payment cancellation recovery and PAY/CANCEL race under provider failure (#140 / current payment-lifecycle PR)
 - [ ] P2: make ios-native-check a protected-branch required check, or explicitly remove it from the hard supported-target gate
 - [ ] P2: correct main ruleset merge-method configuration drift
 - [ ] P2: clean stale AI branches after confirming no active PR depends on them

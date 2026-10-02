@@ -24,6 +24,7 @@ import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -36,6 +37,7 @@ class OrderService(
     private val orderPaymentService: OrderPaymentService,
     private val idempotency: OrderIdempotencySupport,
     transactionManager: PlatformTransactionManager,
+    private val paymentExpiryProperties: PaymentExpiryProperties,
 ) {
     private val transactionTemplate = TransactionTemplate(transactionManager)
 
@@ -100,6 +102,10 @@ class OrderService(
                 status = OrderStatus.PENDING,
                 shippingAddress = shipping,
                 customerNote = request.customerNote?.trim()?.takeIf { it.isNotEmpty() },
+                paymentExpiresAt =
+                    Instant.now().plusSeconds(
+                        paymentExpiryProperties.timeoutSeconds.coerceAtLeast(1),
+                    ),
             )
 
         var total = BigDecimal.ZERO
@@ -236,6 +242,16 @@ class OrderService(
                     orderRepository.findByIdForUpdate(orderId)
                         ?: throw NotFoundException("Order not found")
 
+                if (order.status != OrderStatus.CANCELLED &&
+                    order.status != OrderStatus.PAID &&
+                    order.isPaymentExpired()
+                ) {
+                    throw BadRequestException("Payment window has expired; cancel the order")
+                }
+                if (order.paymentOperationState != PaymentOperationState.NONE) {
+                    throw BadRequestException("Order has an in-flight payment operation")
+                }
+
                 val previous = order.status
                 val needsRestock = order.applyAdminStatus(request.status)
                 check(!needsRestock) { "Cancellation must use the payment-aware cancellation flow" }
@@ -259,6 +275,46 @@ class OrderService(
         userId: UUID,
         orderId: UUID,
     ): OrderResponse = cancelOrder(orderId = orderId, expectedUserId = userId)
+
+    fun expireUnpaidOrder(orderId: UUID): OrderResponse = cancelOrder(orderId = orderId, expectedUserId = null)
+
+    fun recoverStalePaymentOperation(orderId: UUID): OrderResponse? {
+        val snapshot =
+            transactionTemplate.execute {
+                orderRepository.findByIdForUpdate(orderId)?.let { order ->
+                    PaymentRecoverySnapshot(
+                        userId = order.userId,
+                        status = order.status,
+                        operationState = order.paymentOperationState,
+                        paymentExpired = order.isPaymentExpired(),
+                    )
+                }
+            } ?: return null
+
+        return when {
+            snapshot.status == OrderStatus.PAID || snapshot.status == OrderStatus.CANCELLED ->
+                getMyOrder(snapshot.userId, orderId)
+            snapshot.operationState == PaymentOperationState.CANCELLING ->
+                cancelOrder(orderId = orderId, expectedUserId = null)
+            snapshot.operationState == PaymentOperationState.CREATING && snapshot.paymentExpired ->
+                cancelOrder(orderId = orderId, expectedUserId = null)
+            snapshot.operationState == PaymentOperationState.CREATING -> {
+                createPaymentSession(snapshot.userId, orderId)
+                getMyOrder(snapshot.userId, orderId)
+            }
+            snapshot.paymentExpired ->
+                cancelOrder(orderId = orderId, expectedUserId = null)
+            else ->
+                getMyOrder(snapshot.userId, orderId)
+        }
+    }
+
+    private data class PaymentRecoverySnapshot(
+        val userId: UUID,
+        val status: OrderStatus,
+        val operationState: PaymentOperationState,
+        val paymentExpired: Boolean,
+    )
 
     private fun cancelOrder(
         orderId: UUID,
@@ -284,7 +340,32 @@ class OrderService(
                         throw BadRequestException("Only PENDING or CONFIRMED orders can be cancelled")
                     }
 
+                    val now = Instant.now()
+                    when (order.paymentOperationState) {
+                        PaymentOperationState.NONE -> Unit
+                        PaymentOperationState.CANCELLING -> {
+                            if (!order.isPaymentOperationStale(now, paymentExpiryProperties.operationStaleAfterSeconds)) {
+                                throw BadRequestException("Order cancellation is already in progress")
+                            }
+                        }
+                        PaymentOperationState.CREATING -> {
+                            if (
+                                order.paymentProvider != "stripe" ||
+                                !order.isPaymentExpired() ||
+                                !order.isPaymentOperationStale(
+                                    now,
+                                    paymentExpiryProperties.operationStaleAfterSeconds,
+                                )
+                            ) {
+                                throw BadRequestException("Order payment session is still in progress")
+                            }
+                        }
+                    }
+
+                    val operationId = UUID.randomUUID()
                     order.paymentOperationState = PaymentOperationState.CANCELLING
+                    order.paymentOperationId = operationId
+                    order.paymentOperationStartedAt = now
                     orderRepository.save(order)
 
                     CancellationPlanOrCompleted.Plan(
@@ -295,6 +376,7 @@ class OrderService(
                         paymentCurrency = order.paymentCurrency,
                         paymentOperationKey = order.paymentOperationKey,
                         amountMinor = Money.toMinorUnits(order.totalAmount),
+                        operationId = operationId,
                     )
                 },
             ) { "Cancellation preparation transaction returned no result" }
@@ -304,15 +386,25 @@ class OrderService(
         }
 
         val plan = planOrCompleted as CancellationPlanOrCompleted.Plan
-        orderPaymentService.cancelProviderPayment(
-            providerId = plan.paymentProvider,
-            providerReference = plan.paymentProviderReference,
-            paymentOperationKey = plan.paymentOperationKey,
-            amountMinor = plan.amountMinor,
-            currency = plan.paymentCurrency,
-            orderId = plan.orderId,
-            userId = plan.userId,
-        )
+        val cancellationResult =
+            orderPaymentService.cancelProviderPayment(
+                providerId = plan.paymentProvider,
+                providerReference = plan.paymentProviderReference,
+                paymentOperationKey = plan.paymentOperationKey,
+                amountMinor = plan.amountMinor,
+                currency = plan.paymentCurrency,
+                orderId = plan.orderId,
+                userId = plan.userId,
+            )
+        if (cancellationResult?.status == "succeeded") {
+            return orderPaymentService.markPaidFromProvider(
+                orderId = plan.orderId,
+                providerId = "stripe",
+                providerReference = cancellationResult.id,
+                amountMinor = cancellationResult.amountMinor ?: plan.amountMinor,
+                currency = cancellationResult.currency ?: plan.paymentCurrency,
+            )
+        }
 
         return requireNotNull(
             transactionTemplate.execute {
@@ -329,7 +421,9 @@ class OrderService(
                         throw BadRequestException("Order is already fulfilled")
                 }
 
-                if (order.paymentOperationState != PaymentOperationState.CANCELLING) {
+                if (order.paymentOperationState != PaymentOperationState.CANCELLING ||
+                    order.paymentOperationId != plan.operationId
+                ) {
                     throw BadRequestException("Order payment state changed during cancellation")
                 }
 
@@ -338,6 +432,8 @@ class OrderService(
                     productCatalog.increaseStock(item.productId, item.quantity)
                 }
                 order.paymentOperationState = PaymentOperationState.NONE
+                order.paymentOperationId = null
+                order.paymentOperationStartedAt = null
 
                 val saved = orderRepository.save(order)
                 notificationService.notifyOrderEvent(
@@ -361,6 +457,7 @@ class OrderService(
             val paymentCurrency: String?,
             val paymentOperationKey: String?,
             val amountMinor: Long,
+            val operationId: UUID,
         ) : CancellationPlanOrCompleted
 
         data class Completed(

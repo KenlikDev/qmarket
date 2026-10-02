@@ -37,5 +37,10 @@ Business work runs **after** claim; status is updated to `PROCESSED` only on suc
 
 - Webhook payloads are parsed into typed Jackson/Kotlin DTOs with required-field validation.
 - PaymentIntent amount is reconciled against the order total before marking it paid.
-- Currency is validated against the configured Stripe currency.
+- Currency is validated against the order's persisted payment currency, so configuration changes cannot silently change the expected currency for an existing order.
 - Event status and failure state are persisted in PostgreSQL so redelivery can retry failed processing.
+
+
+## Payment-operation lifecycle
+
+Order payment operations are durable. Payment-session creation and cancellation persist an operation state before provider I/O, then finalize it in a short transaction. A provider failure leaves the operation recoverable; stale operations can be reclaimed by the expiry/recovery scheduler. Terminal orders must not retain an in-flight payment operation.

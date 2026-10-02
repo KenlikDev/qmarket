@@ -3,6 +3,7 @@ package com.kenlikdev.qmarket
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.order.domain.OrderStatus
+import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import com.kenlikdev.qmarket.order.service.OrderService
 import com.kenlikdev.qmarket.support.TestJson
@@ -164,13 +165,19 @@ class OrderStatusConcurrencyTest {
         assertTrue(done.await(30, TimeUnit.SECONDS))
         pool.shutdown()
 
-        val finalStatus = orderRepository.findById(UUID.fromString(orderId)).orElseThrow().status
+        val finalOrder = orderRepository.findById(UUID.fromString(orderId)).orElseThrow()
+        val finalStatus = finalOrder.status
         assertTrue(
             finalStatus == OrderStatus.PAID || finalStatus == OrderStatus.CANCELLED,
             "expected PAID or CANCELLED, got $finalStatus",
         )
         assertEquals(1, payOk.get() + cancelOk.get(), "exactly one transition should commit")
         assertTrue(rejected.get() >= 1, "loser should be rejected")
+        assertEquals(
+            PaymentOperationState.NONE,
+            finalOrder.paymentOperationState,
+            "terminal orders must not retain an in-flight payment operation",
+        )
     }
 
     @Test
@@ -219,9 +226,15 @@ class OrderStatusConcurrencyTest {
         assertTrue(done.await(30, TimeUnit.SECONDS))
         pool.shutdown()
 
-        assertEquals(OrderStatus.CANCELLED, orderRepository.findById(UUID.fromString(orderId)).orElseThrow().status)
-        assertEquals(2, cancelOk.get(), "both callers may receive the idempotent CANCELLED result")
-        assertEquals(0, rejected.get(), "repeat cancellation should be idempotent")
+        val finalOrder = orderRepository.findById(UUID.fromString(orderId)).orElseThrow()
+        assertEquals(OrderStatus.CANCELLED, finalOrder.status)
+        assertEquals(2, cancelOk.get() + rejected.get(), "both callers must complete")
+        assertTrue(cancelOk.get() in 1..2, "at least one cancellation caller must complete the terminal transition")
+        assertEquals(
+            PaymentOperationState.NONE,
+            finalOrder.paymentOperationState,
+            "cancelled orders must not retain an in-flight payment operation",
+        )
         val finalStock =
             productRepository
                 .findById(UUID.fromString(productId))
