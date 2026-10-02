@@ -143,6 +143,34 @@ class LoginRateLimiterTest {
     }
 
     @Test
+    fun `rejected attempts do not grow limiter keys past capacity`() {
+        val lim =
+            LoginRateLimiter(
+                maxAttempts = 1,
+                windowSeconds = 300,
+                maxKeys = 2,
+            ).also {
+                it.clock = Clock.fixed(Instant.parse("2026-08-01T12:00:00Z"), ZoneOffset.UTC)
+            }
+        val blockedClient = "10.0.0.1"
+
+        val seed = lim.beginAttempt("seed@test.com", blockedClient)
+        lim.recordFailure(seed)
+
+        repeat(100) { index ->
+            assertThrows<TooManyRequestsException> {
+                lim.beginAttempt("attacker-$index@test.com", blockedClient)
+            }
+        }
+
+        val failuresField = LoginRateLimiter::class.java.getDeclaredField("failures")
+        failuresField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val failures = failuresField.get(lim) as Map<String, *>
+        assertEquals(2, failures.size)
+    }
+
+    @Test
     fun `successful attempt clears account failures and releases reservation`() {
         val lim = limiter(max = 2)
         lim.recordFailure("user@test.com")
