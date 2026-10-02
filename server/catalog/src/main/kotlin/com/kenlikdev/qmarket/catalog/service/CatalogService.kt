@@ -145,6 +145,8 @@ class CatalogService(
                         )
                     }
                 }
+        val direction =
+            if (sortDir.equals("asc", ignoreCase = true)) {
                 Sort.Direction.ASC
             } else {
                 Sort.Direction.DESC
