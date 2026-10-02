@@ -760,7 +760,7 @@ class OrderServiceTest {
                 paymentProviderReference = "pi_test_123",
                 paymentCurrency = "rub",
             )
-        every { orderRepository.findByIdForUpdate(orderId) } returns order 
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
 
