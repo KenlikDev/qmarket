@@ -39,8 +39,8 @@ interface ProductRepository : JpaRepository<Product, UUID> {
           AND (:maxPrice IS NULL OR p.price <= :maxPrice)
           AND (
             :query IS NULL OR :query = '' OR
-            LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR
-            LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%'))
+            LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '\\' OR
+            LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%')) ESCAPE '\\'
           )
         """,
     )
