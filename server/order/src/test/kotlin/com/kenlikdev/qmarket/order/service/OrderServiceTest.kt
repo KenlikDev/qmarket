@@ -400,17 +400,6 @@ class OrderServiceTest {
                 providerId = null,
                 providerReference = null,
                 paymentOperationKey = null,
-                amountMinor = any(),
-                currency = null,
-                orderId = orderId,
-                userId = userId,
-            )
-        } returns null
-        every {
-            orderPaymentService.cancelProviderPayment(
-                providerId = null,
-                providerReference = null,
-                paymentOperationKey = null,
                 amountMinor = any<Long>(),
                 currency = null,
                 orderId = orderId,
@@ -539,7 +528,8 @@ class OrderServiceTest {
         every { orderRepository.save(any()) } answers { firstArg() }
         every { productCatalog.increaseStock(productId, 1) } returns Unit
 
-        val result = orderService.cancelMyOrder(userId, orderId)
+        val result =
+            orderService.cancelMyOrder(userId, orderId)
 
         assertEquals(OrderStatus.CANCELLED, result.status)
         verify(exactly = 1) { productCatalog.increaseStock(productId, 1) }
