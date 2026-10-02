@@ -806,6 +806,10 @@ class OrderServiceTest {
         assertThrows<BadRequestException> {
             orderService.pay(userId, orderId)
         }
-        verify(exactly = 0) { orderRepository.save(any()) }
+
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
+        assertEquals(null, order.paymentOperationStartedAt)
+        verify(exactly = 2) { orderRepository.save(any()) }
     }
 }
