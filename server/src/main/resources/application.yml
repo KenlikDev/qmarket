@@ -62,6 +62,14 @@ logging:
     org.hibernate.SQL: WARN
 
 qmarket:
+  data-retention:
+    enabled: ${QMARKET_DATA_RETENTION_ENABLED:true}
+    cleanup-interval-ms: ${QMARKET_DATA_RETENTION_CLEANUP_INTERVAL_MS:3600000}
+    initial-delay-ms: ${QMARKET_DATA_RETENTION_INITIAL_DELAY_MS:60000}
+    batch-size: ${QMARKET_DATA_RETENTION_BATCH_SIZE:500}
+    idempotency-retention-days: ${QMARKET_DATA_RETENTION_IDEMPOTENCY_DAYS:30}
+    webhook-retention-days: ${QMARKET_DATA_RETENTION_WEBHOOK_DAYS:30}
+    refresh-token-retention-after-expiry-days: ${QMARKET_DATA_RETENTION_REFRESH_TOKEN_AFTER_EXPIRY_DAYS:7}
   order:
     payment-expiry:
       enabled: ${QMARKET_PAYMENT_EXPIRY_ENABLED:true}

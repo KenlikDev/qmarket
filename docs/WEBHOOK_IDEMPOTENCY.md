@@ -44,3 +44,11 @@ Business work runs **after** claim; status is updated to `PROCESSED` only on suc
 ## Payment-operation lifecycle
 
 Order payment operations are durable. Payment-session creation and cancellation persist an operation state before provider I/O, then finalize it in a short transaction. A provider failure leaves the operation recoverable; stale operations can be reclaimed by the expiry/recovery scheduler. Terminal orders must not retain an in-flight payment operation.
+
+## Retention
+
+Webhook deduplication rows are retained for a configurable default of 30 days using `received_at`. The retention job deletes old rows in bounded batches so routine cleanup does not require a long-running table operation.
+
+The retention window must be long enough for the operational webhook redelivery/reconciliation guarantee used by the deployment. After a row leaves the retention window, an extremely old duplicate event may be claimed again; webhook business handling therefore remains idempotent for terminal payment states.
+
+See `docs/DATA_RETENTION.md` for the full retention policy and configuration keys.
