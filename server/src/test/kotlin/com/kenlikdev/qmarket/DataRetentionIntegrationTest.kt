@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.TestPropertySource
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -24,6 +25,13 @@ import java.util.UUID
 
 @SpringBootTest
 @ActiveProfiles("test")
+@TestPropertySource(
+    properties = [
+        "qmarket.data-retention.enabled=true",
+        "qmarket.data-retention.initial-delay-ms=86400000",
+        "qmarket.data-retention.cleanup-interval-ms=86400000",
+    ],
+)
 class DataRetentionIntegrationTest {
     @Autowired
     private lateinit var properties: DataRetentionProperties
