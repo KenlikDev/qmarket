@@ -158,24 +158,54 @@ class DataRetentionIntegrationTest {
                 ).id,
             )
 
-        repeat(2) { index ->
+        val olderIdempotencyKey =
             orderIdempotencyKeyRepository.save(
                 OrderIdempotencyKey(
                     userId = UUID.randomUUID(),
-                    key = "batch-idem-" + index + "-" + UUID.randomUUID(),
+                    key = "batch-idem-older-" + UUID.randomUUID(),
+                    orderId = orderId,
+                    requestHash = "batch",
+                    createdAt = now.minus(32, ChronoUnit.DAYS),
+                ),
+            )
+        val newerIdempotencyKey =
+            orderIdempotencyKeyRepository.save(
+                OrderIdempotencyKey(
+                    userId = UUID.randomUUID(),
+                    key = "batch-idem-newer-" + UUID.randomUUID(),
                     orderId = orderId,
                     requestHash = "batch",
                     createdAt = now.minus(31, ChronoUnit.DAYS),
                 ),
             )
+        val olderWebhook =
             stripeWebhookEventRepository.save(
                 StripeWebhookEvent(
-                    eventId = "batch-webhook-" + index + "-" + UUID.randomUUID(),
+                    eventId = "batch-webhook-older-" + UUID.randomUUID(),
+                    eventType = "payment_intent.succeeded",
+                    status = StripeWebhookEvent.STATUS_FAILED,
+                    receivedAt = now.minus(32, ChronoUnit.DAYS),
+                ),
+            )
+        val newerWebhook =
+            stripeWebhookEventRepository.save(
+                StripeWebhookEvent(
+                    eventId = "batch-webhook-newer-" + UUID.randomUUID(),
                     eventType = "payment_intent.succeeded",
                     status = StripeWebhookEvent.STATUS_FAILED,
                     receivedAt = now.minus(31, ChronoUnit.DAYS),
                 ),
             )
+        val olderRefresh =
+            refreshTokenRepository.save(
+                RefreshToken(
+                    userId = UUID.randomUUID(),
+                    jti = UUID.randomUUID(),
+                    familyId = UUID.randomUUID(),
+                    expiresAt = now.minus(9, ChronoUnit.DAYS),
+                ),
+            )
+        val newerRefresh =
             refreshTokenRepository.save(
                 RefreshToken(
                     userId = UUID.randomUUID(),
@@ -184,25 +214,14 @@ class DataRetentionIntegrationTest {
                     expiresAt = now.minus(8, ChronoUnit.DAYS),
                 ),
             )
-        }
 
         scheduler.cleanup()
 
-        val remainingIdempotency =
-            orderIdempotencyKeyRepository
-                .findAll()
-                .count { it.key.startsWith("batch-idem-") }
-        val remainingWebhook =
-            stripeWebhookEventRepository
-                .findAll()
-                .count { it.eventId.startsWith("batch-webhook-") }
-        val remainingRefresh =
-            refreshTokenRepository
-                .findAll()
-                .count { it.expiresAt.isBefore(now.minus(7, ChronoUnit.DAYS)) }
-
-        assertEquals(1, remainingIdempotency)
-        assertEquals(1, remainingWebhook)
-        assertEquals(1, remainingRefresh)
+        assertFalse(orderIdempotencyKeyRepository.findById(requireNotNull(olderIdempotencyKey.id)).isPresent)
+        assertTrue(orderIdempotencyKeyRepository.findById(requireNotNull(newerIdempotencyKey.id)).isPresent)
+        assertFalse(stripeWebhookEventRepository.findById(olderWebhook.eventId).isPresent)
+        assertTrue(stripeWebhookEventRepository.findById(newerWebhook.eventId).isPresent)
+        assertFalse(refreshTokenRepository.findById(requireNotNull(olderRefresh.id)).isPresent)
+        assertTrue(refreshTokenRepository.findById(requireNotNull(newerRefresh.id)).isPresent)
     }
 }
