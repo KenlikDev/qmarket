@@ -79,7 +79,7 @@ class DataRetentionIntegrationTest {
         val oldIdempotencyKey =
             orderIdempotencyKeyRepository.save(
                 OrderIdempotencyKey(
-                    userId = UUID.randomUUID(),
+                    userId = userId,
                     key = "retention-old-" + UUID.randomUUID(),
                     orderId = orderId,
                     requestHash = "old",
@@ -89,7 +89,7 @@ class DataRetentionIntegrationTest {
         val freshIdempotencyKey =
             orderIdempotencyKeyRepository.save(
                 OrderIdempotencyKey(
-                    userId = UUID.randomUUID(),
+                    userId = userId,
                     key = "retention-fresh-" + UUID.randomUUID(),
                     orderId = orderId,
                     requestHash = "fresh",
@@ -121,7 +121,7 @@ class DataRetentionIntegrationTest {
         val oldRefresh =
             refreshTokenRepository.save(
                 RefreshToken(
-                    userId = UUID.randomUUID(),
+                    userId = userId,
                     jti = UUID.randomUUID(),
                     familyId = UUID.randomUUID(),
                     expiresAt = now.minus(8, ChronoUnit.DAYS),
@@ -130,7 +130,7 @@ class DataRetentionIntegrationTest {
         val freshRefresh =
             refreshTokenRepository.save(
                 RefreshToken(
-                    userId = UUID.randomUUID(),
+                    userId = userId,
                     jti = UUID.randomUUID(),
                     familyId = UUID.randomUUID(),
                     expiresAt = now.minus(6, ChronoUnit.DAYS),
@@ -166,7 +166,7 @@ class DataRetentionIntegrationTest {
         val olderIdempotencyKey =
             orderIdempotencyKeyRepository.save(
                 OrderIdempotencyKey(
-                    userId = UUID.randomUUID(),
+                    userId = userId,
                     key = "batch-idem-older-" + UUID.randomUUID(),
                     orderId = orderId,
                     requestHash = "batch",
@@ -176,7 +176,7 @@ class DataRetentionIntegrationTest {
         val newerIdempotencyKey =
             orderIdempotencyKeyRepository.save(
                 OrderIdempotencyKey(
-                    userId = UUID.randomUUID(),
+                    userId = userId,
                     key = "batch-idem-newer-" + UUID.randomUUID(),
                     orderId = orderId,
                     requestHash = "batch",
@@ -204,7 +204,7 @@ class DataRetentionIntegrationTest {
         val olderRefresh =
             refreshTokenRepository.save(
                 RefreshToken(
-                    userId = UUID.randomUUID(),
+                    userId = userId,
                     jti = UUID.randomUUID(),
                     familyId = UUID.randomUUID(),
                     expiresAt = now.minus(9, ChronoUnit.DAYS),
@@ -213,7 +213,7 @@ class DataRetentionIntegrationTest {
         val newerRefresh =
             refreshTokenRepository.save(
                 RefreshToken(
-                    userId = UUID.randomUUID(),
+                    userId = userId,
                     jti = UUID.randomUUID(),
                     familyId = UUID.randomUUID(),
                     expiresAt = now.minus(8, ChronoUnit.DAYS),
