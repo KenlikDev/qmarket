@@ -21,6 +21,8 @@ import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
+import com.kenlikdev.qmarket.order.payment.StripeApiClient
+import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import io.mockk.Runs
@@ -33,6 +35,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
 import java.math.BigDecimal
@@ -89,11 +92,17 @@ class OrderServiceTest {
         every { entityManager.createNativeQuery(any<String>()) } returns nativeQuery
         every { nativeQuery.setParameter(any<String>(), any()) } returns nativeQuery
         every { nativeQuery.singleResult } returns 1
+        val stripeApiClient = mockk<ObjectProvider<StripeApiClient>>(relaxed = true)
+        every { stripeApiClient.getIfAvailable() } returns null
+        val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
+        every { stripeProperties.getIfAvailable() } returns null
         orderPaymentService =
             OrderPaymentService(
                 orderRepository,
                 notificationService,
                 paymentGateway,
+                stripeApiClient,
+                stripeProperties,
                 PaymentExpiryProperties(),
                 transactionManager,
             )
