@@ -42,3 +42,4 @@ data class StripePaymentIntentResult(
     val rawBody: String? = null,
 )
 
+
