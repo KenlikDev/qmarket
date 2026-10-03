@@ -132,3 +132,4 @@ See also `docs/CLIENT_ARCHITECTURE.md`.
 ## Release rule
 
 A version is not released until the agreed scope is closed, tests are green, documentation is updated, and there is explicit confirmation.
+
