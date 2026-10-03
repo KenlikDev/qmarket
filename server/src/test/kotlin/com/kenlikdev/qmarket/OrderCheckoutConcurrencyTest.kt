@@ -236,8 +236,9 @@ class OrderCheckoutConcurrencyTest {
                 try {
                     adminStarted.countDown()
                     transactionTemplate.executeWithoutResult {
-                        val product = productRepository.findByIdForUpdate(productId)
-                            ?: error("seed product missing")
+                        val product =
+                            productRepository.findByIdForUpdate(productId)
+                                ?: error("seed product missing")
                         product.price = BigDecimal("999.99")
                         productRepository.saveAndFlush(product)
                     }
@@ -271,5 +272,4 @@ class OrderCheckoutConcurrencyTest {
             pool.shutdownNow()
         }
     }
-
 }
