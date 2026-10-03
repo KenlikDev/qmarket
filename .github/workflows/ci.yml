@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop, ai/integration]
+    branches: [main, develop, ai/integration, ai/fix/payment-lifecycle-recovery-current]
   pull_request:
     branches: [main, develop, ai/integration]
   workflow_dispatch:
