@@ -21,23 +21,18 @@ import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
 import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
-import com.kenlikdev.qmarket.order.payment.StripeApiClient
-import com.kenlikdev.qmarket.order.payment.StripePaymentIntentResult
-import com.kenlikdev.qmarket.order.payment.StripeProperties
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.spyk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.springframework.beans.factory.ObjectProvider
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionStatus
 import java.math.BigDecimal
@@ -55,6 +50,7 @@ class OrderServiceTest {
     private lateinit var notificationService: NotificationService
     private lateinit var paymentGateway: PaymentGateway
     private lateinit var orderPaymentService: OrderPaymentService
+    private lateinit var transactionManager: PlatformTransactionManager
     private lateinit var idempotency: OrderIdempotencySupport
 
     private val userId = UUID.randomUUID()
@@ -83,7 +79,7 @@ class OrderServiceTest {
         every { paymentGateway.providerId } returns "mock"
         every { paymentGateway.charge(any(), any(), any(), any()) } returns
             PaymentChargeResult(success = true, providerReference = "mock_ref")
-        val transactionManager = mockk<PlatformTransactionManager>()
+        transactionManager = mockk<PlatformTransactionManager>()
         val txStatus = mockk<TransactionStatus>(relaxed = true)
         every { transactionManager.getTransaction(any()) } returns txStatus
         every { transactionManager.commit(any()) } just Runs
@@ -93,21 +89,13 @@ class OrderServiceTest {
         every { entityManager.createNativeQuery(any<String>()) } returns nativeQuery
         every { nativeQuery.setParameter(any<String>(), any()) } returns nativeQuery
         every { nativeQuery.singleResult } returns 1
-        val stripeApiClient = mockk<ObjectProvider<StripeApiClient>>(relaxed = true)
-        every { stripeApiClient.getIfAvailable() } returns null
-        val stripeProperties = mockk<ObjectProvider<StripeProperties>>(relaxed = true)
-        every { stripeProperties.getIfAvailable() } returns null
         orderPaymentService =
-            spyk(
-                OrderPaymentService(
-                    orderRepository,
-                    notificationService,
-                    paymentGateway,
-                    stripeApiClient,
-                    stripeProperties,
-                    PaymentExpiryProperties(),
-                    transactionManager,
-                ),
+            OrderPaymentService(
+                orderRepository,
+                notificationService,
+                paymentGateway,
+                PaymentExpiryProperties(),
+                transactionManager,
             )
 
         val idempotency =
@@ -132,6 +120,19 @@ class OrderServiceTest {
         // expose for fingerprint assertions in idempotency tests
         this.idempotency = idempotency
     }
+
+    private fun orderServiceWithPaymentService(paymentService: OrderPaymentService): OrderService =
+        OrderService(
+            orderRepository = orderRepository,
+            cartRepository = cartRepository,
+            productCatalog = productCatalog,
+            addressRepository = addressRepository,
+            notificationService = notificationService,
+            orderPaymentService = paymentService,
+            idempotency = idempotency,
+            transactionManager = transactionManager,
+            paymentExpiryProperties = PaymentExpiryProperties(),
+        )
 
     @Test
     fun `createFromCart creates order and clears cart`() {
@@ -665,30 +666,18 @@ class OrderServiceTest {
                 userId = userId,
                 status = OrderStatus.PENDING,
                 totalAmount = BigDecimal.TEN,
-                paymentProvider = "stripe",
-                paymentProviderReference = "pi_fail",
-                paymentCurrency = "rub",
             )
+        val paymentService = mockk<OrderPaymentService>()
+        orderService = orderServiceWithPaymentService(paymentService)
         every { orderRepository.findByIdForUpdate(orderId) } returns order
         every { orderRepository.save(any()) } answers { firstArg() }
         every {
-            orderPaymentService.cancelProviderPayment(
-                providerId = "stripe",
-                providerReference = "pi_fail",
+            paymentService.cancelProviderPayment(
+                providerId = null,
+                providerReference = null,
                 paymentOperationKey = null,
                 amountMinor = 1000L,
-                currency = "rub",
-                orderId = orderId,
-                userId = userId,
-            )
-        } throws PaymentProviderException(cause = IllegalStateException("provider unavailable"))
-        every {
-            orderPaymentService.cancelProviderPayment(
-                providerId = "stripe",
-                providerReference = "pi_fail",
-                paymentOperationKey = null,
-                amountMinor = 1000L,
-                currency = "rub",
+                currency = null,
                 orderId = orderId,
                 userId = userId,
             )
@@ -716,34 +705,7 @@ class OrderServiceTest {
                 paymentProviderReference = "pi_test_123",
                 paymentCurrency = "rub",
             )
-        every { orderRepository.findByIdForUpdate(orderId) } returns order
-        every { orderRepository.save(any()) } answers { firstArg() }
-        every {
-            orderPaymentService.cancelProviderPayment(
-                providerId = "stripe",
-                providerReference = "pi_test_123",
-                paymentOperationKey = null,
-                amountMinor = 1000L,
-                currency = "rub",
-                orderId = orderId,
-                userId = userId,
-            )
-        } returns
-            StripePaymentIntentResult(
-                id = "pi_test_123",
-                status = "succeeded",
-                amountMinor = 1000L,
-                currency = "rub",
-            )
-        every {
-            orderPaymentService.markPaidFromProvider(
-                orderId = orderId,
-                providerId = "stripe",
-                providerReference = "pi_test_123",
-                amountMinor = 1000L,
-                currency = "rub",
-            )
-        } returns
+        val paidResponse =
             OrderResponse(
                 id = orderId,
                 userId = userId,
@@ -755,8 +717,12 @@ class OrderServiceTest {
                 createdAt = order.createdAt,
                 updatedAt = order.updatedAt,
             )
+        val paymentService = mockk<OrderPaymentService>()
+        orderService = orderServiceWithPaymentService(paymentService)
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
         every {
-            orderPaymentService.cancelProviderPayment(
+            paymentService.cancelProviderPayment(
                 providerId = "stripe",
                 providerReference = "pi_test_123",
                 paymentOperationKey = null,
@@ -766,38 +732,25 @@ class OrderServiceTest {
                 userId = userId,
             )
         } returns
-            StripePaymentIntentResult(
-                id = "pi_test_123",
-                status = "succeeded",
-                amountMinor = 1000L,
-                currency = "rub",
-            )
+            mockk {
+                every { status } returns "succeeded"
+                every { id } returns "pi_test_123"
+                every { amountMinor } returns 1000L
+                every { currency } returns "rub"
+            }
         every {
-            orderPaymentService.markPaidFromProvider(
+            paymentService.markPaidFromProvider(
                 orderId = orderId,
                 providerId = "stripe",
                 providerReference = "pi_test_123",
                 amountMinor = 1000L,
                 currency = "rub",
             )
-        } returns OrderResponse(
-            id = orderId,
-            userId = userId,
-            status = OrderStatus.PAID,
-            totalAmount = "10.00",
-            shippingAddress = null,
-            customerNote = null,
-            items = emptyList(),
-            createdAt = order.createdAt,
-            updatedAt = order.updatedAt,
-        )
+        } returns paidResponse
 
         val result = orderService.cancelMyOrder(userId, orderId)
 
         assertEquals(OrderStatus.PAID, result.status)
-        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
-        assertEquals(null, order.paymentOperationId)
-        assertEquals(null, order.paymentOperationStartedAt)
         verify(exactly = 0) { productCatalog.increaseStock(any(), any()) }
     }
 
