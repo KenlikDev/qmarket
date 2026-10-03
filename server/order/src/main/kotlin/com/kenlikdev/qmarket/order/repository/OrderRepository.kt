@@ -69,3 +69,4 @@ interface OrderRepository : JpaRepository<Order, UUID> {
     @EntityGraph(attributePaths = ["items"])
     fun findOneById(id: UUID): Order?
 }
+
