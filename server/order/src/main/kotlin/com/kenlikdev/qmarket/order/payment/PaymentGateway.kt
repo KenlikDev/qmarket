@@ -13,7 +13,7 @@ interface PaymentGateway {
 
     /**
      * Authorize/capture payment for an order.
-     * Implementations must be idempotent for the same [orderId] when possible.
+     * Implementations must be idempotent for the same [orderId], because retries can occur after an unknown provider outcome.
      */
     fun charge(
         orderId: UUID,

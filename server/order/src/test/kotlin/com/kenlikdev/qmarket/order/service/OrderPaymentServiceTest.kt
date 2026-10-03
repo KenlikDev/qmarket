@@ -5,6 +5,7 @@ import com.kenlikdev.qmarket.common.exception.PaymentProviderException
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.domain.PaymentOperationState
+import com.kenlikdev.qmarket.order.payment.PaymentChargeResult
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
 import com.kenlikdev.qmarket.order.payment.StripeApiClient
 import com.kenlikdev.qmarket.order.payment.StripeApiException
@@ -130,6 +131,99 @@ class OrderPaymentServiceTest {
         assertEquals(null, order.paymentOperationId)
         assertEquals(null, order.paymentOperationStartedAt)
         verify(exactly = 2) { orderRepository.save(order) }
+    }
+
+    @Test
+    fun `generic payment provider runs outside database transaction`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentCurrency = "rub",
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(order) } returns order
+        every { paymentGateway.providerId } returns "mock"
+        every { paymentGateway.charge(any(), any(), any(), any()) } answers {
+            assertEquals(false, transactionActive)
+            PaymentChargeResult(
+                success = true,
+                providerReference = "mock_ref",
+            )
+        }
+
+        val result = service.pay(userId, orderId)
+
+        assertEquals(OrderStatus.PAID, result.status)
+        assertEquals("mock", order.paymentProvider)
+        assertEquals("rub", order.paymentCurrency)
+        assertEquals("mock_ref", order.paymentProviderReference)
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
+        assertEquals(null, order.paymentOperationStartedAt)
+    }
+
+    @Test
+    fun `generic provider failure leaves payment operation recoverable`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentCurrency = "rub",
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.save(order) } returns order
+        every { paymentGateway.providerId } returns "mock"
+        every { paymentGateway.charge(any(), any(), any(), any()) } answers {
+            assertEquals(false, transactionActive)
+            throw IllegalStateException("provider timeout")
+        }
+
+        assertThrows(IllegalStateException::class.java) {
+            service.pay(userId, orderId)
+        }
+
+        assertEquals(PaymentOperationState.CREATING, order.paymentOperationState)
+        assertEquals(true, order.paymentOperationId != null)
+        assertEquals(true, order.paymentOperationStartedAt != null)
+    }
+
+    @Test
+    fun `stale generic payment operation can be retried idempotently`() {
+        val operationId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentCurrency = "rub",
+                paymentProvider = "mock",
+                paymentOperationState = PaymentOperationState.CREATING,
+                paymentOperationId = operationId,
+                paymentOperationStartedAt = Instant.now().minusSeconds(300),
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(order) } returns order
+        every { paymentGateway.providerId } returns "mock"
+        every { paymentGateway.charge(orderId, userId, BigDecimal("10.50"), "RUB") } returns
+            PaymentChargeResult(
+                success = true,
+                providerReference = "mock_ref",
+            )
+
+        val result = service.recoverStaleGenericPaymentOperation(userId, orderId)
+
+        assertEquals(OrderStatus.PAID, result.status)
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
+        assertEquals(null, order.paymentOperationStartedAt)
     }
 
     @Test
@@ -349,6 +443,39 @@ class OrderPaymentServiceTest {
             service.createPaymentSession(userId, orderId)
         }
 
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
+        assertEquals(null, order.paymentOperationStartedAt)
+    }
+
+    @Test
+    fun `expired stale generic payment operation can still be reconciled`() {
+        val operationId = UUID.randomUUID()
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("10.50"),
+                paymentCurrency = "rub",
+                paymentExpiresAt = Instant.now().minusSeconds(60),
+                paymentProvider = "mock",
+                paymentOperationState = PaymentOperationState.CREATING,
+                paymentOperationId = operationId,
+                paymentOperationStartedAt = Instant.now().minusSeconds(300),
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.save(order) } returns order
+        every { paymentGateway.providerId } returns "mock"
+        every { paymentGateway.charge(orderId, userId, BigDecimal("10.50"), "RUB") } returns
+            PaymentChargeResult(
+                success = true,
+                providerReference = "mock_ref",
+            )
+
+        val result = service.recoverStaleGenericPaymentOperation(userId, orderId)
+
+        assertEquals(OrderStatus.PAID, result.status)
         assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
         assertEquals(null, order.paymentOperationId)
         assertEquals(null, order.paymentOperationStartedAt)
