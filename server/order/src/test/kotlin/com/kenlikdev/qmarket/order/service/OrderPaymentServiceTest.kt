@@ -482,7 +482,7 @@ class OrderPaymentServiceTest {
     }
 
     @Test
-    fun `cancelProviderPayment requires stripe cancellation before local cancellation`) {
+    fun `cancelProviderPayment requires stripe cancellation before local cancellation`() {
         val order =
             Order(
                 id = orderId,
