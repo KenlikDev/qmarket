@@ -177,3 +177,4 @@ class OrderItem(
     @Column(name = "line_total", nullable = false, precision = 12, scale = 2)
     var lineTotal: BigDecimal = BigDecimal.ZERO,
 )
+
