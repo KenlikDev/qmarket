@@ -703,6 +703,7 @@ class OrderServiceTest {
 
     @Test
     fun `provider succeeded cancellation becomes paid without restocking`() {
+        // Provider success must win the cancellation race without restoring stock.
         val orderId = UUID.randomUUID()
         val order =
             Order(
