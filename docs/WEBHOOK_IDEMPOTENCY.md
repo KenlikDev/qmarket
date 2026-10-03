@@ -52,3 +52,4 @@ Webhook deduplication rows are retained for a configurable default of 30 days us
 The retention window must be long enough for the operational webhook redelivery/reconciliation guarantee used by the deployment. After a row leaves the retention window, an extremely old duplicate event may be claimed again; webhook business handling therefore remains idempotent for terminal payment states.
 
 See `docs/DATA_RETENTION.md` for the full retention policy and configuration keys.
+
