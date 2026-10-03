@@ -33,6 +33,7 @@ Secret scanning is also required by the protected-branch ruleset.
 | Admin UI | `AdminScreenTest` | create/update form; delete; slugify |
 | Admin API client | `createProductParsesResponse` | POST /products envelope |
 | Payment lifecycle | `OrderPaymentServiceTest`, `OrderStatusConcurrencyTest`, scheduler tests | expiry, cancellation recovery, webhook race, terminal operation-state invariants |
+| Durable data retention | `DataRetentionCleanupSchedulerTest`, `DataRetentionIntegrationTest` | configurable retention windows, bounded batch cleanup, and non-deletion of fresh rows |
 
 ## API correctness
 
