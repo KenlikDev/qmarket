@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.time.Instant
 import java.util.UUID
 
 interface OrderIdempotencyKeyRepository : JpaRepository<OrderIdempotencyKey, UUID> {
@@ -28,7 +29,7 @@ interface OrderIdempotencyKeyRepository : JpaRepository<OrderIdempotencyKey, UUI
         nativeQuery = true,
     )
     fun deleteCreatedBefore(
-        @Param("cutoff") cutoff: java.time.Instant,
+        @Param("cutoff") cutoff: Instant,
         @Param("batchSize") batchSize: Int,
     ): Int
 }
