@@ -101,6 +101,56 @@ class JpaProductCatalogTest {
     }
 
     @Test
+    fun `reserveStock returns snapshot captured under the product lock`() {
+        val id = UUID.randomUUID()
+        val entity = product(id = id, stock = 5).apply {
+            price = BigDecimal("12.50")
+        }
+        every { productRepository.findByIdForUpdate(id) } returns entity
+
+        val info = catalog.reserveStock(id, 2)
+
+        assertEquals(id, info.id)
+        assertEquals("12.50", info.price.toPlainString())
+        assertEquals(3, info.stockQuantity)
+        verify(exactly = 1) { productRepository.findByIdForUpdate(id) }
+    }
+
+    @Test
+    fun `reserveStock rejects inactive product`() {
+        val id = UUID.randomUUID()
+        every { productRepository.findByIdForUpdate(id) } returns
+            product(id = id, active = false, stock = 10)
+
+        assertThrows<BadRequestException> {
+            catalog.reserveStock(id, 1)
+        }
+    }
+
+    @Test
+    fun `reserveStock rejects insufficient stock`() {
+        val id = UUID.randomUUID()
+        every { productRepository.findByIdForUpdate(id) } returns
+            product(id = id, active = true, stock = 2)
+
+        val ex = assertThrows<BadRequestException> {
+            catalog.reserveStock(id, 3)
+        }
+
+        assertTrue(ex.message.orEmpty().contains("Insufficient stock"))
+    }
+
+    @Test
+    fun `reserveStock throws NotFound when product is missing`() {
+        val id = UUID.randomUUID()
+        every { productRepository.findByIdForUpdate(id) } returns null
+
+        assertThrows<NotFoundException> {
+            catalog.reserveStock(id, 1)
+        }
+    }
+
+    @Test
     fun `decreaseStock rejects non-positive quantity`() {
         assertThrows<IllegalArgumentException> {
             catalog.decreaseStock(UUID.randomUUID(), 0)
