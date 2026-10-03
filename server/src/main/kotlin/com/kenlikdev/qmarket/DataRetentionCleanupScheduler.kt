@@ -34,8 +34,8 @@ class DataRetentionCleanupScheduler(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Scheduled(
-        fixedDelayString = "${qmarket.data-retention.cleanup-interval-ms:3600000}",
-        initialDelayString = "${qmarket.data-retention.initial-delay-ms:60000}",
+        fixedDelayString = "\${qmarket.data-retention.cleanup-interval-ms:3600000}",
+        initialDelayString = "\${qmarket.data-retention.initial-delay-ms:60000}",
     )
     @Transactional
     fun cleanup() {
