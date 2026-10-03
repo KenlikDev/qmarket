@@ -14,6 +14,17 @@ interface ProductCatalog {
 
     fun findByIds(ids: Collection<UUID>): Map<UUID, ProductInfo>
 
+    /**
+     * Reserve stock and return the product snapshot captured at the reservation boundary.
+     *
+     * Implementations must acquire the product row lock before reading the price/name/slug
+     * snapshot. This defines checkout pricing as "price at successful stock reservation".
+     */
+    fun reserveStock(
+        id: UUID,
+        quantity: Int,
+    ): ProductInfo
+
     /** Decrease stock; throws if insufficient or product missing. */
     fun decreaseStock(
         id: UUID,

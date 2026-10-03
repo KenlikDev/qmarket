@@ -39,6 +39,31 @@ class JpaProductCatalog(
     }
 
     @Transactional
+    override fun reserveStock(
+        id: UUID,
+        quantity: Int,
+    ): ProductInfo {
+        require(quantity > 0) { "quantity must be positive" }
+        val product =
+            productRepository.findByIdForUpdate(id)
+                ?: throw NotFoundException("Product not found: $id")
+        if (!product.active) {
+            throw BadRequestException("Product is not available")
+        }
+        if (product.stockQuantity < quantity) {
+            throw BadRequestException(
+                "Insufficient stock for product ${product.slug}: " +
+                    "available ${product.stockQuantity}, requested $quantity",
+            )
+        }
+
+        // The pessimistic lock is held by the surrounding checkout transaction.
+        // The returned snapshot is therefore the authoritative price at reservation time.
+        product.stockQuantity -= quantity
+        return product.toInfo()
+    }
+
+    @Transactional
     override fun decreaseStock(
         id: UUID,
         quantity: Int,
