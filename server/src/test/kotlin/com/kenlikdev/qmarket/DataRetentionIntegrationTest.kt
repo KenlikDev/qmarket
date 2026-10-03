@@ -2,6 +2,7 @@ package com.kenlikdev.qmarket
 
 import com.kenlikdev.qmarket.identity.domain.RefreshToken
 import com.kenlikdev.qmarket.identity.repository.RefreshTokenRepository
+import com.kenlikdev.qmarket.identity.repository.UserRepository
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderIdempotencyKey
 import com.kenlikdev.qmarket.order.domain.OrderStatus
@@ -9,7 +10,6 @@ import com.kenlikdev.qmarket.order.domain.StripeWebhookEvent
 import com.kenlikdev.qmarket.order.repository.OrderIdempotencyKeyRepository
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import com.kenlikdev.qmarket.order.repository.StripeWebhookEventRepository
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -51,6 +51,9 @@ class DataRetentionIntegrationTest {
     @Autowired
     private lateinit var refreshTokenRepository: RefreshTokenRepository
 
+    @Autowired
+    private lateinit var userRepository: UserRepository
+
     @BeforeEach
     fun setUp() {
         properties.idempotencyRetentionDays = 30
@@ -62,10 +65,11 @@ class DataRetentionIntegrationTest {
     @Test
     fun `cleanup deletes only rows beyond configured retention windows`() {
         val now = Instant.now()
+        val userId = requireNotNull(userRepository.findByEmail("admin@qmarket.local")?.id)
         val order =
             orderRepository.save(
                 Order(
-                    userId = UUID.randomUUID(),
+                    userId = userId,
                     status = OrderStatus.PENDING,
                     totalAmount = BigDecimal("10.00"),
                 ),
@@ -147,11 +151,12 @@ class DataRetentionIntegrationTest {
     fun `cleanup respects batch size for every table`() {
         properties.batchSize = 1
         val now = Instant.now()
+        val userId = requireNotNull(userRepository.findByEmail("admin@qmarket.local")?.id)
         val orderId =
             requireNotNull(
                 orderRepository.save(
                     Order(
-                        userId = UUID.randomUUID(),
+                        userId = userId,
                         status = OrderStatus.PENDING,
                         totalAmount = BigDecimal("10.00"),
                     ),
