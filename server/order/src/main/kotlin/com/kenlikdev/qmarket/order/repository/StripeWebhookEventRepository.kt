@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.time.Instant
 
 interface StripeWebhookEventRepository : JpaRepository<StripeWebhookEvent, String> {
     /**
@@ -51,7 +52,7 @@ interface StripeWebhookEventRepository : JpaRepository<StripeWebhookEvent, Strin
         nativeQuery = true,
     )
     fun deleteReceivedBefore(
-        @Param("cutoff") cutoff: java.time.Instant,
+        @Param("cutoff") cutoff: Instant,
         @Param("batchSize") batchSize: Int,
     ): Int
 }
