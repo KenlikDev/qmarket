@@ -35,4 +35,23 @@ interface StripeWebhookEventRepository : JpaRepository<StripeWebhookEvent, Strin
     fun findByEventIdForUpdate(
         @Param("eventId") eventId: String,
     ): StripeWebhookEvent?
+
+    @Modifying
+    @Query(
+        value = """
+            DELETE FROM stripe_webhook_events
+            WHERE event_id IN (
+                SELECT event_id
+                FROM stripe_webhook_events
+                WHERE received_at < :cutoff
+                ORDER BY received_at ASC, event_id ASC
+                LIMIT :batchSize
+            )
+            """,
+        nativeQuery = true,
+    )
+    fun deleteReceivedBefore(
+        @Param("cutoff") cutoff: java.time.Instant,
+        @Param("batchSize") batchSize: Int,
+    ): Int
 }
