@@ -41,4 +41,23 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, UUID> {
         @Param("userId") userId: UUID,
         @Param("at") at: Instant,
     ): Int
+
+    @Modifying
+    @Query(
+        value = """
+            DELETE FROM refresh_tokens
+            WHERE id IN (
+                SELECT id
+                FROM refresh_tokens
+                WHERE expires_at < :cutoff
+                ORDER BY expires_at ASC, id ASC
+                LIMIT :batchSize
+            )
+            """,
+        nativeQuery = true,
+    )
+    fun deleteExpiredBefore(
+        @Param("cutoff") cutoff: Instant,
+        @Param("batchSize") batchSize: Int,
+    ): Int
 }
