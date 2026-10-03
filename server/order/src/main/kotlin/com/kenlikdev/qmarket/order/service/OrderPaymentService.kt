@@ -197,6 +197,7 @@ class OrderPaymentService(
             },
         ) { "Payment finalization transaction returned no result" }
     }
+
     /**
      * Create a Stripe PaymentIntent without holding a database transaction during network I/O.
      *
