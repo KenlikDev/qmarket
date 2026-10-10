@@ -171,7 +171,7 @@ fun OrderDetailScreen(
                                     modifier = Modifier.testTag("orderDetailPaymentIntentId"),
                                 )
                                 Text(
-                                    "This app build cannot confirm Stripe payments. The order remains pending until a payment client confirms the session.",
+                                    "Stripe confirmation is not supported in this app build; the order remains pending.",
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
