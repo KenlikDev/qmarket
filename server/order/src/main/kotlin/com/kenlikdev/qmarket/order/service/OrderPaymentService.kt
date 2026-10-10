@@ -3,12 +3,12 @@ package com.kenlikdev.qmarket.order.service
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
 import com.kenlikdev.qmarket.common.exception.PaymentProviderException
-import com.kenlikdev.qmarket.common.util.Money
 import com.kenlikdev.qmarket.order.domain.OrderStatus
 import com.kenlikdev.qmarket.order.domain.PaymentOperationState
 import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PaymentSessionResponse
 import com.kenlikdev.qmarket.order.payment.PaymentGateway
+import com.kenlikdev.qmarket.order.payment.StripeAmountConverter
 import com.kenlikdev.qmarket.order.payment.StripeApiClient
 import com.kenlikdev.qmarket.order.payment.StripeApiException
 import com.kenlikdev.qmarket.order.payment.StripePaymentIntentResult
@@ -258,6 +258,17 @@ class OrderPaymentService(
                     require(currency.matches(Regex("^[a-z]{3}$"))) {
                         "Order payment currency is invalid"
                     }
+                    // Validate the amount before claiming a durable operation. Unsupported
+                    // precision must not leave the order stuck in CREATING after a 400 response.
+                    val amountMinor =
+                        try {
+                            StripeAmountConverter.toMinorUnits(order.totalAmount, currency)
+                        } catch (ex: IllegalArgumentException) {
+                            throw BadRequestException(
+                                "Order total cannot be represented in Stripe currency $currency",
+                            )
+                        }
+
                     order.paymentProvider = "stripe"
                     order.paymentCurrency = currency
                     order.paymentOperationKey = operationKey
@@ -270,7 +281,7 @@ class OrderPaymentService(
                     PaymentSessionPlan(
                         orderId = orderId,
                         userId = userId,
-                        amountMinor = Money.toMinorUnits(order.totalAmount),
+                        amountMinor = amountMinor,
                         currency = currency,
                         idempotencyKey = operationKey,
                         operationId = operationId,
@@ -620,11 +631,9 @@ class OrderPaymentService(
 
     /**
      * Provider webhook / async capture path: mark order PAID without re-charging.
-     * Idempotent when already PAID.
+     * Idempotent when already PAID, but still reconciles provider amount/currency on replays.
      *
-     * When [amountMinor] is provided (Stripe PaymentIntent.amount in minor units),
-     * it must match [Order.totalAmount] converted with scale 2. Stripe [currency]
-     * must exactly match the order's persisted payment currency.
+     * Stripe amounts use provider-specific minor-unit rules for the order's persisted currency.
      */
     @Transactional
     fun markPaidFromProvider(
@@ -640,10 +649,54 @@ class OrderPaymentService(
         if (order.paymentProvider != null && order.paymentProvider != providerId) {
             throw BadRequestException("Payment provider mismatch for order $orderId")
         }
-        if (providerReference != null) {
-            if (order.paymentProviderReference != null && order.paymentProviderReference != providerReference) {
-                throw BadRequestException("Payment provider reference mismatch for order $orderId")
+        if (
+            providerReference != null &&
+            order.paymentProviderReference != null &&
+            order.paymentProviderReference != providerReference
+        ) {
+            throw BadRequestException("Payment provider reference mismatch for order $orderId")
+        }
+
+        val amountCurrency =
+            if (providerId == "stripe") {
+                val expectedCurrency =
+                    order.paymentCurrency?.trim()?.lowercase(Locale.ROOT)
+                        ?: throw BadRequestException("Order payment currency is missing")
+                val providerCurrency =
+                    currency?.trim()?.lowercase(Locale.ROOT)
+                        ?: throw BadRequestException("Provider payment currency is missing")
+                if (providerCurrency != expectedCurrency) {
+                    throw BadRequestException(
+                        "Payment currency mismatch for order $orderId: expected $expectedCurrency, received $providerCurrency",
+                    )
+                }
+                expectedCurrency
+            } else {
+                if (!currency.isNullOrBlank() && !currency.trim().matches(Regex("^[A-Za-z]{3}$"))) {
+                    throw BadRequestException("Invalid provider currency: $currency")
+                }
+                (currency ?: order.paymentCurrency ?: "rub").trim().lowercase(Locale.ROOT)
             }
+
+        if (amountMinor != null) {
+            val expectedMinor =
+                try {
+                    StripeAmountConverter.toMinorUnits(order.totalAmount, amountCurrency)
+                } catch (ex: IllegalArgumentException) {
+                    throw BadRequestException(
+                        "Order total cannot be represented in payment currency $amountCurrency",
+                    )
+                }
+            if (amountMinor != expectedMinor) {
+                throw BadRequestException(
+                    "Payment amount mismatch for order $orderId: " +
+                        "provider=$amountMinor minor, order=$expectedMinor minor",
+                )
+            }
+        }
+
+        // Replays for an already-paid order are idempotent only after amount/currency reconciliation.
+        if (providerReference != null) {
             order.paymentProvider = providerId
             order.paymentProviderReference = providerReference
         }
@@ -658,38 +711,8 @@ class OrderPaymentService(
 
         // Provider success is authoritative when it wins the external race against local cancellation.
         // A later cancellation finalization will observe PAID and must not restore inventory.
-
-        if (amountMinor != null) {
-            val expectedMinor = Money.toMinorUnits(order.totalAmount)
-            if (amountMinor != expectedMinor) {
-                throw BadRequestException(
-                    "Payment amount mismatch for order $orderId: " +
-                        "provider=$amountMinor minor, order=$expectedMinor minor",
-                )
-            }
-        }
-        if (providerId == "stripe") {
-            val expectedCurrency =
-                order.paymentCurrency?.trim()?.lowercase(Locale.ROOT)
-                    ?: throw BadRequestException("Order payment currency is missing")
-            val normalizedCurrency =
-                currency?.trim()?.lowercase(Locale.ROOT)
-                    ?: throw BadRequestException("Provider payment currency is missing")
-            if (normalizedCurrency != expectedCurrency) {
-                throw BadRequestException(
-                    "Payment currency mismatch for order $orderId: expected $expectedCurrency, received $normalizedCurrency",
-                )
-            }
-        } else if (!currency.isNullOrBlank()) {
-            val normalized = currency.trim().lowercase(Locale.ROOT)
-            if (!normalized.matches(Regex("^[a-z]{3}$"))) {
-                throw BadRequestException("Invalid provider currency: $currency")
-            }
-        }
-
         if (order.paymentOperationState == PaymentOperationState.CANCELLING) {
-            // Stripe/PSP success wins the cancellation race. The cancellation caller will
-            // observe PAID during its finalization transaction and must not restore stock.
+            // Stripe/PSP success wins the cancellation race; the cancel caller must not restock.
         }
         order.paymentOperationState = PaymentOperationState.NONE
         order.paymentOperationId = null

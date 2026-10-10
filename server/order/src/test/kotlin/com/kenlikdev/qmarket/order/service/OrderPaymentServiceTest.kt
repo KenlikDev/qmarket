@@ -618,4 +618,148 @@ class OrderPaymentServiceTest {
         assertEquals("pi_usd", result.paymentIntentId)
         assertEquals("usd", order.paymentCurrency)
     }
+
+    @Test
+    fun `createPaymentSession converts zero decimal currency correctly`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("500.00"),
+                paymentCurrency = "jpy",
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+        every { orderRepository.save(order) } returns order
+        every {
+            stripeApi.createPaymentIntentForClient(
+                amountMinor = 500L,
+                currency = "jpy",
+                orderId = orderId,
+                userId = userId,
+                idempotencyKey = "qmarket-payment-intent-v2-$orderId",
+            )
+        } returns
+            StripePaymentIntentResult(
+                id = "pi_jpy_500",
+                status = "requires_payment_method",
+                clientSecret = "pi_jpy_secret",
+            )
+
+        val result = service.createPaymentSession(userId, orderId)
+
+        assertEquals("pi_jpy_500", result.paymentIntentId)
+        assertEquals("jpy", order.paymentCurrency)
+        verify(exactly = 1) {
+            stripeApi.createPaymentIntentForClient(500L, "jpy", orderId, userId, any())
+        }
+    }
+
+    @Test
+    fun `createPaymentSession rejects fractional zero decimal amount before starting operation`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("500.50"),
+                paymentCurrency = "jpy",
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(orderId, userId) } returns order
+
+        assertThrows(BadRequestException::class.java) {
+            service.createPaymentSession(userId, orderId)
+        }
+
+        assertEquals(PaymentOperationState.NONE, order.paymentOperationState)
+        assertEquals(null, order.paymentOperationId)
+        assertEquals(null, order.paymentOperationStartedAt)
+        verify(exactly = 0) {
+            stripeApi.createPaymentIntentForClient(any(), any(), any(), any(), any())
+        }
+        verify(exactly = 0) { orderRepository.save(order) }
+    }
+
+    @Test
+    fun `Stripe webhook reconciles zero decimal amount using persisted currency`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("500.00"),
+                paymentProvider = "stripe",
+                paymentProviderReference = "pi_jpy_500",
+                paymentCurrency = "jpy",
+            )
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+        every { orderRepository.save(order) } returns order
+
+        val result =
+            service.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_jpy_500",
+                amountMinor = 500L,
+                currency = "jpy",
+            )
+
+        assertEquals(OrderStatus.PAID, result.status)
+        verify(exactly = 1) { orderRepository.save(order) }
+    }
+
+    @Test
+    fun `Stripe webhook rejects the old two decimal conversion for zero decimal currency`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("500.00"),
+                paymentProvider = "stripe",
+                paymentProviderReference = "pi_jpy_500",
+                paymentCurrency = "jpy",
+            )
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+
+        assertThrows(BadRequestException::class.java) {
+            service.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_jpy_500",
+                amountMinor = 50000L,
+                currency = "jpy",
+            )
+        }
+
+        assertEquals(OrderStatus.PENDING, order.status)
+        verify(exactly = 0) { orderRepository.save(any()) }
+    }
+
+    @Test
+    fun `duplicate paid webhook still validates amount and currency`() {
+        val order =
+            Order(
+                id = orderId,
+                userId = userId,
+                status = OrderStatus.PAID,
+                totalAmount = BigDecimal("500.00"),
+                paymentProvider = "stripe",
+                paymentProviderReference = "pi_jpy_500",
+                paymentCurrency = "jpy",
+            )
+        every { orderRepository.findByIdForUpdate(orderId) } returns order
+
+        assertThrows(BadRequestException::class.java) {
+            service.markPaidFromProvider(
+                orderId = orderId,
+                providerId = "stripe",
+                providerReference = "pi_jpy_500",
+                amountMinor = 50000L,
+                currency = "jpy",
+            )
+        }
+
+        verify(exactly = 0) { orderRepository.save(any()) }
+    }
 }
