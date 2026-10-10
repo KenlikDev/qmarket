@@ -17,9 +17,9 @@ data class RegisterRequest(
 )
 
 data class LoginRequest(
-    @field:NotBlank @field:Email
+    @field:NotBlank @field:Email @field:Size(max = 255)
     val email: String,
-    @field:NotBlank
+    @field:NotBlank @field:Size(max = 100)
     val password: String,
 )
 
@@ -40,7 +40,7 @@ data class UserResponse(
 )
 
 data class RefreshTokenRequest(
-    @field:NotBlank
+    @field:NotBlank @field:Size(max = 4096)
     val refreshToken: String,
 )
 
