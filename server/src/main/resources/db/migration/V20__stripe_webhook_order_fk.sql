@@ -19,3 +19,9 @@ END $$;
 ALTER TABLE stripe_webhook_events
     ADD CONSTRAINT fk_stripe_webhook_events_order
         FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL;
+
+-- PostgreSQL does not index referencing columns automatically. Keep order deletion bounded
+-- as the webhook audit table grows; NULL-order audit events do not need entries in this index.
+CREATE INDEX idx_stripe_webhook_events_order_id
+    ON stripe_webhook_events(order_id)
+    WHERE order_id IS NOT NULL;
