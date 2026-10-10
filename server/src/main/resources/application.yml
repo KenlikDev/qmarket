@@ -62,6 +62,12 @@ logging:
     org.hibernate.SQL: WARN
 
 qmarket:
+  http:
+    # Body caps are enforced before Jackson parses API requests. Auth bodies are intentionally smaller;
+    # Stripe event payloads get the global limit because provider event envelopes can contain metadata.
+    max-request-body-bytes: ${QMARKET_HTTP_MAX_REQUEST_BODY_BYTES:1048576}
+    max-auth-request-body-bytes: ${QMARKET_HTTP_MAX_AUTH_REQUEST_BODY_BYTES:16384}
+    max-stripe-webhook-body-bytes: ${QMARKET_HTTP_MAX_STRIPE_WEBHOOK_BODY_BYTES:1048576}
   data-retention:
     enabled: ${QMARKET_DATA_RETENTION_ENABLED:true}
     cleanup-interval-ms: ${QMARKET_DATA_RETENTION_CLEANUP_INTERVAL_MS:3600000}
