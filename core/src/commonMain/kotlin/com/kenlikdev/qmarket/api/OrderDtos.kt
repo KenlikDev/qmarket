@@ -65,3 +65,8 @@ data class PaymentSessionDto(
     val clientSecret: String,
     val publishableKey: String = "",
 )
+
+@Serializable
+data class PaymentProviderConfigDto(
+    val providerId: String,
+)

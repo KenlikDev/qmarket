@@ -59,3 +59,8 @@ data class PaymentSessionResponse(
     /** Publishable key for Stripe.js / mobile SDK; may be blank if not configured. */
     val publishableKey: String = "",
 )
+
+/** Public, non-secret configuration needed to select the correct client payment action. */
+data class PaymentProviderConfigResponse(
+    val providerId: String,
+)

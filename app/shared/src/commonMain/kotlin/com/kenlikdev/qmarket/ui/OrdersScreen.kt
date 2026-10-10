@@ -32,6 +32,7 @@ fun OrdersScreen(
     loading: Boolean,
     onBackToCatalog: () -> Unit,
     onOpenOrder: (OrderDto) -> Unit = {},
+    paymentProviderId: String? = null,
     onPay: (OrderDto) -> Unit,
     onCancel: (OrderDto) -> Unit,
     onCart: () -> Unit,
@@ -105,12 +106,32 @@ fun OrdersScreen(
                             )
                             Row {
                                 if (order.status == OrderStatusDto.PENDING) {
-                                    TextButton(
-                                        onClick = { onPay(order) },
-                                        enabled = !loading,
-                                        modifier = Modifier.testTag("orderPay"),
-                                    ) {
-                                        Text("Pay")
+                                    when (paymentProviderId) {
+                                        "mock" -> {
+                                            TextButton(
+                                                onClick = { onPay(order) },
+                                                enabled = !loading,
+                                                modifier = Modifier.testTag("orderPay"),
+                                            ) {
+                                                Text("Pay")
+                                            }
+                                        }
+                                        "stripe" -> {
+                                            TextButton(
+                                                onClick = { onOpenOrder(order) },
+                                                enabled = !loading,
+                                                modifier = Modifier.testTag("orderOpenToPay"),
+                                            ) {
+                                                Text("Open to pay")
+                                            }
+                                        }
+                                        else -> {
+                                            Text(
+                                                "Payment unavailable",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                modifier = Modifier.testTag("orderPaymentUnavailable"),
+                                            )
+                                        }
                                     }
                                     TextButton(
                                         onClick = { onCancel(order) },

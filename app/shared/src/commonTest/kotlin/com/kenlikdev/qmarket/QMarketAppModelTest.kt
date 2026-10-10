@@ -371,4 +371,40 @@ class QMarketAppModelTest {
                 client.close()
             }
         }
+
+    @Test
+    fun stripeProviderBlocksGenericPayAction() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            model.paymentProviderId = "stripe"
+
+            model.payOrder("order-1")
+
+            assertEquals(
+                "Direct Pay is disabled for Stripe. Open the order to create a Stripe session.",
+                model.error,
+            )
+            assertFalse(model.loading)
+        }
+
+    @Test
+    fun mockProviderBlocksStripeSessionAction() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            model.paymentProviderId = "mock"
+
+            model.startPaymentSession("order-1")
+
+            assertEquals(
+                "Stripe sessions are unavailable while the mock payment provider is active.",
+                model.error,
+            )
+            assertNull(model.paymentSession)
+            assertFalse(model.loading)
+        }
+
 }

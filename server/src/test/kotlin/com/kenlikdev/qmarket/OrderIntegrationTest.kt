@@ -67,6 +67,24 @@ class OrderIntegrationTest {
     }
 
     @Test
+    fun `payment provider config requires authentication`() {
+        mockMvc
+            .perform(get("/api/v1/payments/config"))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `authenticated client can read active payment provider`() {
+        mockMvc
+            .perform(
+                get("/api/v1/payments/config")
+                    .header("Authorization", "Bearer $token"),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.providerId").value("mock"))
+            .andExpect(jsonPath("$.secretKey").doesNotExist())
+    }
+
+    @Test
     fun `create from empty cart returns bad request`() {
         mockMvc
             .perform(

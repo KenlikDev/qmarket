@@ -40,6 +40,7 @@ class OrdersScreenTest {
                     statusMessage = null,
                     loading = false,
                     onBackToCatalog = {},
+                    paymentProviderId = "mock",
                     onPay = {},
                     onCancel = {},
                     onCart = {},
@@ -93,6 +94,7 @@ class OrdersScreenTest {
                     statusMessage = null,
                     loading = false,
                     onBackToCatalog = {},
+                    paymentProviderId = "mock",
                     onPay = { paidId = it.id },
                     onCancel = {},
                     onCart = {},
@@ -131,4 +133,65 @@ class OrdersScreenTest {
             onNodeWithTag("orderCard_o99").performClick()
             assertEquals("o99", opened)
         }
+
+    @Test
+    fun stripeProviderReplacesPayWithOpenOrderAction() =
+        runComposeUiTest {
+            var openedOrderId: String? = null
+            setContent {
+                OrdersScreen(
+                    orders = listOf(order(id = "stripe-order")),
+                    loggedIn = true,
+                    userLabel = "user@test.com",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onOpenOrder = { openedOrderId = it.id },
+                    paymentProviderId = "stripe",
+                    onPay = { error("Generic Pay must not be invoked for Stripe") },
+                    onCancel = {},
+                    onCart = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+
+            onNodeWithTag("orderPay").assertDoesNotExist()
+            onNodeWithTag("orderOpenToPay").assertIsEnabled().performClick()
+            assertEquals("stripe-order", openedOrderId)
+        }
+
+    @Test
+    fun unknownProviderFailsClosedInOrdersList() =
+        runComposeUiTest {
+            setContent {
+                OrdersScreen(
+                    orders = listOf(order()),
+                    loggedIn = true,
+                    userLabel = "user@test.com",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onOpenOrder = {},
+                    paymentProviderId = null,
+                    onPay = { error("Pay is unsafe when provider configuration is unknown") },
+                    onCancel = {},
+                    onCart = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+
+            onNodeWithTag("orderPay").assertDoesNotExist()
+            onNodeWithTag("orderOpenToPay").assertDoesNotExist()
+            onNodeWithTag("orderPaymentUnavailable").assertExists()
+            onNodeWithTag("orderCancel").assertExists()
+        }
+
 }

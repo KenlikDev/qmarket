@@ -32,6 +32,7 @@ fun OrderDetailScreen(
     onBackToOrders: () -> Unit,
     onPay: () -> Unit,
     onStartPaymentSession: (() -> Unit)? = null,
+    paymentProviderId: String? = null,
     paymentSession: PaymentSessionDto? = null,
     onCancel: () -> Unit,
     onRefresh: () -> Unit,
@@ -170,7 +171,7 @@ fun OrderDetailScreen(
                                     modifier = Modifier.testTag("orderDetailPaymentIntentId"),
                                 )
                                 Text(
-                                    "Payment confirmation can continue in the configured payment client.",
+                                    "This app build cannot confirm Stripe payments. The order remains pending until a payment client confirms the session.",
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
@@ -178,20 +179,37 @@ fun OrderDetailScreen(
                     }
                     Row(modifier = Modifier.padding(top = 16.dp)) {
                         if (order.status == OrderStatusDto.PENDING) {
-                            Button(
-                                onClick = onPay,
-                                enabled = !loading,
-                                modifier = Modifier.testTag("orderDetailPay"),
-                            ) {
-                                Text("Pay")
-                            }
-                            if (onStartPaymentSession != null) {
-                                TextButton(
-                                    onClick = onStartPaymentSession,
-                                    enabled = !loading,
-                                    modifier = Modifier.testTag("orderDetailPaymentSessionBtn"),
-                                ) {
-                                    Text("Stripe session")
+                            when (paymentProviderId) {
+                                "mock" -> {
+                                    Button(
+                                        onClick = onPay,
+                                        enabled = !loading,
+                                        modifier = Modifier.testTag("orderDetailPay"),
+                                    ) {
+                                        Text("Pay")
+                                    }
+                                }
+                                "stripe" -> {
+                                    if (onStartPaymentSession != null) {
+                                        TextButton(
+                                            onClick = onStartPaymentSession,
+                                            enabled = !loading,
+                                            modifier = Modifier.testTag("orderDetailPaymentSessionBtn"),
+                                        ) {
+                                            Text("Create Stripe session")
+                                        }
+                                    } else {
+                                        Text(
+                                            "Stripe payment is unavailable here.",
+                                            modifier = Modifier.testTag("orderPaymentUnavailable"),
+                                        )
+                                    }
+                                }
+                                else -> {
+                                    Text(
+                                        "Payment unavailable — refresh to retry.",
+                                        modifier = Modifier.testTag("orderPaymentUnavailable"),
+                                    )
                                 }
                             }
                             TextButton(
