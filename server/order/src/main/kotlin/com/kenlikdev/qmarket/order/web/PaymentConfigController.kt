@@ -16,6 +16,7 @@ class PaymentConfigController(
     private val paymentGateway: PaymentGateway,
 ) {
     @GetMapping("/config")
-    fun getConfig(): PaymentProviderConfigResponse =
-        PaymentProviderConfigResponse(providerId = paymentGateway.providerId)
+    fun getConfig(): PaymentProviderConfigResponse {
+        return PaymentProviderConfigResponse(providerId = paymentGateway.providerId)
+    }
 }
