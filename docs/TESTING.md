@@ -14,9 +14,10 @@ CI additionally runs:
 ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 ./gradlew :server:order:jacocoTestCoverageVerification :server:identity:jacocoTestCoverageVerification --parallel --no-daemon
 ./gradlew :app:shared:compileKotlinIosSimulatorArm64 --no-daemon
+./gradlew :app:androidApp:assembleDebug :app:desktopApp:compileKotlin :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs :app:webApp:compileKotlinJs :app:webApp:compileKotlinWasmJs --parallel --no-daemon
 ```
 
-Secret scanning is also required by the protected-branch ruleset.
+The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. These are compile checks, not full device/browser runtime or end-to-end checks. Secret scanning is also required by the protected-branch ruleset.
 
 | Layer | Where | What it proves |
 |-------|--------|----------------|
@@ -44,8 +45,8 @@ Secret scanning is also required by the protected-branch ruleset.
 ## UI / multi-device
 
 1. **Current**: JVM logic/API/Compose tests (`./gradlew :app:shared:jvmTest`).
-2. **Current CI platform verification**: iOS simulator native compilation.
-3. **Next**: Android instrumented Compose tests and broader device runtime coverage.
+2. **Current CI platform verification**: Android Debug, Desktop/JVM, shared JS/Wasm, web-app JS/Wasm, and iOS simulator compilation.
+3. **Next**: Android instrumented Compose tests and broader device/browser runtime coverage.
 4. **Later**: screenshot tests and full E2E on devices.
 
 ## Manual smoke (when UI changes)
