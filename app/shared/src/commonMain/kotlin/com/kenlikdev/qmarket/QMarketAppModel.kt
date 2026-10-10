@@ -524,7 +524,7 @@ class QMarketAppModel(
         paymentSession = null
         runApi {
             paymentSession = api.createPaymentSession(orderId)
-            statusMessage = "Stripe session created; this app build does not confirm payment. The order remains pending."
+            statusMessage = "Stripe session created. This build cannot confirm payment; the order remains pending."
         }
     }
 
