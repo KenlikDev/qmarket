@@ -77,6 +77,7 @@ class OrderServiceTest {
         cartRepository = mockk()
         every { cartRepository.insertIfMissing(any()) } returns 1
         productCatalog = mockk()
+        every { productCatalog.reserveStock(productId, any()) } returns product
         addressRepository = mockk()
         idempotencyKeyRepository = mockk(relaxed = true)
         notificationService = mockk(relaxed = true)
@@ -187,8 +188,6 @@ class OrderServiceTest {
                 items.add(CartItem(cart = this, productId = productId, quantity = 2))
             }
         every { cartRepository.findByUserIdForUpdate(userId) } returns cart
-        every { productCatalog.requireActive(productId) } returns product
-        every { productCatalog.decreaseStock(productId, any()) } returns Unit
         every { orderRepository.save(any()) } answers {
             firstArg<Order>().also { it.id = UUID.randomUUID() }
         }
@@ -204,7 +203,7 @@ class OrderServiceTest {
         assertEquals("100.00", result.totalAmount)
         assertEquals(1, result.items.size)
         assertEquals(0, cart.items.size)
-        verify { productCatalog.decreaseStock(productId, 2) }
+        verify { productCatalog.reserveStock(productId, 2) }
     }
 
     @Test
@@ -238,9 +237,13 @@ class OrderServiceTest {
         val calls = mutableListOf<UUID>()
 
         every { cartRepository.findByUserIdForUpdate(userId) } returns cart
-        every { productCatalog.requireActive(highId) } returns highProduct
-        every { productCatalog.requireActive(lowId) } returns lowProduct
-        every { productCatalog.decreaseStock(any<UUID>(), 1) } answers { calls += firstArg<UUID>() }
+        every { productCatalog.reserveStock(any<UUID>(), 1) } answers {
+            when (val id = firstArg<UUID>()) {
+                lowId -> lowProduct
+                highId -> highProduct
+                else -> error("Unexpected product $id")
+            }.also { calls += firstArg<UUID>() }
+        }
         every { orderRepository.save(any()) } answers {
             firstArg<Order>().also { it.id = UUID.randomUUID() }
         }
@@ -270,8 +273,8 @@ class OrderServiceTest {
                 items.add(CartItem(cart = this, productId = productId, quantity = 100))
             }
         every { cartRepository.findByUserIdForUpdate(userId) } returns cart
-        every { productCatalog.requireActive(productId) } returns product
-        every { productCatalog.decreaseStock(productId, any()) } returns Unit
+        every { productCatalog.reserveStock(productId, any()) } throws
+            BadRequestException("Insufficient stock")
 
         assertThrows<BadRequestException> {
             orderService.createFromCart(userId, CreateOrderRequest(shippingAddress = "Address"))
@@ -577,7 +580,7 @@ class OrderServiceTest {
             )
 
         assertEquals(orderId, result.id)
-        verify(exactly = 0) { productCatalog.decreaseStock(any(), any()) }
+        verify(exactly = 0) { productCatalog.reserveStock(any(), any()) }
         verify(exactly = 0) { cartRepository.findByUserId(any()) }
     }
 
