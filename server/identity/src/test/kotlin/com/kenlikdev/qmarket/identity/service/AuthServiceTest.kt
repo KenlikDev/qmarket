@@ -70,6 +70,7 @@ class AuthServiceTest {
         every { userRepository.findByGoogleSubject(any()) } returns null
         every { refreshTokenRepository.revokeFamily(any(), any()) } returns 0
         every { refreshTokenRevocationService.revokeFamily(any()) } returns Unit
+        every { refreshTokenRevocationService.revokeFamilyAfterLogout(any(), any()) } returns Unit
         every { refreshTokenRepository.revokeIfActive(any(), any()) } returns 1
 
         every { passwordEncoder.encode(any()) } returns "hashed"
@@ -261,23 +262,28 @@ class AuthServiceTest {
     @Test
     fun `logout revokes stored refresh token`() {
         val jti = UUID.randomUUID()
+        val userId = UUID.randomUUID()
+        val familyId = UUID.randomUUID()
         val stored =
             RefreshToken(
-                userId = UUID.randomUUID(),
+                userId = userId,
                 jti = jti,
-                familyId = UUID.randomUUID(),
+                familyId = familyId,
                 expiresAt = Instant.now().plusSeconds(3600),
             )
         val claims = mockk<Claims>()
         every { jwtService.parseClaims("refresh") } returns claims
         every { jwtService.isRefreshToken(claims) } returns true
+        every { jwtService.getUserId(claims) } returns userId
         every { jwtService.getJti(claims) } returns jti
         every { refreshTokenRepository.findByJti(jti) } returns stored
 
         authService.logout(RefreshTokenRequest(refreshToken = "refresh"))
 
-        assertTrue(stored.isRevoked)
-        verify(exactly = 1) { refreshTokenRepository.save(stored) }
+        verify(exactly = 1) {
+            refreshTokenRevocationService.revokeFamilyAfterLogout(userId, familyId)
+        }
+        verify(exactly = 0) { refreshTokenRepository.save(any()) }
     }
 
     @Test

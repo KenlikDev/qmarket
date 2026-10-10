@@ -22,6 +22,7 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.dao.DataAccessException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.transaction.TransactionException
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.UUID
@@ -197,11 +198,11 @@ class AuthService(
     }
 
     /**
-     * Best-effort revoke of the presented refresh token.
-     * Not [Transactional]: callers must always clear the client session even if revoke fails
-     * (expired JWT, missing V7 table, already-revoked jti). Catching exceptions inside a
-     * class-level/@Transactional method leaves the TX rollback-only → UnexpectedRollbackException.
-     * Repository [save] still runs in its own short transaction.
+     * Best-effort revocation of the presented refresh token's whole rotation family.
+     *
+     * This method intentionally owns no transaction. The revocation service commits independently,
+     * and uses the same user-row lock as [refresh] to serialize logout with token rotation. Clients
+     * must clear their local session even when server-side revocation cannot be persisted.
      */
     fun logout(request: RefreshTokenRequest) {
         try {
@@ -209,18 +210,24 @@ class AuthService(
             if (!jwtService.isRefreshToken(claims)) {
                 return
             }
+            val userId = jwtService.getUserId(claims)
             val jti = jwtService.getJti(claims)
             val stored = refreshTokenRepository.findByJti(jti) ?: return
-            if (!stored.isRevoked) {
-                stored.revoke()
-                refreshTokenRepository.save(stored)
+            if (stored.userId != userId) {
+                return
             }
+
+            // Revoke the entire rotation family under the same user-row lock used by refresh.
+            // Saving the originally loaded token alone can race rotation and leave its successor active.
+            refreshTokenRevocationService.revokeFamilyAfterLogout(userId, stored.familyId)
         } catch (_: JwtException) {
             // best-effort: invalid or expired token still means local logout succeeds
         } catch (_: IllegalArgumentException) {
             // best-effort: malformed token claims still mean local logout succeeds
         } catch (_: DataAccessException) {
             // best-effort: local session must be cleared even when token revocation cannot persist
+        } catch (_: TransactionException) {
+            // transaction creation/commit failures are also best-effort during logout
         }
     }
 
