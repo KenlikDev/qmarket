@@ -1,7 +1,7 @@
 package com.kenlikdev.qmarket.network
 
-import kotlin.js.ExperimentalWasmJsInterop
 import kotlin.JsFun
+import kotlin.js.ExperimentalWasmJsInterop
 
 @OptIn(ExperimentalWasmJsInterop::class)
 @JsFun("() => window.QMARKET_API_BASE_URL || window.location.origin")
