@@ -3,6 +3,8 @@ package com.kenlikdev.qmarket
 import com.kenlikdev.qmarket.cart.domain.Cart
 import com.kenlikdev.qmarket.cart.domain.CartItem
 import com.kenlikdev.qmarket.cart.repository.CartRepository
+import com.kenlikdev.qmarket.catalog.api.ProductCatalog
+import com.kenlikdev.qmarket.catalog.api.ProductInfo
 import com.kenlikdev.qmarket.catalog.repository.ProductRepository
 import com.kenlikdev.qmarket.identity.repository.UserRepository
 import com.kenlikdev.qmarket.order.dto.CreateOrderRequest
@@ -16,13 +18,17 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.data.domain.PageRequest
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.transaction.support.TransactionTemplate
+import java.math.BigDecimal
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Concurrent checkout against real OrderService + Testcontainers Postgres.
@@ -47,9 +53,19 @@ class OrderCheckoutConcurrencyTest {
     @Autowired
     private lateinit var productRepository: ProductRepository
 
+    @Autowired
+    private lateinit var productCatalog: ProductCatalog
+
+    @Autowired
+    private lateinit var transactionManager: org.springframework.transaction.PlatformTransactionManager
+
+    @Autowired
+    private lateinit var jdbcTemplate: JdbcTemplate
+
     private lateinit var userId: UUID
     private lateinit var productId: UUID
     private var originalStock: Int = 0
+    private lateinit var originalPrice: BigDecimal
     private val createdOrderIds = mutableSetOf<UUID>()
     private var initialOrderCount: Long = 0
 
@@ -64,6 +80,7 @@ class OrderCheckoutConcurrencyTest {
                 ?: error("seed product missing")
         productId = product.id ?: error("product id null")
         originalStock = product.stockQuantity
+        originalPrice = product.price
         if (originalStock < 1) {
             product.stockQuantity = 10
             productRepository.saveAndFlush(product)
@@ -89,6 +106,7 @@ class OrderCheckoutConcurrencyTest {
         }
         productRepository.findById(productId).ifPresent { product ->
             product.stockQuantity = originalStock
+            product.price = originalPrice
             productRepository.saveAndFlush(product)
         }
     }
@@ -187,5 +205,110 @@ class OrderCheckoutConcurrencyTest {
                     PageRequest.of(0, 100),
                 ).totalElements,
         )
+    }
+
+    @Test
+    fun `checkout reservation snapshots price after acquiring the product lock`() {
+        val transactionTemplate = TransactionTemplate(transactionManager)
+        val reservationReady = CountDownLatch(1)
+        val adminStarted = CountDownLatch(1)
+        val allowCheckoutCommit = CountDownLatch(1)
+        val adminBackendPid = AtomicInteger(-1)
+        val snapshot = AtomicReference<ProductInfo?>()
+        val failures = ConcurrentHashMap.newKeySet<String>()
+        val pool = Executors.newFixedThreadPool(2)
+
+        try {
+            pool.submit {
+                try {
+                    transactionTemplate.executeWithoutResult {
+                        snapshot.set(productCatalog.reserveStock(productId, 1))
+                        reservationReady.countDown()
+                        assertTrue(
+                            allowCheckoutCommit.await(30, TimeUnit.SECONDS),
+                            "checkout transaction release timed out",
+                        )
+                    }
+                } catch (e: Exception) {
+                    failures.add("checkout: ${e.javaClass.simpleName}: ${e.message ?: ""}")
+                    reservationReady.countDown()
+                }
+            }
+
+            assertTrue(reservationReady.await(30, TimeUnit.SECONDS), "checkout reservation timed out")
+
+            pool.submit {
+                try {
+                    transactionTemplate.executeWithoutResult {
+                        adminBackendPid.set(
+                            jdbcTemplate.queryForObject(
+                                "SELECT pg_backend_pid()",
+                                Int::class.javaObjectType,
+                            ) ?: error("admin database backend PID missing"),
+                        )
+                        adminStarted.countDown()
+                        val product =
+                            productRepository.findByIdForUpdate(productId)
+                                ?: error("seed product missing")
+                        product.price = BigDecimal("999.99")
+                        productRepository.saveAndFlush(product)
+                    }
+                } catch (e: Exception) {
+                    failures.add("admin: ${e.javaClass.simpleName}: ${e.message ?: ""}")
+                }
+            }
+
+            assertTrue(adminStarted.await(30, TimeUnit.SECONDS), "admin update did not start")
+
+            // Prove PostgreSQL actually blocks the competing writer on the checkout lock.
+            // Without row locking, this assertion fails before the checkout transaction is released.
+            var adminIsWaitingForLock = false
+            val lockWaitDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+            while (!adminIsWaitingForLock && System.nanoTime() < lockWaitDeadline) {
+                adminIsWaitingForLock =
+                    jdbcTemplate.queryForObject(
+                        """
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM pg_stat_activity
+                            WHERE pid = ?
+                              AND wait_event_type = 'Lock'
+                        )
+                        """.trimIndent(),
+                        Boolean::class.java,
+                        adminBackendPid.get(),
+                    ) == true
+                if (!adminIsWaitingForLock) {
+                    Thread.sleep(20)
+                }
+            }
+            assertTrue(
+                adminIsWaitingForLock,
+                "admin price update must wait for checkout's product-row lock",
+            )
+            allowCheckoutCommit.countDown()
+
+            pool.shutdown()
+            assertTrue(pool.awaitTermination(60, TimeUnit.SECONDS), "workers timed out")
+
+            assertTrue(failures.isEmpty(), "unexpected concurrency failures: $failures")
+            assertEquals(
+                originalPrice,
+                snapshot.get()?.price,
+                "checkout price must be captured while holding the product row lock",
+            )
+            assertEquals(
+                BigDecimal("999.99"),
+                productRepository.findById(productId).orElseThrow().price,
+                "admin update must commit after the checkout lock is released",
+            )
+            assertEquals(
+                originalStock - 1,
+                productRepository.findById(productId).orElseThrow().stockQuantity,
+            )
+        } finally {
+            allowCheckoutCommit.countDown()
+            pool.shutdownNow()
+        }
     }
 }

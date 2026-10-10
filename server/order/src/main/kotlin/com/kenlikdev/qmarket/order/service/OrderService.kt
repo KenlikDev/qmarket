@@ -111,13 +111,10 @@ class OrderService(
         var total = BigDecimal.ZERO
         // Always acquire product-row locks in stable UUID order to prevent reverse-order deadlocks.
         for (cartItem in cart.items.sortedBy { it.productId }) {
-            val product = productCatalog.requireActive(cartItem.productId)
-            if (cartItem.quantity > product.stockQuantity) {
-                throw BadRequestException(
-                    "Insufficient stock for product ${product.slug}: available ${product.stockQuantity}, requested ${cartItem.quantity}",
-                )
-            }
-            productCatalog.decreaseStock(cartItem.productId, cartItem.quantity)
+            // Stock reservation acquires the product row lock before returning its price snapshot.
+            // The business rule is therefore "price at successful checkout reservation", preventing
+            // an admin price update from committing between price read and stock reservation.
+            val product = productCatalog.reserveStock(cartItem.productId, cartItem.quantity)
 
             val lineTotal = product.price.multiply(BigDecimal(cartItem.quantity))
             total = total.add(lineTotal)
