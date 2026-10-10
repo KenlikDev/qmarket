@@ -197,7 +197,7 @@ class OrderDetailScreenTest {
             onNodeWithText("PENDING").assertExists()
             onNodeWithTag("orderDetailPaymentSession").assertExists()
             onNodeWithTag("orderDetailPaymentIntentId").assertExists()
-            onNodeWithText("This app build cannot confirm Stripe payments.", substring = true).assertExists()
+            onNodeWithText("Stripe confirmation is not supported", substring = true).assertExists()
             onNodeWithTag("orderDetailPay").assertDoesNotExist()
         }
 
