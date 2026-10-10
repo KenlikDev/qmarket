@@ -241,7 +241,6 @@ class QMarketAppModelTest {
             model.checkout()
             assertTrue(model.loading)
         }
-}
 
     @Test
     fun checkoutKeepsSuccessfulOrderWhenCartRefreshFails() =
@@ -284,3 +283,92 @@ class QMarketAppModelTest {
                 client.close()
             }
         }
+
+    @Test
+    fun applySessionMarksStoreManagerButNotFullAdministrator() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            tokens.applyAuth(authUser("manager@qmarket.local", listOf("ROLE_MANAGER")))
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+
+            model.applySession("manager@qmarket.local")
+
+            assertTrue(model.loggedIn)
+            assertTrue(model.canManageStore)
+            assertFalse(model.isAdmin)
+            assertEquals("manager@qmarket.local", model.userLabel)
+        }
+
+    @Test
+    fun openAdminLoadsInactiveProductsForManagerWithoutRequestingAdminUsers() =
+        runBlocking {
+            val requestedPaths = mutableListOf<String>()
+            val inactiveProduct =
+                """{"id":"inactive-1","name":"Inactive seed","slug":"inactive-seed","price":"5.00","stockQuantity":0,"active":false,"featured":false}"""
+            val engine =
+                MockEngine { request ->
+                    val path = request.url.fullPath
+                    requestedPaths += path
+                    when {
+                        path.startsWith("/api/v1/categories/admin") ->
+                            respond(
+                                content = ByteReadChannel("[]"),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        path.startsWith("/api/v1/products/admin") ->
+                            respond(
+                                content =
+                                    ByteReadChannel(
+                                        """{"content":[$inactiveProduct],"page":0,"size":50,"totalElements":1,"totalPages":1}""",
+                                    ),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        path.startsWith("/api/v1/orders/admin/all") ->
+                            respond(
+                                content =
+                                    ByteReadChannel(
+                                        """{"content":[],"page":0,"size":50,"totalElements":0,"totalPages":0}""",
+                                    ),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        path.startsWith("/api/v1/admin/users") ->
+                            error("A manager must not call the full-admin user endpoint")
+                        else -> error("Unexpected path in manager admin test: $path")
+                    }
+                }
+            val client = httpClient(engine)
+            try {
+                val tokens = MutableTokenProvider(InMemorySessionStore())
+                tokens.applyAuth(authUser("manager@qmarket.local", listOf("ROLE_MANAGER")))
+                val model =
+                    QMarketAppModel(
+                        QMarketApiClient(client),
+                        tokens,
+                        modelScope(),
+                        restoredSession = false,
+                    )
+                model.applySession("manager@qmarket.local")
+
+                model.openAdmin()
+                while (model.loading) {
+                    kotlinx.coroutines.yield()
+                }
+
+                assertEquals(AppScreen.Admin, model.screen)
+                assertNull(model.error)
+                assertTrue(model.canManageStore)
+                assertFalse(model.isAdmin)
+                assertEquals(1, model.adminProducts.size)
+                assertEquals("inactive-1", model.adminProducts.single().id)
+                assertFalse(model.adminProducts.single().active)
+                assertTrue(requestedPaths.any { it.startsWith("/api/v1/products/admin") })
+                assertFalse(requestedPaths.any { it.startsWith("/api/v1/admin/users") })
+            } finally {
+                client.close()
+            }
+        }
+}

@@ -57,6 +57,8 @@ class QMarketAppModel(
     var statusMessage by mutableStateOf<String?>(null)
     var loading by mutableStateOf(false)
     var products by mutableStateOf<List<ProductDto>>(emptyList())
+    /** Full catalog data visible to staff, including inactive products. */
+    var adminProducts by mutableStateOf<List<ProductDto>>(emptyList())
     var detailProduct by mutableStateOf<ProductDto?>(null)
     var detailQuantity by mutableStateOf(1)
     var catalogQuery by mutableStateOf("")
@@ -65,6 +67,7 @@ class QMarketAppModel(
     var catalogCategoryId by mutableStateOf<String?>(null)
     var catalogCategories by mutableStateOf<List<CategoryDto>>(emptyList())
     var isAdmin by mutableStateOf(false)
+    var canManageStore by mutableStateOf(false)
     var adminProductName by mutableStateOf("")
     var adminProductSlug by mutableStateOf("")
     var adminProductPrice by mutableStateOf("9.99")
@@ -132,6 +135,7 @@ class QMarketAppModel(
             clearUserScopedUiState()
             loggedIn = false
             isAdmin = false
+            canManageStore = false
             userLabel = null
             products = emptyList()
             screen = AppScreen.Login
@@ -151,6 +155,8 @@ class QMarketAppModel(
 
     fun clearUserScopedUiState() {
         orders = emptyList()
+        adminProducts = emptyList()
+        categories = emptyList()
         adminOrders = emptyList()
         adminUsers = emptyList()
         adminUserQuery = ""
@@ -190,6 +196,7 @@ class QMarketAppModel(
             val currentProfile = api.getProfile()
             tokens.applyRoles(currentProfile.roles)
             isAdmin = tokens.isAdmin()
+            canManageStore = tokens.canManageStore()
 
             val page = api.listProducts(size = 50)
             products = page.content
@@ -214,6 +221,7 @@ class QMarketAppModel(
                 loggedIn = true
                 userLabel = tokens.sessionEmail()
                 isAdmin = tokens.isAdmin()
+                canManageStore = tokens.canManageStore()
                 screen = AppScreen.Catalog
                 error = e.message
             }
@@ -221,6 +229,7 @@ class QMarketAppModel(
             loggedIn = true
             userLabel = tokens.sessionEmail()
             isAdmin = tokens.isAdmin()
+            canManageStore = tokens.canManageStore()
             screen = AppScreen.Catalog
             error = e.message ?: "Unable to restore session data"
         } finally {
@@ -308,6 +317,7 @@ class QMarketAppModel(
         userLabel = authEmail
         loggedIn = true
         isAdmin = tokens.isAdmin()
+        canManageStore = tokens.canManageStore()
     }
 
     fun login() {

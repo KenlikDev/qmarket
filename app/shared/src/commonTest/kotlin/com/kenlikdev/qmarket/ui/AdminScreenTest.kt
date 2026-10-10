@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
@@ -50,6 +51,7 @@ class AdminScreenTest {
         runComposeUiTest {
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
@@ -98,6 +100,7 @@ class AdminScreenTest {
         runComposeUiTest {
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
@@ -146,6 +149,7 @@ class AdminScreenTest {
         runComposeUiTest {
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
@@ -197,6 +201,7 @@ class AdminScreenTest {
             var deleted: String? = null
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
@@ -255,6 +260,7 @@ class AdminScreenTest {
         runComposeUiTest {
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
@@ -311,6 +317,7 @@ class AdminScreenTest {
             var updated: OrderStatusDto? = null
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
@@ -370,6 +377,7 @@ class AdminScreenTest {
             var editClicked = false
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories = listOf(category),
                     categoryName = "Electronics",
                     categorySlug = "electronics",
@@ -433,6 +441,7 @@ class AdminScreenTest {
             var editedId: String? = null
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories = listOf(category),
                     categoryName = "",
                     categorySlug = "",
@@ -486,6 +495,7 @@ class AdminScreenTest {
             var selected: String? = "keep"
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories =
                         listOf(
                             CategoryDto(id = "c1", name = "Electronics", slug = "electronics"),
@@ -542,6 +552,7 @@ class AdminScreenTest {
         runComposeUiTest {
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories = emptyList(),
                     categoryName = "",
                     categorySlug = "",
@@ -598,6 +609,93 @@ class AdminScreenTest {
             onNodeWithTag("adminUserSearch").assertExists()
             onNodeWithTag("adminUserCard").performScrollTo().assertExists()
             onNodeWithText("shopper@test.local").assertExists()
+        }
+
+
+    @Test
+    fun managerSeesStoreOperationsButNotFullAdminActions() =
+        runComposeUiTest {
+            val category =
+                CategoryDto(
+                    id = "c1",
+                    name = "Electronics",
+                    slug = "electronics",
+                    active = true,
+                )
+            val order =
+                OrderDto(
+                    id = "o1",
+                    userId = "u1",
+                    status = OrderStatusDto.PENDING,
+                    totalAmount = "10.00",
+                )
+
+            setContent {
+                AdminScreen(
+                    isFullAdmin = true,
+                    categories = listOf(category),
+                    categoryName = "",
+                    categorySlug = "",
+                    adminOrders = listOf(order),
+                    adminUsers =
+                        listOf(
+                            AdminUserDto(
+                                id = "u1",
+                                email = "shopper@test.local",
+                                enabled = true,
+                                roles = listOf("ROLE_USER"),
+                            ),
+                        ),
+                    isFullAdmin = false,
+                    products = listOf(sampleProduct()),
+                    editingProductId = null,
+                    productName = "New widget",
+                    productSlug = "new-widget",
+                    productPrice = "12.50",
+                    productStock = "3",
+                    productFeatured = false,
+                    loggedIn = true,
+                    userLabel = "manager@qmarket.local",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    onBackToCatalog = {},
+                    onCategoryNameChange = {},
+                    onCategorySlugChange = {},
+                    onCreateCategory = {},
+                    onDeleteCategory = {},
+                    onEditCategory = {},
+                    onUpdateCategory = {},
+                    onClearCategoryEdit = {},
+                    onUpdateOrderStatus = { _, _ -> },
+                    onNameChange = {},
+                    onSlugChange = {},
+                    onPriceChange = {},
+                    onStockChange = {},
+                    onToggleFeatured = {},
+                    onCreate = {},
+                    onUpdate = {},
+                    onDelete = {},
+                    onEdit = {},
+                    onClearEdit = {},
+                    onCart = {},
+                    onOrders = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+
+            onNodeWithText("Store management").assertExists()
+            onNodeWithTag("adminEditCategory").performScrollTo().assertExists()
+            onNodeWithTag("adminDeleteCategory").assertDoesNotExist()
+            onNodeWithTag("adminCreateProduct").performScrollTo().assertExists()
+            onNodeWithTag("adminEditProduct").performScrollTo().assertExists()
+            onNodeWithTag("adminDeleteProduct").assertDoesNotExist()
+            onNodeWithText("Users (1)").assertDoesNotExist()
+            onNodeWithTag("adminUserQuery").assertDoesNotExist()
+            onNodeWithTag("adminOrderStatus_CONFIRMED").performScrollTo().assertExists()
         }
 
 }
