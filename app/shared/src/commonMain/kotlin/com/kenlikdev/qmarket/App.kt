@@ -152,7 +152,7 @@ fun App(apiBaseUrl: String = defaultApiBaseUrl()) {
                         onOrders = { m.loadOrders() },
                         onAddresses = { m.loadAddresses() },
                         onProfile = { m.loadProfile() },
-                        onAdmin = if (m.isAdmin) ({ m.openAdmin() }) else null,
+                        onAdmin = if (m.canManageStore) ({ m.openAdmin() }) else null,
                         onNotifications = { m.loadNotifications() },
                         notificationsUnread = m.notificationsUnread,
                         onLogout = { m.logout() },
@@ -368,6 +368,7 @@ fun App(apiBaseUrl: String = defaultApiBaseUrl()) {
 
                 AppScreen.Admin -> {
                     AdminScreen(
+                        isFullAdmin = m.isAdmin,
                         categories = m.categories,
                         categoryName = m.adminCategoryName,
                         categorySlug = m.adminCategorySlug,
@@ -377,7 +378,7 @@ fun App(apiBaseUrl: String = defaultApiBaseUrl()) {
                         adminUserQuery = m.adminUserQuery,
                         onAdminUserQueryChange = { m.adminUserQuery = it },
                         onSearchAdminUsers = { m.searchAdminUsers() },
-                        products = m.products,
+                        products = m.adminProducts,
                         editingProductId = m.editingProductId,
                         productName = m.adminProductName,
                         productSlug = m.adminProductSlug,

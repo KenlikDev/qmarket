@@ -83,6 +83,26 @@ class MutableTokenProviderTest {
     }
 
     @Test
+    fun storeManagerCanManageStoreWithoutFullAdminPermissions() {
+        val provider = MutableTokenProvider(InMemorySessionStore())
+
+        provider.applyRoles(listOf("ROLE_MANAGER"))
+        assertTrue(provider.canManageStore())
+        assertFalse(provider.isAdmin())
+
+        provider.applyRoles(listOf("ROLE_ADMIN"))
+        assertTrue(provider.canManageStore())
+        assertTrue(provider.isAdmin())
+
+        provider.applyRoles(listOf("ROLE_USER"))
+        assertFalse(provider.canManageStore())
+        assertFalse(provider.isAdmin())
+
+        provider.applyRoles(listOf("NOT_MANAGER"))
+        assertFalse(provider.canManageStore())
+    }
+
+    @Test
     fun isAdminFromRoles() {
         val provider = MutableTokenProvider(InMemorySessionStore())
         assertFalse(provider.isAdmin())

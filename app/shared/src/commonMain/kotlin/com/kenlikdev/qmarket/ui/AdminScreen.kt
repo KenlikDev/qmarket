@@ -31,7 +31,7 @@ import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.ProductDto
 
 /**
- * Admin catalog: categories + create / update / delete products (ROLE_ADMIN / MANAGER on server).
+ * Store catalog and order management for ADMIN/MANAGER; full-admin actions are shown only to ADMIN.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -41,6 +41,8 @@ fun AdminScreen(
     categorySlug: String,
     adminOrders: List<OrderDto> = emptyList(),
     adminUsers: List<AdminUserDto> = emptyList(),
+    /** True only for ROLE_ADMIN; managers must not see user/destructive controls. */
+    isFullAdmin: Boolean,
     adminUserQuery: String = "",
     onAdminUserQueryChange: (String) -> Unit = {},
     onSearchAdminUsers: () -> Unit = {},
@@ -120,7 +122,7 @@ fun AdminScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
         TopBar(
-            title = "Admin",
+            title = if (isFullAdmin) "Admin" else "Store management",
             subtitle = userLabel ?: "Guest",
             loggedIn = loggedIn,
             cartCount = cartCount,
@@ -227,12 +229,14 @@ fun AdminScreen(
                             ) {
                                 Text("Edit")
                             }
-                            TextButton(
-                                onClick = { onDeleteCategory(category) },
-                                enabled = !loading,
-                                modifier = Modifier.testTag("adminDeleteCategory"),
-                            ) {
-                                Text("Delete")
+                            if (isFullAdmin) {
+                                TextButton(
+                                    onClick = { onDeleteCategory(category) },
+                                    enabled = !loading,
+                                    modifier = Modifier.testTag("adminDeleteCategory"),
+                                ) {
+                                    Text("Delete")
+                                }
                             }
                         }
                     }
@@ -356,54 +360,56 @@ fun AdminScreen(
                 }
             }
 
-            Text(
-                "Users (${adminUsers.size})",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 24.dp),
-            )
-            OutlinedTextField(
-                value = adminUserQuery,
-                onValueChange = onAdminUserQueryChange,
-                label = { Text("Search users") },
-                singleLine = true,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .testTag("adminUserQuery"),
-            )
-            TextButton(
-                onClick = onSearchAdminUsers,
-                enabled = !loading,
-                modifier = Modifier.testTag("adminUserSearch"),
-            ) {
-                Text("Search")
-            }
-            if (adminUsers.isEmpty()) {
-                Text("No users", style = MaterialTheme.typography.bodySmall)
-            }
-            adminUsers.forEach { user ->
-                Card(
+            if (isFullAdmin) {
+                Text(
+                    "Users (${adminUsers.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 24.dp),
+                )
+                OutlinedTextField(
+                    value = adminUserQuery,
+                    onValueChange = onAdminUserQueryChange,
+                    label = { Text("Search users") },
+                    singleLine = true,
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp)
-                            .testTag("adminUserCard"),
+                            .testTag("adminUserQuery"),
+                )
+                TextButton(
+                    onClick = onSearchAdminUsers,
+                    enabled = !loading,
+                    modifier = Modifier.testTag("adminUserSearch"),
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(user.email, style = MaterialTheme.typography.titleSmall)
-                        val name =
-                            listOfNotNull(user.firstName, user.lastName)
-                                .joinToString(" ")
-                                .ifBlank { "—" }
-                        Text(name, style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            user.roles.joinToString().ifBlank { "no roles" },
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        Text(
-                            if (user.enabled) "enabled" else "disabled",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                    Text("Search")
+                }
+                if (adminUsers.isEmpty()) {
+                    Text("No users", style = MaterialTheme.typography.bodySmall)
+                }
+                adminUsers.forEach { user ->
+                    Card(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .testTag("adminUserCard"),
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(user.email, style = MaterialTheme.typography.titleSmall)
+                            val name =
+                                listOfNotNull(user.firstName, user.lastName)
+                                    .joinToString(" ")
+                                    .ifBlank { "—" }
+                            Text(name, style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                user.roles.joinToString().ifBlank { "no roles" },
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Text(
+                                if (user.enabled) "enabled" else "disabled",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
             }
@@ -481,12 +487,14 @@ fun AdminScreen(
                             ) {
                                 Text("Edit")
                             }
-                            TextButton(
-                                onClick = { onDelete(product) },
-                                enabled = !loading,
-                                modifier = Modifier.testTag("adminDeleteProduct"),
-                            ) {
-                                Text("Delete")
+                            if (isFullAdmin) {
+                                TextButton(
+                                    onClick = { onDelete(product) },
+                                    enabled = !loading,
+                                    modifier = Modifier.testTag("adminDeleteProduct"),
+                                ) {
+                                    Text("Delete")
+                                }
                             }
                         }
                     }

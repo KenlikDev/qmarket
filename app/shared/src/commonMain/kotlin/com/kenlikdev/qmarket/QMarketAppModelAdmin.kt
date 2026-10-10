@@ -14,16 +14,29 @@ import com.kenlikdev.qmarket.ui.AppScreen
  */
 
 fun QMarketAppModel.openAdmin() {
+    if (!canManageStore) {
+        error = "Store administration requires an administrator or manager role"
+        return
+    }
     runApi {
         categories = api.listAdminCategories()
+        adminProducts = api.listAdminProducts(size = 50).content
         adminOrders = api.listAdminOrders().content
         adminUsers =
-            api.listAdminUsers(q = adminUserQuery.trim().ifBlank { null }).content
+            if (isAdmin) {
+                api.listAdminUsers(q = adminUserQuery.trim().ifBlank { null }).content
+            } else {
+                emptyList()
+            }
         screen = AppScreen.Admin
     }
 }
 
 fun QMarketAppModel.searchAdminUsers() {
+    if (!isAdmin) {
+        adminUsers = emptyList()
+        return
+    }
     runApi {
         adminUsers =
             api.listAdminUsers(q = adminUserQuery.trim().ifBlank { null }).content
@@ -31,6 +44,10 @@ fun QMarketAppModel.searchAdminUsers() {
 }
 
 fun QMarketAppModel.createCategory() {
+    if (!canManageStore) {
+        error = "Store management requires an administrator or manager role"
+        return
+    }
     runApi {
         api.createCategory(
             CreateCategoryRequestDto(
@@ -47,6 +64,10 @@ fun QMarketAppModel.createCategory() {
 }
 
 fun QMarketAppModel.updateCategory() {
+    if (!canManageStore) {
+        error = "Store management requires an administrator or manager role"
+        return
+    }
     val id = editingCategoryId ?: return
     runApi {
         api.updateCategory(
@@ -66,6 +87,10 @@ fun QMarketAppModel.updateCategory() {
 }
 
 fun QMarketAppModel.deleteCategory(id: String) {
+    if (!isAdmin) {
+        error = "Only administrators can delete categories"
+        return
+    }
     runApi {
         api.deleteCategory(id)
         if (editingCategoryId == id) {
@@ -80,6 +105,10 @@ fun QMarketAppModel.deleteCategory(id: String) {
 }
 
 fun QMarketAppModel.saveProduct() {
+    if (!canManageStore) {
+        error = "Store management requires an administrator or manager role"
+        return
+    }
     val editingId = editingProductId
     runApi {
         if (editingId == null) {
@@ -116,18 +145,22 @@ fun QMarketAppModel.saveProduct() {
         adminProductStock = "10"
         adminProductFeatured = false
         adminProductCategoryId = null
-        products = api.listAdminProducts(size = 50).content
+        adminProducts = api.listAdminProducts(size = 50).content
     }
 }
 
 fun QMarketAppModel.deleteProduct(product: ProductDto) {
+    if (!isAdmin) {
+        error = "Only administrators can delete products"
+        return
+    }
     runApi {
         api.deleteProduct(product.id)
         statusMessage = "Deleted ${product.name}"
         if (editingProductId == product.id) {
             editingProductId = null
         }
-        products = api.listAdminProducts(size = 50).content
+        adminProducts = api.listAdminProducts(size = 50).content
     }
 }
 
@@ -175,6 +208,10 @@ fun QMarketAppModel.updateAdminOrderStatus(
     orderId: String,
     status: OrderStatusDto,
 ) {
+    if (!canManageStore) {
+        error = "Store management requires an administrator or manager role"
+        return
+    }
     runApi {
         api.updateAdminOrderStatus(orderId, status)
         adminOrders = api.listAdminOrders().content

@@ -29,10 +29,19 @@ class MutableTokenProvider(
 
     fun sessionRoles(): List<String> = roles
 
-    fun isAdmin(): Boolean =
-        roles.any { role ->
-            role == "ROLE_ADMIN" || role == "ADMIN"
-        }
+    /** Full administrator permissions, including user management and destructive actions. */
+    fun isAdmin(): Boolean = hasAnyRole("ADMIN")
+
+    /** Catalog/order staff permissions shared by administrators and store managers. */
+    fun canManageStore(): Boolean = hasAnyRole("ADMIN", "MANAGER")
+
+    private fun hasAnyRole(vararg expectedRoles: String): Boolean {
+        val expected = expectedRoles.map(::normalizeRole).toSet()
+        return roles.any { role -> normalizeRole(role) in expected }
+    }
+
+    private fun normalizeRole(role: String): String =
+        role.trim().uppercase().removePrefix("ROLE_")
 
     fun hasSession(): Boolean = !token.isNullOrBlank() || !refresh.isNullOrBlank()
 
