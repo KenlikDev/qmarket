@@ -815,4 +815,38 @@ class OrderServiceTest {
         assertEquals(null, order.paymentOperationStartedAt)
         verify(exactly = 2) { orderRepository.save(any()) }
     }
+
+    @Test
+    fun `JPY cancellation reconciliation uses Stripe zero decimal amount`() {
+        val jpyOrderId = UUID.randomUUID()
+        val order =
+            Order(
+                id = jpyOrderId,
+                userId = userId,
+                status = OrderStatus.PENDING,
+                totalAmount = BigDecimal("500.00"),
+                paymentProvider = "stripe",
+                paymentProviderReference = "pi_jpy_500",
+                paymentCurrency = "jpy",
+            )
+        every { orderRepository.findByIdAndUserIdForUpdate(jpyOrderId, userId) } returns order
+        every { orderRepository.findByIdForUpdate(jpyOrderId) } returns order
+        every { orderRepository.save(any()) } answers { firstArg() }
+        every { orderPaymentService.cancelProviderPayment(any(), any(), any(), any(), any(), any(), any()) } returns null
+
+        val result = orderService.cancelMyOrder(userId, jpyOrderId)
+
+        assertEquals(OrderStatus.CANCELLED, result.status)
+        verify(exactly = 1) {
+            orderPaymentService.cancelProviderPayment(
+                providerId = "stripe",
+                providerReference = "pi_jpy_500",
+                paymentOperationKey = null,
+                amountMinor = 500L,
+                currency = "jpy",
+                orderId = jpyOrderId,
+                userId = userId,
+            )
+        }
+    }
 }

@@ -4,7 +4,6 @@ import com.kenlikdev.qmarket.cart.repository.CartRepository
 import com.kenlikdev.qmarket.catalog.api.ProductCatalog
 import com.kenlikdev.qmarket.common.exception.BadRequestException
 import com.kenlikdev.qmarket.common.exception.NotFoundException
-import com.kenlikdev.qmarket.common.util.Money
 import com.kenlikdev.qmarket.identity.repository.AddressRepository
 import com.kenlikdev.qmarket.order.domain.Order
 import com.kenlikdev.qmarket.order.domain.OrderItem
@@ -15,6 +14,7 @@ import com.kenlikdev.qmarket.order.dto.OrderResponse
 import com.kenlikdev.qmarket.order.dto.PageResponse
 import com.kenlikdev.qmarket.order.dto.PaymentSessionResponse
 import com.kenlikdev.qmarket.order.dto.UpdateOrderStatusRequest
+import com.kenlikdev.qmarket.order.payment.StripeAmountConverter
 import com.kenlikdev.qmarket.order.repository.OrderRepository
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
@@ -380,7 +380,14 @@ class OrderService(
                         paymentProviderReference = order.paymentProviderReference,
                         paymentCurrency = order.paymentCurrency,
                         paymentOperationKey = order.paymentOperationKey,
-                        amountMinor = Money.toMinorUnits(order.totalAmount),
+                        amountMinor =
+                            try {
+                                StripeAmountConverter.toMinorUnits(order.totalAmount, order.paymentCurrency ?: "rub")
+                            } catch (ex: IllegalArgumentException) {
+                                throw BadRequestException(
+                                    "Order total cannot be represented in payment currency ${order.paymentCurrency ?: "rub"}",
+                                )
+                            },
                         operationId = operationId,
                     )
                 },
