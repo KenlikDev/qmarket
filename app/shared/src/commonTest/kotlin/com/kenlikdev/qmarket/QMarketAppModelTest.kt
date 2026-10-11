@@ -383,11 +383,10 @@ class QMarketAppModelTest {
             model.payOrder("order-1")
 
             assertEquals(
-                "Direct Pay is disabled for Stripe. Open the order to create a Stripe session.",
+                "Stripe payment confirmation is not implemented in this app yet.",
                 model.error,
             )
             assertFalse(model.loading)
         }
-
 
 }
