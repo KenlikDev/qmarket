@@ -33,6 +33,7 @@ import com.kenlikdev.qmarket.ui.ProfileScreen
 import com.kenlikdev.qmarket.ui.RegisterScreen
 import com.kenlikdev.qmarket.ui.slugifyProductName
 import com.kenlikdev.qmarket.validation.ClientInputValidation
+import kotlinx.coroutines.CompletableDeferred
 
 @Composable
 fun App(
@@ -70,8 +71,15 @@ fun App(
             onDispose { http.close() }
         }
 
+        val appReady = remember(model) { CompletableDeferred<Unit>() }
         LaunchedEffect(model) {
-            model.restoreSessionIfNeeded(initialSession)
+            try {
+                model.restoreSessionIfNeeded(initialSession)
+            } finally {
+                // A restored payment result must not race session restoration and lose its
+                // navigation/state update to a late Catalog assignment.
+                appReady.complete(Unit)
+            }
         }
 
         val m = model
@@ -88,6 +96,7 @@ fun App(
 
         LaunchedEffect(stripePaymentResult?.eventId) {
             val event = stripePaymentResult ?: return@LaunchedEffect
+            appReady.await()
             m.handleStripePaymentResult(event.orderId, event.result)
             onStripePaymentResultConsumed?.invoke(event.eventId)
         }
