@@ -77,7 +77,7 @@ class MutableTokenProviderTest {
     }
 
     @Test
-    fun clearAlwaysClearsMemoryWhenStoreClearFails() {
+    fun clearPreservesMemoryWhenDurableStoreClearFails() {
         val store =
             object : SessionStore {
                 override fun readAccessToken(): String? = "access"
@@ -97,10 +97,10 @@ class MutableTokenProviderTest {
         assertFailsWith<IllegalStateException> {
             provider.clear()
         }
-        assertNull(provider.accessToken())
-        assertNull(provider.refreshToken())
-        assertNull(provider.sessionEmail())
-        assertFalse(provider.hasSession())
+        assertEquals("access", provider.accessToken())
+        assertEquals("refresh", provider.refreshToken())
+        assertEquals("user@example.com", provider.sessionEmail())
+        assertTrue(provider.hasSession())
     }
 
     @Test
