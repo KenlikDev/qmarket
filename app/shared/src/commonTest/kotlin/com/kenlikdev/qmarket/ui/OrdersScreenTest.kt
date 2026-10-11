@@ -160,7 +160,7 @@ class OrdersScreenTest {
             }
 
             onNodeWithTag("orderPay").assertDoesNotExist()
-            onNodeWithTag("orderOpenToPay").assertIsEnabled().performClick()
+            onNodeWithTag("orderViewPaymentStatus").assertIsEnabled().performClick()
             assertEquals("stripe-order", openedOrderId)
         }
 
@@ -189,7 +189,7 @@ class OrdersScreenTest {
             }
 
             onNodeWithTag("orderPay").assertDoesNotExist()
-            onNodeWithTag("orderOpenToPay").assertDoesNotExist()
+            onNodeWithTag("orderViewPaymentStatus").assertDoesNotExist()
             onNodeWithTag("orderPaymentUnavailable").assertExists()
             onNodeWithTag("orderCancel").assertExists()
         }
