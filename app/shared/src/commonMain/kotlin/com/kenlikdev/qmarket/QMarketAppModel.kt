@@ -558,12 +558,24 @@ class QMarketAppModel(
         paymentSession = null
         when (result) {
             StripePaymentResult.CANCELED -> {
-                statusMessage = "Payment cancelled. The order remains pending."
+                runApi {
+                    refreshOrderSnapshot(orderId)
+                    statusMessage =
+                        if (detailOrder?.status?.name == "PAID") {
+                            "Payment confirmed by the server."
+                        } else {
+                            "Payment cancelled. The order remains pending."
+                        }
+                }
             }
             StripePaymentResult.FAILED -> {
                 runApi {
                     refreshOrderSnapshot(orderId)
-                    error = "Stripe could not complete the payment. The order remains pending."
+                    if (detailOrder?.status?.name == "PAID") {
+                        statusMessage = "Payment confirmed by the server."
+                    } else {
+                        error = "Stripe could not complete the payment. The order remains pending."
+                    }
                 }
             }
             StripePaymentResult.COMPLETED -> {
