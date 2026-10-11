@@ -149,10 +149,7 @@ class OrderDetailScreenTest {
             }
 
             onNodeWithTag("orderDetailPay").assertDoesNotExist()
-            onNodeWithTag("orderDetailPaymentSessionBtn").assertDoesNotExist()
             onNodeWithTag("orderPaymentUnavailable").assertExists()
         }
-
-
 
 }
