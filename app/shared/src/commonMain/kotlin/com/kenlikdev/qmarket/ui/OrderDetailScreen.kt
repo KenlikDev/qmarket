@@ -18,7 +18,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
-import com.kenlikdev.qmarket.api.PaymentSessionDto
 
 @Composable
 fun OrderDetailScreen(
@@ -31,9 +30,7 @@ fun OrderDetailScreen(
     loading: Boolean,
     onBackToOrders: () -> Unit,
     onPay: () -> Unit,
-    onStartPaymentSession: (() -> Unit)? = null,
     paymentProviderId: String? = null,
-    paymentSession: PaymentSessionDto? = null,
     onCancel: () -> Unit,
     onRefresh: () -> Unit,
     onCart: () -> Unit,
@@ -152,31 +149,6 @@ fun OrderDetailScreen(
                             }
                         }
                     }
-                    paymentSession?.let { session ->
-                        Card(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 12.dp)
-                                    .testTag("orderDetailPaymentSession"),
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    "Stripe payment session created",
-                                    style = MaterialTheme.typography.titleSmall,
-                                )
-                                Text(
-                                    "PI: ${session.paymentIntentId}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.testTag("orderDetailPaymentIntentId"),
-                                )
-                                Text(
-                                    "Stripe confirmation is not supported in this app build; the order remains pending.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                        }
-                    }
                     Row(modifier = Modifier.padding(top = 16.dp)) {
                         if (order.status == OrderStatusDto.PENDING) {
                             when (paymentProviderId) {
@@ -190,20 +162,10 @@ fun OrderDetailScreen(
                                     }
                                 }
                                 "stripe" -> {
-                                    if (onStartPaymentSession != null) {
-                                        TextButton(
-                                            onClick = onStartPaymentSession,
-                                            enabled = !loading,
-                                            modifier = Modifier.testTag("orderDetailPaymentSessionBtn"),
-                                        ) {
-                                            Text("Create Stripe session")
-                                        }
-                                    } else {
-                                        Text(
-                                            "Stripe payment is unavailable here.",
-                                            modifier = Modifier.testTag("orderPaymentUnavailable"),
-                                        )
-                                    }
+                                    Text(
+                                        "Stripe payment confirmation is not implemented in this app yet.",
+                                        modifier = Modifier.testTag("orderPaymentUnavailable"),
+                                    )
                                 }
                                 else -> {
                                     Text(
