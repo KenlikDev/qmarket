@@ -136,7 +136,15 @@ class AtomicSessionRecordStoreTest {
             FakeSessionKeyValueStore(
                 mapOf(
                     SESSION_RECORD_KEY to
-                        """{"version":1,"cleared":false,"accessToken":42,"refreshToken":"bad-refresh","email":"old@qmarket.test"}""",
+                        """
+                        {
+                            "version": 1,
+                            "cleared": false,
+                            "accessToken": 42,
+                            "refreshToken": "bad-refresh",
+                            "email": "old@qmarket.test"
+                        }
+                        """.trimIndent(),
                     legacyKeys.accessToken to "legacy-access",
                     legacyKeys.refreshToken to "legacy-refresh",
                     legacyKeys.email to "legacy@qmarket.test",
