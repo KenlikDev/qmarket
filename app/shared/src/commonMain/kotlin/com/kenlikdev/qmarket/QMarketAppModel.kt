@@ -19,6 +19,7 @@ import com.kenlikdev.qmarket.api.UpdateCartItemRequestDto
 import com.kenlikdev.qmarket.network.ApiException
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
+import com.kenlikdev.qmarket.network.SessionClearedWithCleanupFailure
 import com.kenlikdev.qmarket.ui.AppScreen
 import com.kenlikdev.qmarket.ui.CatalogFilterParams
 import com.kenlikdev.qmarket.ui.CheckoutIdempotency
@@ -126,22 +127,32 @@ class QMarketAppModel(
     }
 
     private fun clearSessionState(): Exception? {
-        var cleanupError: Exception? = null
         try {
             tokens.clear()
+        } catch (exception: SessionClearedWithCleanupFailure) {
+            // The durable tombstone committed; memory was cleared too. Report incomplete legacy
+            // cleanup, but do not leave UI state logged in when persistence says the session ended.
+            finishLocalSessionClear()
+            return exception
         } catch (exception: Exception) {
-            cleanupError = exception
-        } finally {
-            api.clearBearerTokenCache()
-            clearUserScopedUiState()
-            loggedIn = false
-            isAdmin = false
-            canManageStore = false
-            userLabel = null
-            products = emptyList()
-            screen = AppScreen.Login
+            // The durable clear did not commit. Preserve the current in-memory session and UI so
+            // the caller can surface the failure without splitting the session state.
+            return exception
         }
-        return cleanupError
+
+        finishLocalSessionClear()
+        return null
+    }
+
+    private fun finishLocalSessionClear() {
+        api.clearBearerTokenCache()
+        clearUserScopedUiState()
+        loggedIn = false
+        isAdmin = false
+        canManageStore = false
+        userLabel = null
+        products = emptyList()
+        screen = AppScreen.Login
     }
 
     /**
