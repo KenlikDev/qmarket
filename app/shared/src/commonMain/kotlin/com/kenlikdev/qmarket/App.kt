@@ -8,12 +8,12 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.network.StripePaymentResult
+import com.kenlikdev.qmarket.network.StripePaymentResultEvent
 import com.kenlikdev.qmarket.network.createPlatformHttpClient
 import com.kenlikdev.qmarket.network.createPlatformSessionStore
 import com.kenlikdev.qmarket.network.defaultApiBaseUrl
@@ -37,7 +37,9 @@ import com.kenlikdev.qmarket.validation.ClientInputValidation
 @Composable
 fun App(
     apiBaseUrl: String = defaultApiBaseUrl(),
-    onConfirmStripePayment: ((PaymentSessionDto, (StripePaymentResult) -> Unit) -> Unit)? = null,
+    onConfirmStripePayment: ((PaymentSessionDto) -> Unit)? = null,
+    stripePaymentResult: StripePaymentResultEvent? = null,
+    onStripePaymentResultConsumed: ((Long) -> Unit)? = null,
 ) {
     val validatedApiBaseUrl = remember(apiBaseUrl) { validateApiBaseUrl(apiBaseUrl) }
 
@@ -73,18 +75,21 @@ fun App(
         }
 
         val m = model
-        val stripePaymentConfirmer = rememberUpdatedState(onConfirmStripePayment)
 
         LaunchedEffect(m.paymentSession) {
             val session = m.paymentSession ?: return@LaunchedEffect
-            val confirmer = stripePaymentConfirmer.value
+            val confirmer = onConfirmStripePayment
             if (confirmer == null) {
                 m.handleStripePaymentResult(session.orderId, StripePaymentResult.FAILED)
                 return@LaunchedEffect
             }
-            confirmer(session) { result ->
-                m.handleStripePaymentResult(session.orderId, result)
-            }
+            confirmer(session)
+        }
+
+        LaunchedEffect(stripePaymentResult?.eventId) {
+            val event = stripePaymentResult ?: return@LaunchedEffect
+            m.handleStripePaymentResult(event.orderId, event.result)
+            onStripePaymentResultConsumed?.invoke(event.eventId)
         }
 
         Scaffold { padding ->
