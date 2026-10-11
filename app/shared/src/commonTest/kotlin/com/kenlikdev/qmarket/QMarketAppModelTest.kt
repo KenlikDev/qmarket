@@ -6,6 +6,7 @@ import com.kenlikdev.qmarket.api.UserDto
 import com.kenlikdev.qmarket.network.InMemorySessionStore
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
+import com.kenlikdev.qmarket.network.SessionStore
 import com.kenlikdev.qmarket.ui.AppScreen
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
