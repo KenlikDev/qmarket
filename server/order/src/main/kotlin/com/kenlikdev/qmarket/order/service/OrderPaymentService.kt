@@ -215,6 +215,13 @@ class OrderPaymentService(
                     "Payment session requires qmarket.payment.provider=stripe",
                 )
         val stripeProps = stripeProperties.ifAvailable ?: StripeProperties()
+        val publishableKey = stripeProps.publishableKey.trim()
+        if (!publishableKey.matches(Regex("^pk_(test|live)_[A-Za-z0-9]+$"))) {
+            // Fail before claiming a durable payment operation or creating an unusable PaymentIntent.
+            throw PaymentProviderException(
+                cause = IllegalStateException("Stripe publishable key is not configured"),
+            )
+        }
 
         val plan =
             requireNotNull(
@@ -388,7 +395,7 @@ class OrderPaymentService(
                     providerId = "stripe",
                     paymentIntentId = intent.id,
                     clientSecret = clientSecret,
-                    publishableKey = stripeProps.publishableKey,
+                    publishableKey = publishableKey,
                 )
             PaymentSessionFinalization.PAID ->
                 throw BadRequestException("Order is already paid")

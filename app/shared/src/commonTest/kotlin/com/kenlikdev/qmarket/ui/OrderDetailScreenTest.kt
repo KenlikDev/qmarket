@@ -2,6 +2,7 @@ package com.kenlikdev.qmarket.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -121,7 +122,7 @@ class OrderDetailScreenTest {
 
             onNodeWithTag("orderDetailPay").assertDoesNotExist()
             onNodeWithTag("orderPaymentUnavailable").assertExists()
-            onNodeWithText("Stripe payment confirmation is not implemented in this app yet.").assertExists()
+            onNodeWithText("Stripe payment is only available in the Android app right now.").assertExists()
         }
 
     @Test
@@ -150,6 +151,71 @@ class OrderDetailScreenTest {
 
             onNodeWithTag("orderDetailPay").assertDoesNotExist()
             onNodeWithTag("orderPaymentUnavailable").assertExists()
+        }
+
+
+    @Test
+    fun supportedStripeClientCanStartPaymentSession() =
+        runComposeUiTest {
+            var requested = false
+            setContent {
+                OrderDetailScreen(
+                    order = sample(),
+                    loggedIn = true,
+                    userLabel = "user@test.com",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    paymentProviderId = "stripe",
+                    onBackToOrders = {},
+                    onPay = { error("Stripe must not invoke mock Pay") },
+                    onStartPaymentSession = { requested = true },
+                    onCancel = {},
+                    onRefresh = {},
+                    onCart = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+
+            onNodeWithTag("orderDetailPay").assertDoesNotExist()
+            onNodeWithTag("orderDetailStripePay").assertIsEnabled()
+            onNodeWithText("Pay securely with Stripe").performClick()
+            assertTrue(requested)
+        }
+
+
+    @Test
+    fun StripePaymentButtonIsDisabledWhileSessionIsActive() =
+        runComposeUiTest {
+            var requested = false
+            setContent {
+                OrderDetailScreen(
+                    order = sample(),
+                    loggedIn = true,
+                    userLabel = "user@test.com",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    paymentProviderId = "stripe",
+                    onBackToOrders = {},
+                    onPay = { error("Stripe must not invoke mock Pay") },
+                    onStartPaymentSession = { requested = true },
+                    paymentSessionActive = true,
+                    onCancel = {},
+                    onRefresh = {},
+                    onCart = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+
+            onNodeWithTag("orderDetailStripePay").assertIsNotEnabled()
+            assertTrue(!requested)
         }
 
 }

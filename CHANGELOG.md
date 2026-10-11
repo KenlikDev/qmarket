@@ -28,7 +28,7 @@
 
 ### Client
 
-- Shared KMP API DTOs and Ktor client cover authentication, catalog, cart, orders, profile, addresses, notifications, and admin flows. Stripe session APIs exist, but shared UI confirmation via Stripe.js / mobile SDK remains future work; the UI fails closed instead of creating unconfirmable sessions.
+- Shared KMP API DTOs and Ktor client cover authentication, catalog, cart, orders, profile, addresses, notifications, and admin flows. The Android app now presents Stripe PaymentSheet using an in-memory client session and waits for server/webhook confirmation before showing PAID. iOS, Desktop, JS, and Wasm still fail closed until their own payment-confirmation clients are implemented (issue #182 remains open).
 - Session state is separated from screen composition through `QMarketAppModel` and dedicated account/admin extensions.
 - Checkout reuses a pending idempotency key across retries and prevents duplicate local submissions.
 - Client-side role handling uses an explicit administrator allow-list.

@@ -54,7 +54,7 @@ class OrderPaymentServiceTest {
         val stripeApiProvider = mockk<ObjectProvider<StripeApiClient>>()
         val stripePropertiesProvider = mockk<ObjectProvider<StripeProperties>>()
         every { stripeApiProvider.ifAvailable } returns stripeApi
-        every { stripePropertiesProvider.ifAvailable } returns stripeProperties
+        every { stripePropertiesProvider.ifAvailable } answers { stripeProperties }
         transactionManager = mockk()
         txStatus = mockk(relaxed = true)
         every { transactionManager.getTransaction(any()) } answers {
@@ -589,6 +589,18 @@ class OrderPaymentServiceTest {
                 currency = "usd",
             )
         }
+    }
+
+    @Test
+    fun `createPaymentSession rejects missing publishable key before claiming operation`() {
+        stripeProperties = stripeProperties.copy(publishableKey = "")
+
+        assertThrows(PaymentProviderException::class.java) {
+            service.createPaymentSession(userId, orderId)
+        }
+
+        verify(exactly = 0) { orderRepository.findByIdAndUserIdForUpdate(any(), any()) }
+        verify(exactly = 0) { stripeApi.createPaymentIntentForClient(any(), any(), any(), any(), any()) }
     }
 
     @Test
