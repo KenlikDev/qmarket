@@ -556,6 +556,11 @@ class QMarketAppModel(
         result: StripePaymentResult,
     ) {
         paymentSession = null
+        // A native activity may have been recreated while PaymentSheet was visible. Restore the
+        // affected order as the active screen so its verified server state and next action are visible.
+        if (screen != AppScreen.OrderDetail && screen !is AppScreen.OrderDone) {
+            screen = AppScreen.OrderDetail
+        }
         when (result) {
             StripePaymentResult.CANCELED -> {
                 runApi {
