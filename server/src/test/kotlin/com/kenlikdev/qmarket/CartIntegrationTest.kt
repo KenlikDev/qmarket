@@ -14,9 +14,9 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.Instant
-import org.junit.jupiter.api.Assertions.assertTrue
 
 @SpringBootTest
 @AutoConfigureMockMvc
