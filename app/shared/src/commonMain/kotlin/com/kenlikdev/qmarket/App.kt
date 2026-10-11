@@ -88,7 +88,7 @@ fun App(
             val session = m.paymentSession ?: return@LaunchedEffect
             val confirmer = onConfirmStripePayment
             if (confirmer == null) {
-                m.handleStripePaymentResult(session.orderId, StripePaymentResult.FAILED)
+                m.handleStripePaymentResult(session.orderId, StripePaymentResult.FAILED).join()
                 return@LaunchedEffect
             }
             confirmer(session)
@@ -97,7 +97,9 @@ fun App(
         LaunchedEffect(stripePaymentResult?.eventId) {
             val event = stripePaymentResult ?: return@LaunchedEffect
             appReady.await()
-            m.handleStripePaymentResult(event.orderId, event.result)
+            // Acknowledge only after the server state was reloaded. If this composition is
+            // canceled during Activity recreation, SavedStateHandle keeps the event for replay.
+            m.handleStripePaymentResult(event.orderId, event.result).join()
             onStripePaymentResultConsumed?.invoke(event.eventId)
         }
 
