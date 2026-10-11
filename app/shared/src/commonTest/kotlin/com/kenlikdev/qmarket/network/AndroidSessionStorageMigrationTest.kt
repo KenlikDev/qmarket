@@ -335,7 +335,10 @@ class AndroidSessionStorageMigrationTest {
                 encryptedPresent = true,
                 plaintext = plaintext,
                 clearEncrypted = { cleanupAttempted = true },
-                clearPlaintext = { cleanupAttempted = true; plaintext.entries.clear() },
+                clearPlaintext = {
+                    cleanupAttempted = true
+                    plaintext.entries.clear()
+                },
             )
         }
 
