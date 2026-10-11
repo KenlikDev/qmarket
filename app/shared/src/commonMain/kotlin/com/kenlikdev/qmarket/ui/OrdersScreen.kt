@@ -120,9 +120,9 @@ fun OrdersScreen(
                                             TextButton(
                                                 onClick = { onOpenOrder(order) },
                                                 enabled = !loading,
-                                                modifier = Modifier.testTag("orderOpenToPay"),
+                                                modifier = Modifier.testTag("orderViewPaymentStatus"),
                                             ) {
-                                                Text("Open to pay")
+                                                Text("View payment status")
                                             }
                                         }
                                         else -> {
