@@ -2,10 +2,10 @@ package com.kenlikdev.qmarket
 
 import androidx.lifecycle.SavedStateHandle
 import com.kenlikdev.qmarket.network.StripePaymentResult
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class StripePaymentHostViewModelTest {
     @Test
