@@ -37,8 +37,6 @@ private fun createAndroidSessionStore(context: Context): SessionStore {
         context.getSharedPreferences(LEGACY_ENCRYPTED_PREFS_NAME, Context.MODE_PRIVATE)
     val previousPlaintextPreferences =
         context.getSharedPreferences(LEGACY_PLAINTEXT_PREFS_NAME, Context.MODE_PRIVATE)
-    val previousEncryptedFilePresent = previousEncryptedPreferences.all.isNotEmpty()
-
     val clearPreviousEncrypted = {
         check(previousEncryptedPreferences.edit().clear().commit()) {
             "Unable to clear previous encrypted Android session storage"
@@ -53,6 +51,24 @@ private fun createAndroidSessionStore(context: Context): SessionStore {
     // If the new canonical record already exists (including a logout tombstone), do not even
     // initialize the old cryptographic store. A broken legacy key must never override current data.
     val currentRecord = target.get(SESSION_RECORD_KEY)
+    val previousEncryptedFilePresent =
+        if (currentRecord != null) {
+            false
+        } else {
+            try {
+                previousEncryptedPreferences.all.isNotEmpty()
+            } catch (_: Exception) {
+                // If the legacy preferences file itself is unreadable, fail closed. The canonical
+                // tombstone must be committed before cleanup and before any plaintext fallback.
+                target.put(
+                    SESSION_RECORD_KEY,
+                    SessionRecordCodec.encode(StoredSessionRecord(cleared = true)),
+                )
+                clearPreviousEncrypted()
+                clearPreviousPlaintext()
+                return AtomicSessionRecordStore(target, androidLegacySessionKeys())
+            }
+        }
     var previousEncryptedReadFailed = false
     val previousEncrypted =
         if (currentRecord == null && previousEncryptedFilePresent) {
@@ -136,9 +152,11 @@ private class AndroidKeystoreSessionKeyValueStore(
         cause: Exception,
     ): String {
         if (key == SESSION_RECORD_KEY) {
-            // Return a non-null invalid record so AtomicSessionRecordStore invalidates it as a
-            // tombstone. Returning null here could make a legacy plaintext session win.
-            return CORRUPT_SESSION_RECORD_MARKER
+            // Commit the tombstone here, before migration code can clear legacy stores. If the
+            // Keystore key itself is unavailable, put() throws and old stores remain untouched.
+            val tombstone = SessionRecordCodec.encode(StoredSessionRecord(cleared = true))
+            put(SESSION_RECORD_KEY, tombstone)
+            return tombstone
         }
         throw IllegalStateException("Unable to read Android session storage", cause)
     }
@@ -295,7 +313,6 @@ private const val LEGACY_PLAINTEXT_PREFS_NAME = "qmarket_session"
 private const val LEGACY_KEY_ACCESS = "accessToken"
 private const val LEGACY_KEY_REFRESH = "refreshToken"
 private const val LEGACY_KEY_EMAIL = "email"
-private const val CORRUPT_SESSION_RECORD_MARKER = "__qmarket_corrupt_android_session_record_v1__"
 
 actual fun createPlatformSessionStore(): SessionStore {
     val context = androidAppContext
