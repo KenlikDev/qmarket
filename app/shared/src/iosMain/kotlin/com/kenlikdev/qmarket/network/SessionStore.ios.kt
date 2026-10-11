@@ -240,9 +240,6 @@ private class IosKeychainKeyValueStore : SessionKeyValueStore {
 
     private companion object {
         const val SERVICE = "com.kenlikdev.qmarket.session"
-        const val KEY_ACCESS = "accessToken"
-        const val KEY_REFRESH = "refreshToken"
-        const val KEY_EMAIL = "email"
     }
 }
 
