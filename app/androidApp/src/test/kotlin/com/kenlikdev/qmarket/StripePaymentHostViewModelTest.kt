@@ -2,10 +2,10 @@ package com.kenlikdev.qmarket
 
 import androidx.lifecycle.SavedStateHandle
 import com.kenlikdev.qmarket.network.StripePaymentResult
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Test
 
 class StripePaymentHostViewModelTest {
     @Test
@@ -19,7 +19,17 @@ class StripePaymentHostViewModelTest {
         assertEquals("order-42", firstHost.pendingOrderId)
 
         // The system restores SavedStateHandle, while the ViewModel itself is new.
-        val recreatedHost = StripePaymentHostViewModel(savedState)
+        val restoredState =
+            SavedStateHandle(
+                mapOf(
+                    "qmarket.stripe.pendingOrderId" to savedState.get<String>("qmarket.stripe.pendingOrderId"),
+                    "qmarket.stripe.nextResultEventId" to savedState.get<Long>("qmarket.stripe.nextResultEventId"),
+                    "qmarket.stripe.resultEventId" to savedState.get<Long>("qmarket.stripe.resultEventId"),
+                    "qmarket.stripe.resultOrderId" to savedState.get<String>("qmarket.stripe.resultOrderId"),
+                    "qmarket.stripe.resultValue" to savedState.get<String>("qmarket.stripe.resultValue"),
+                ),
+            )
+        val recreatedHost = StripePaymentHostViewModel(restoredState)
         assertEquals(originalEvent, recreatedHost.paymentResult.value)
         assertEquals("order-42", recreatedHost.pendingOrderId)
 
@@ -30,7 +40,7 @@ class StripePaymentHostViewModelTest {
     }
 
     @Test
-    fun staleResultCannotConsumeANewerEvent() {
+    fun mismatchedEventIdCannotConsumePendingResult() {
         val host = StripePaymentHostViewModel(SavedStateHandle())
         host.begin("order-1")
         host.publishResult("order-1", StripePaymentResult.CANCELED)
