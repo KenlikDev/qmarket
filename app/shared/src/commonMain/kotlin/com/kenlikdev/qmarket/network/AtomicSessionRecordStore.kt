@@ -48,10 +48,8 @@ internal data class StoredSessionRecord(
     val email: String? = null,
     val cleared: Boolean = false,
 ) {
-    fun hasStoredData(): Boolean =
-        !accessToken.isNullOrBlank() ||
-            !refreshToken.isNullOrBlank() ||
-            !email.isNullOrBlank()
+    fun hasCredentials(): Boolean =
+        !accessToken.isNullOrBlank() || !refreshToken.isNullOrBlank()
 }
 
 internal object SessionRecordCodec {
@@ -108,6 +106,13 @@ internal class AtomicSessionRecordStore(
 ) : SessionStore {
     private var legacyKeysCleaned = false
 
+    init {
+        // Migrate before the store is handed to the token provider. Lazy migration could race
+        // with logout: a reader could load legacy tokens, logout could commit a tombstone, and
+        // that reader could then write the legacy session back over the tombstone.
+        migrateLegacyRecordIfNeeded()
+    }
+
     override fun readAccessToken(): String? =
         readRecord().takeUnless { it.cleared }?.accessToken?.ifBlank { null }
 
@@ -147,11 +152,17 @@ internal class AtomicSessionRecordStore(
     }
 
     private fun readRecord(): StoredSessionRecord {
+        val stored = storage.get(recordKey) ?: return StoredSessionRecord()
+        return decodeOrInvalidate(stored)
+    }
+
+    private fun migrateLegacyRecordIfNeeded() {
         val stored = storage.get(recordKey)
         if (stored != null) {
-            val record = SessionRecordCodec.decode(stored)
+            // Invalid data is invalidated as one record; never fall back to stale split keys.
+            decodeOrInvalidate(stored)
             removeLegacyKeys(failOnError = false)
-            return record
+            return
         }
 
         val legacy =
@@ -160,14 +171,28 @@ internal class AtomicSessionRecordStore(
                 refreshToken = storage.get(legacyKeys.refreshToken)?.ifBlank { null },
                 email = storage.get(legacyKeys.email)?.ifBlank { null },
             )
-        if (!legacy.hasStoredData()) return legacy
+        if (!legacy.hasCredentials()) {
+            // No credentials means a legacy email-only record is stale, not a session.
+            removeLegacyKeys(failOnError = false)
+            return
+        }
 
-        // Migrate only after the complete legacy tuple has been read. If writing the new record
-        // fails, keep legacy data untouched and surface the persistence error.
+        // Persist the complete legacy tuple before deleting any old key. A failed write leaves
+        // the original session recoverable and propagates the failure to the caller.
         storage.put(recordKey, SessionRecordCodec.encode(legacy))
         removeLegacyKeys(failOnError = false)
-        return legacy
     }
+
+    private fun decodeOrInvalidate(stored: String): StoredSessionRecord =
+        try {
+            SessionRecordCodec.decode(stored)
+        } catch (_: IllegalStateException) {
+            // A corrupt or unknown-version record must never be replaced with older legacy tokens.
+            val tombstone = StoredSessionRecord(cleared = true)
+            storage.put(recordKey, SessionRecordCodec.encode(tombstone))
+            removeLegacyKeys(failOnError = false)
+            tombstone
+        }
 
     private fun removeLegacyKeys(failOnError: Boolean) {
         if (legacyKeysCleaned && !failOnError) return
