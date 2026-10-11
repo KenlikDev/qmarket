@@ -41,7 +41,7 @@ Logout first commits a cleared-session tombstone, then attempts to remove legacy
 ## Payments
 
 - Server returns a Stripe PaymentIntent client secret and publishable key only to the authenticated owner of an eligible order.
-- Android uses the native Stripe PaymentSheet. The client secret is held only in in-memory model state and is not persisted or logged.
+- Android uses the native Stripe PaymentSheet. The client secret is held only in in-memory model state and is not persisted or logged. The Activity-scoped host ViewModel retains only the pending order id and a one-shot result event in SavedStateHandle, so callback routing can survive Activity/process recreation without persisting payment credentials.
 - The PaymentSheet callback is treated as a client-side UX result only. The app reloads the order from the API; only the server's verified Stripe webhook can make an order `PAID`.
 - The Android UI keeps a completed PaymentSheet distinct from a server-confirmed paid order. If the webhook has not updated the order yet, the order stays `PENDING` and the user can refresh.
 - Native Stripe confirmation is currently implemented only for Android. iOS, Desktop, JS and Wasm fail closed and do not create a PaymentIntent from an unsupported client. This is a partial milestone for issue #182, not full multi-platform payment completion.
