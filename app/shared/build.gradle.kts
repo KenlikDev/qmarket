@@ -87,7 +87,8 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.ktor.client.okhttp)
-            implementation(libs.androidx.security.crypto)
+            // Read existing encrypted sessions during one-time migration only.
+            implementation(libs.androidx.security.crypto.migration)
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)
