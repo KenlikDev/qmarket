@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.stripe.android)
 
     testImplementation(libs.junit4)
+    testImplementation(libs.kotlin.test)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
