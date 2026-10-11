@@ -42,10 +42,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun presentStripePaymentSheet(session: PaymentSessionDto) {
+    private fun presentStripePaymentSheet(session: PaymentSessionDto): Boolean {
         // Save only the order id before validating/presenting. It lets a failure result use the
         // same path as a PaymentSheet callback and never stores the client secret.
-        paymentHost.begin(session.orderId)
+        if (!paymentHost.begin(session.orderId)) return false
         val publishableKey = session.publishableKey
         if (
             session.providerId != "stripe" ||
@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
             !publishableKey.matches(Regex("^pk_(test|live)_[A-Za-z0-9]+$"))
         ) {
             paymentHost.publishResult(session.orderId, StripePaymentResult.FAILED)
-            return
+            return true
         }
 
         try {
@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
             paymentHost.publishResult(session.orderId, StripePaymentResult.FAILED)
         }
+        return true
     }
 
     private fun onPaymentSheetResult(result: PaymentSheetResult) {
