@@ -216,10 +216,28 @@ class OrderPaymentService(
                 )
         val stripeProps = stripeProperties.ifAvailable ?: StripeProperties()
         val publishableKey = stripeProps.publishableKey.trim()
-        if (!publishableKey.matches(Regex("^pk_(test|live)_[A-Za-z0-9]+$"))) {
-            // Fail before claiming a durable payment operation or creating an unusable PaymentIntent.
+        val publishableMode =
+            Regex("^pk_(test|live)_[A-Za-z0-9]+$")
+                .matchEntire(publishableKey)
+                ?.groupValues
+                ?.get(1)
+                ?: throw PaymentProviderException(
+                    cause = IllegalStateException("Stripe publishable key is not configured correctly"),
+                )
+        val secretKey = stripeProps.secretKey.trim()
+        val secretMode =
+            when {
+                Regex("^(sk|rk)_test_[A-Za-z0-9]+$").matches(secretKey) -> "test"
+                Regex("^(sk|rk)_live_[A-Za-z0-9]+$").matches(secretKey) -> "live"
+                else ->
+                    throw PaymentProviderException(
+                        cause = IllegalStateException("Stripe secret key is not configured correctly"),
+                    )
+            }
+        if (secretMode != publishableMode) {
+            // Catch test/live key mismatches before claiming an operation or creating an intent.
             throw PaymentProviderException(
-                cause = IllegalStateException("Stripe publishable key is not configured"),
+                cause = IllegalStateException("Stripe secret and publishable keys must use the same mode"),
             )
         }
 
