@@ -12,7 +12,6 @@ import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.OrderDto
-import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
 import com.kenlikdev.qmarket.api.RegisterRequestDto
@@ -180,7 +179,6 @@ class QMarketAppModel(
         detailProduct = null
         detailOrder = null
         paymentProviderId = null
-        paymentSession = null
         notifications = emptyList()
         notificationsUnread = 0L
         pendingCheckoutKey = null
@@ -282,7 +280,6 @@ class QMarketAppModel(
 
     fun openOrder(order: OrderDto) {
         detailOrder = order
-        paymentSession = null
         screen = AppScreen.OrderDetail
         runApi {
             paymentProviderId = null
@@ -494,7 +491,6 @@ class QMarketAppModel(
                 }
             return
         }
-        paymentSession = null
         runApi {
             val paid = api.payOrder(orderId)
             if (screen is AppScreen.OrderDone) {
@@ -507,29 +503,7 @@ class QMarketAppModel(
         }
     }
 
-    /** Stripe client session; UI/SDK uses clientSecret. Null message on success via paymentSession state. */
-    var paymentSession: PaymentSessionDto? by mutableStateOf(null)
-        private set
-
-    fun startPaymentSession(orderId: String) {
-        if (paymentProviderId != "stripe") {
-            error =
-                if (paymentProviderId == "mock") {
-                    "Stripe sessions are unavailable while the mock payment provider is active."
-                } else {
-                    "Payment provider is unavailable. Refresh the order before trying again."
-                }
-            return
-        }
-        paymentSession = null
-        runApi {
-            paymentSession = api.createPaymentSession(orderId)
-            statusMessage = "Stripe session created. This build cannot confirm payment; the order remains pending."
-        }
-    }
-
     fun cancelOrder(orderId: String) {
-        paymentSession = null
         runApi {
             val cancelled = api.cancelOrder(orderId)
             detailOrder = cancelled
