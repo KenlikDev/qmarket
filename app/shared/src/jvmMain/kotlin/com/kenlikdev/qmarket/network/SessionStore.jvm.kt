@@ -48,8 +48,10 @@ class FileSessionStore(
     }
 
     override fun clear() {
+        // Replace the single credential file with an empty record atomically. If persistence fails,
+        // the exception is surfaced and the old file is not silently treated as cleared.
         props.clear()
-        Files.deleteIfExists(file)
+        persist()
     }
 
     private fun persist() {
