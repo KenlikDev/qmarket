@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket
 
 import com.kenlikdev.qmarket.support.TestJson
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -14,7 +15,6 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.Instant
 
