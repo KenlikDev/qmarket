@@ -38,7 +38,7 @@ import kotlinx.coroutines.CompletableDeferred
 @Composable
 fun App(
     apiBaseUrl: String = defaultApiBaseUrl(),
-    onConfirmStripePayment: ((PaymentSessionDto) -> Unit)? = null,
+    onConfirmStripePayment: ((PaymentSessionDto) -> Boolean)? = null,
     stripePaymentResult: StripePaymentResultEvent? = null,
     onStripePaymentResultConsumed: ((Long) -> Unit)? = null,
 ) {
@@ -91,7 +91,11 @@ fun App(
                 m.handleStripePaymentResult(session.orderId, StripePaymentResult.FAILED).join()
                 return@LaunchedEffect
             }
-            confirmer(session)
+            if (!confirmer(session)) {
+                // The native host refused a stale/overlapping order route; reconcile this order
+                // locally rather than leaving a session spinner that can never receive a callback.
+                m.handleStripePaymentResult(session.orderId, StripePaymentResult.FAILED).join()
+            }
         }
 
         LaunchedEffect(stripePaymentResult?.eventId) {
