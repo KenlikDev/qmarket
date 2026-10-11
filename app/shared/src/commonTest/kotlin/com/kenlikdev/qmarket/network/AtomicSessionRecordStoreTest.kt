@@ -91,6 +91,44 @@ class AtomicSessionRecordStoreTest {
         assertEquals("old@qmarket.test", store.readEmail())
     }
 
+    @Test
+    fun malformedCanonicalRecordIsInvalidatedInsteadOfFallingBackToLegacyTokens() {
+        val storage =
+            FakeSessionKeyValueStore(
+                mapOf(
+                    SESSION_RECORD_KEY to
+                        """{"version":1,"cleared":false,"accessToken":42,"refreshToken":"bad-refresh","email":"old@qmarket.test"}""",
+                    legacyKeys.accessToken to "legacy-access",
+                    legacyKeys.refreshToken to "legacy-refresh",
+                    legacyKeys.email to "legacy@qmarket.test",
+                ),
+            )
+
+        val store = AtomicSessionRecordStore(storage, legacyKeys)
+
+        assertNull(store.readAccessToken())
+        assertNull(store.readRefreshToken())
+        assertNull(store.readEmail())
+        assertTrue(SessionRecordCodec.decode(requireNotNull(storage.entries[SESSION_RECORD_KEY])).cleared)
+        legacyKeys.all().forEach { key -> assertFalse(key in storage.entries) }
+    }
+
+    @Test
+    fun emailOnlyLegacyValuesAreRemovedAndNeverPromotedToASession() {
+        val storage =
+            FakeSessionKeyValueStore(
+                mapOf(legacyKeys.email to "stale@qmarket.test"),
+            )
+
+        val store = AtomicSessionRecordStore(storage, legacyKeys)
+
+        assertNull(store.readAccessToken())
+        assertNull(store.readRefreshToken())
+        assertNull(store.readEmail())
+        assertFalse(SESSION_RECORD_KEY in storage.entries)
+        legacyKeys.all().forEach { key -> assertFalse(key in storage.entries) }
+    }
+
     private class FakeSessionKeyValueStore(
         initial: Map<String, String> = emptyMap(),
     ) : SessionKeyValueStore {
