@@ -16,7 +16,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.stripe.android)
 
-    testImplementation(libs.kotlin.test)
+    testImplementation(libs.junit4)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
