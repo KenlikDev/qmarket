@@ -599,4 +599,25 @@ class QMarketApiClientTest {
             }
         }
 
+
+    @Test
+    fun getPaymentProviderConfigParsesProviderId() =
+        runTest {
+            val engine =
+                MockEngine { request ->
+                    assertEquals("/api/v1/payments/config", request.url.encodedPath)
+                    respond(
+                        content = ByteReadChannel("""{"providerId":"stripe"}"""),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = clientWith(engine)
+            try {
+                assertEquals("stripe", QMarketApiClient(client).getPaymentProviderConfig().providerId)
+            } finally {
+                client.close()
+            }
+        }
+
 }

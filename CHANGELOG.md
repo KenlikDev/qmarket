@@ -28,7 +28,7 @@
 
 ### Client
 
-- Shared KMP API DTOs and Ktor client cover authentication, catalog, cart, orders, profile, addresses, notifications, admin flows, and Stripe payment sessions.
+- Shared KMP API DTOs and Ktor client cover authentication, catalog, cart, orders, profile, addresses, notifications, and admin flows. Stripe session APIs exist, but shared UI confirmation via Stripe.js / mobile SDK remains future work; the UI fails closed instead of creating unconfirmable sessions.
 - Session state is separated from screen composition through `QMarketAppModel` and dedicated account/admin extensions.
 - Checkout reuses a pending idempotency key across retries and prevents duplicate local submissions.
 - Client-side role handling uses an explicit administrator allow-list.

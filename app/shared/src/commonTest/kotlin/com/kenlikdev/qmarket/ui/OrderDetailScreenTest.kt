@@ -49,6 +49,7 @@ class OrderDetailScreenTest {
                     error = null,
                     statusMessage = null,
                     loading = false,
+                    paymentProviderId = "mock",
                     onBackToOrders = {},
                     onPay = { paid = true },
                     onCancel = {},
@@ -93,4 +94,62 @@ class OrderDetailScreenTest {
             onNodeWithTag("orderDetailCancel").assertDoesNotExist()
             onNodeWithTag("orderDetailRefresh").assertExists()
         }
+
+    @Test
+    fun stripeProviderExplainsUnsupportedPaymentAndNeverShowsGenericPay() =
+        runComposeUiTest {
+            setContent {
+                OrderDetailScreen(
+                    order = sample(),
+                    loggedIn = true,
+                    userLabel = "user@test.com",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    paymentProviderId = "stripe",
+                    onBackToOrders = {},
+                    onPay = { error("Generic Pay must not be invoked for Stripe") },
+                    onCancel = {},
+                    onRefresh = {},
+                    onCart = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+
+            onNodeWithTag("orderDetailPay").assertDoesNotExist()
+            onNodeWithTag("orderPaymentUnavailable").assertExists()
+            onNodeWithText("Stripe payment confirmation is not implemented in this app yet.").assertExists()
+        }
+
+    @Test
+    fun unknownProviderFailsClosedInsteadOfShowingPay() =
+        runComposeUiTest {
+            setContent {
+                OrderDetailScreen(
+                    order = sample(),
+                    loggedIn = true,
+                    userLabel = "user@test.com",
+                    cartCount = 0,
+                    error = null,
+                    statusMessage = null,
+                    loading = false,
+                    paymentProviderId = null,
+                    onBackToOrders = {},
+                    onPay = { error("Payment must remain disabled until provider is known") },
+                    onCancel = {},
+                    onRefresh = {},
+                    onCart = {},
+                    onAddresses = {},
+                    onProfile = {},
+                    onLogout = {},
+                )
+            }
+
+            onNodeWithTag("orderDetailPay").assertDoesNotExist()
+            onNodeWithTag("orderPaymentUnavailable").assertExists()
+        }
+
 }

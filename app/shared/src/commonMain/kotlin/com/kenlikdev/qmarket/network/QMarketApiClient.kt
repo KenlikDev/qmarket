@@ -18,6 +18,7 @@ import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
 import com.kenlikdev.qmarket.api.PageDto
+import com.kenlikdev.qmarket.api.PaymentProviderConfigDto
 import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
@@ -285,6 +286,10 @@ class QMarketApiClient(
     suspend fun cancelOrder(id: String): OrderDto = postEmpty("/api/v1/orders/$id/cancel")
 
     suspend fun payOrder(id: String): OrderDto = postEmpty("/api/v1/orders/$id/pay")
+
+    /** Public-safe identifier for the payment provider currently configured by the server. */
+    suspend fun getPaymentProviderConfig(): PaymentProviderConfigDto =
+        get("/api/v1/payments/config")
 
     /** Stripe Payment Element session (requires provider=stripe on server). */
     suspend fun createPaymentSession(id: String): PaymentSessionDto =

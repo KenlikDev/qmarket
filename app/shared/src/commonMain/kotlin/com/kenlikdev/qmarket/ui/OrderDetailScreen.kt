@@ -18,7 +18,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
-import com.kenlikdev.qmarket.api.PaymentSessionDto
 
 @Composable
 fun OrderDetailScreen(
@@ -31,8 +30,7 @@ fun OrderDetailScreen(
     loading: Boolean,
     onBackToOrders: () -> Unit,
     onPay: () -> Unit,
-    onStartPaymentSession: (() -> Unit)? = null,
-    paymentSession: PaymentSessionDto? = null,
+    paymentProviderId: String? = null,
     onCancel: () -> Unit,
     onRefresh: () -> Unit,
     onCart: () -> Unit,
@@ -151,47 +149,29 @@ fun OrderDetailScreen(
                             }
                         }
                     }
-                    paymentSession?.let { session ->
-                        Card(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 12.dp)
-                                    .testTag("orderDetailPaymentSession"),
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    "Stripe payment session created",
-                                    style = MaterialTheme.typography.titleSmall,
-                                )
-                                Text(
-                                    "PI: ${session.paymentIntentId}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.testTag("orderDetailPaymentIntentId"),
-                                )
-                                Text(
-                                    "Payment confirmation can continue in the configured payment client.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                        }
-                    }
                     Row(modifier = Modifier.padding(top = 16.dp)) {
                         if (order.status == OrderStatusDto.PENDING) {
-                            Button(
-                                onClick = onPay,
-                                enabled = !loading,
-                                modifier = Modifier.testTag("orderDetailPay"),
-                            ) {
-                                Text("Pay")
-                            }
-                            if (onStartPaymentSession != null) {
-                                TextButton(
-                                    onClick = onStartPaymentSession,
-                                    enabled = !loading,
-                                    modifier = Modifier.testTag("orderDetailPaymentSessionBtn"),
-                                ) {
-                                    Text("Stripe session")
+                            when (paymentProviderId) {
+                                "mock" -> {
+                                    Button(
+                                        onClick = onPay,
+                                        enabled = !loading,
+                                        modifier = Modifier.testTag("orderDetailPay"),
+                                    ) {
+                                        Text("Pay")
+                                    }
+                                }
+                                "stripe" -> {
+                                    Text(
+                                        "Stripe payment confirmation is not implemented in this app yet.",
+                                        modifier = Modifier.testTag("orderPaymentUnavailable"),
+                                    )
+                                }
+                                else -> {
+                                    Text(
+                                        "Payment unavailable — refresh to retry.",
+                                        modifier = Modifier.testTag("orderPaymentUnavailable"),
+                                    )
                                 }
                             }
                             TextButton(

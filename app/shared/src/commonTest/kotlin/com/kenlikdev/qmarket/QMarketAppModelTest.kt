@@ -371,4 +371,41 @@ class QMarketAppModelTest {
                 client.close()
             }
         }
+
+    @Test
+    fun stripeProviderBlocksGenericPayAction() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            model.paymentProviderId = "stripe"
+
+            model.payOrder("order-1")
+
+            assertEquals(
+                "Stripe payment confirmation is not implemented in this app yet.",
+                model.error,
+            )
+            assertFalse(model.loading)
+        }
+
+
+    @Test
+    fun loadOrdersClearsCachedProviderWhenOrdersRequestFails() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            val engine = MockEngine { error("simulated orders outage") }
+            val api = QMarketApiClient(httpClient(engine))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            model.paymentProviderId = "mock"
+
+            model.loadOrders()
+            while (model.loading) {
+                kotlinx.coroutines.yield()
+            }
+
+            assertNull(model.paymentProviderId)
+            assertTrue(model.error?.contains("simulated orders outage") == true)
+        }
+
 }

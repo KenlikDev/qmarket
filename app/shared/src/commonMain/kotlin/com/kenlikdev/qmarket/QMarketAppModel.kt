@@ -12,7 +12,6 @@ import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.OrderDto
-import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
 import com.kenlikdev.qmarket.api.RegisterRequestDto
@@ -85,6 +84,8 @@ class QMarketAppModel(
     var cart by mutableStateOf<CartDto?>(null)
     var orders by mutableStateOf<List<OrderDto>>(emptyList())
     var detailOrder by mutableStateOf<OrderDto?>(null)
+    /** Server-selected gateway; null disables payment actions until configuration can be read. */
+    var paymentProviderId by mutableStateOf<String?>(null)
     var notifications by mutableStateOf<List<NotificationDto>>(emptyList())
     var notificationsUnread by mutableStateOf(0L)
     var userLabel by mutableStateOf(tokens.sessionEmail())
@@ -177,7 +178,7 @@ class QMarketAppModel(
         cart = null
         detailProduct = null
         detailOrder = null
-        paymentSession = null
+        paymentProviderId = null
         notifications = emptyList()
         notificationsUnread = 0L
         pendingCheckoutKey = null
@@ -278,20 +279,34 @@ class QMarketAppModel(
     }
 
     fun openOrder(order: OrderDto) {
+        paymentProviderId = null
         detailOrder = order
-        paymentSession = null
         screen = AppScreen.OrderDetail
         runApi {
             detailOrder = api.getOrder(order.id)
+            refreshPaymentProviderConfig()
         }
     }
 
     fun loadOrders() {
+        paymentProviderId = null
         runApi {
             val page = api.listMyOrders(size = 50)
             orders = page.content
+            refreshPaymentProviderConfig()
             screen = AppScreen.Orders
         }
+    }
+
+    /**
+     * Fetch provider identity independently from order loading. A config outage must not hide orders,
+     * but must fail closed: no payment action is shown until the server provider can be confirmed.
+     */
+    private suspend fun refreshPaymentProviderConfig() {
+        paymentProviderId =
+            runCatchingCancellable {
+                api.getPaymentProviderConfig().providerId.trim().lowercase()
+            }.getOrNull()?.takeIf { it == "mock" || it == "stripe" }
     }
 
     fun logout(): Job {
@@ -468,7 +483,14 @@ class QMarketAppModel(
     }
 
     fun payOrder(orderId: String) {
-        paymentSession = null
+        if (paymentProviderId != "mock") {
+            error =
+                when (paymentProviderId) {
+                    "stripe" -> "Stripe payment confirmation is not implemented in this app yet."
+                    else -> "Payment provider is unavailable. Refresh the order before trying again."
+                }
+            return
+        }
         runApi {
             val paid = api.payOrder(orderId)
             if (screen is AppScreen.OrderDone) {
@@ -481,20 +503,7 @@ class QMarketAppModel(
         }
     }
 
-    /** Stripe client session; UI/SDK uses clientSecret. Null message on success via paymentSession state. */
-    var paymentSession: PaymentSessionDto? by mutableStateOf(null)
-        private set
-
-    fun startPaymentSession(orderId: String) {
-        paymentSession = null
-        runApi {
-            paymentSession = api.createPaymentSession(orderId)
-            statusMessage = "Payment session ready (${paymentSession?.providerId})"
-        }
-    }
-
     fun cancelOrder(orderId: String) {
-        paymentSession = null
         runApi {
             val cancelled = api.cancelOrder(orderId)
             detailOrder = cancelled
@@ -507,8 +516,10 @@ class QMarketAppModel(
     }
 
     fun refreshOrder(orderId: String) {
+        paymentProviderId = null
         runApi {
             detailOrder = api.getOrder(orderId)
+            refreshPaymentProviderConfig()
         }
     }
 }
