@@ -50,6 +50,7 @@ class InMemorySessionStore : SessionStore {
         record = StoredSessionRecord(cleared = true)
     }
 }
+
 /**
  * Creates the platform session store.
  * Android: call [initAndroidSessionStore] from MainActivity before [App].
