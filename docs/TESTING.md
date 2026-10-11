@@ -14,7 +14,7 @@ CI additionally runs:
 ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 ./gradlew :server:order:jacocoTestCoverageVerification :server:identity:jacocoTestCoverageVerification --parallel --no-daemon
 ./gradlew :app:shared:compileKotlinIosSimulatorArm64 --no-daemon
-./gradlew :app:androidApp:assembleDebug :app:desktopApp:compileKotlin :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs :app:webApp:compileKotlinJs :app:webApp:compileKotlinWasmJs --parallel --no-daemon
+./gradlew :app:androidApp:assembleDebug :app:androidApp:testDebugUnitTest :app:desktopApp:compileKotlin :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs :app:webApp:compileKotlinJs :app:webApp:compileKotlinWasmJs --parallel --no-daemon
 ```
 
 The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. These are compile checks, not full device/browser runtime or end-to-end checks. Secret scanning is also required by the protected-branch ruleset.
