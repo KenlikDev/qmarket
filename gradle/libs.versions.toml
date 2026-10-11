@@ -40,6 +40,7 @@ archunit = "1.4.1"
 androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "androidx-security-crypto" }
 stripe-android = { module = "com.stripe:stripe-android", version.ref = "stripe-android" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit4 = { module = "junit:junit", version = "4.13.2" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
