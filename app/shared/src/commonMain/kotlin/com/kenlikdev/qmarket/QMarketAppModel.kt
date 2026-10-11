@@ -279,20 +279,20 @@ class QMarketAppModel(
     }
 
     fun openOrder(order: OrderDto) {
+        paymentProviderId = null
         detailOrder = order
         screen = AppScreen.OrderDetail
         runApi {
-            paymentProviderId = null
             detailOrder = api.getOrder(order.id)
             refreshPaymentProviderConfig()
         }
     }
 
     fun loadOrders() {
+        paymentProviderId = null
         runApi {
             val page = api.listMyOrders(size = 50)
             orders = page.content
-            paymentProviderId = null
             refreshPaymentProviderConfig()
             screen = AppScreen.Orders
         }
@@ -516,9 +516,9 @@ class QMarketAppModel(
     }
 
     fun refreshOrder(orderId: String) {
+        paymentProviderId = null
         runApi {
             detailOrder = api.getOrder(orderId)
-            paymentProviderId = null
             refreshPaymentProviderConfig()
         }
     }
