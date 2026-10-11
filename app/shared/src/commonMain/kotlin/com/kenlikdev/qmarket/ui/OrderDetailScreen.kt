@@ -31,6 +31,8 @@ fun OrderDetailScreen(
     onBackToOrders: () -> Unit,
     onPay: () -> Unit,
     paymentProviderId: String? = null,
+    onStartPaymentSession: (() -> Unit)? = null,
+    paymentSessionActive: Boolean = false,
     onCancel: () -> Unit,
     onRefresh: () -> Unit,
     onCart: () -> Unit,
@@ -162,10 +164,20 @@ fun OrderDetailScreen(
                                     }
                                 }
                                 "stripe" -> {
-                                    Text(
-                                        "Stripe payment confirmation is not implemented in this app yet.",
-                                        modifier = Modifier.testTag("orderPaymentUnavailable"),
-                                    )
+                                    if (onStartPaymentSession != null) {
+                                        Button(
+                                            onClick = onStartPaymentSession,
+                                            enabled = !loading && !paymentSessionActive,
+                                            modifier = Modifier.testTag("orderDetailStripePay"),
+                                        ) {
+                                            Text("Pay securely with Stripe")
+                                        }
+                                    } else {
+                                        Text(
+                                            "Stripe payment is only available in the Android app right now.",
+                                            modifier = Modifier.testTag("orderPaymentUnavailable"),
+                                        )
+                                    }
                                 }
                                 else -> {
                                     Text(

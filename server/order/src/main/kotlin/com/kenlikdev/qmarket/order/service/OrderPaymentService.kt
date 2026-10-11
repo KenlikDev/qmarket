@@ -215,6 +215,31 @@ class OrderPaymentService(
                     "Payment session requires qmarket.payment.provider=stripe",
                 )
         val stripeProps = stripeProperties.ifAvailable ?: StripeProperties()
+        val publishableKey = stripeProps.publishableKey.trim()
+        val publishableMode =
+            Regex("^pk_(test|live)_[A-Za-z0-9]+$")
+                .matchEntire(publishableKey)
+                ?.groupValues
+                ?.get(1)
+                ?: throw PaymentProviderException(
+                    cause = IllegalStateException("Stripe publishable key is not configured correctly"),
+                )
+        val secretKey = stripeProps.secretKey.trim()
+        val secretMode =
+            when {
+                Regex("^(sk|rk)_test_[A-Za-z0-9]+$").matches(secretKey) -> "test"
+                Regex("^(sk|rk)_live_[A-Za-z0-9]+$").matches(secretKey) -> "live"
+                else ->
+                    throw PaymentProviderException(
+                        cause = IllegalStateException("Stripe secret key is not configured correctly"),
+                    )
+            }
+        if (secretMode != publishableMode) {
+            // Catch test/live key mismatches before claiming an operation or creating an intent.
+            throw PaymentProviderException(
+                cause = IllegalStateException("Stripe secret and publishable keys must use the same mode"),
+            )
+        }
 
         val plan =
             requireNotNull(
@@ -388,7 +413,7 @@ class OrderPaymentService(
                     providerId = "stripe",
                     paymentIntentId = intent.id,
                     clientSecret = clientSecret,
-                    publishableKey = stripeProps.publishableKey,
+                    publishableKey = publishableKey,
                 )
             PaymentSessionFinalization.PAID ->
                 throw BadRequestException("Order is already paid")

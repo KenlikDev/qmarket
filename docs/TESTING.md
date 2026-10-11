@@ -14,7 +14,7 @@ CI additionally runs:
 ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 ./gradlew :server:order:jacocoTestCoverageVerification :server:identity:jacocoTestCoverageVerification --parallel --no-daemon
 ./gradlew :app:shared:compileKotlinIosSimulatorArm64 --no-daemon
-./gradlew :app:androidApp:assembleDebug :app:desktopApp:compileKotlin :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs :app:webApp:compileKotlinJs :app:webApp:compileKotlinWasmJs --parallel --no-daemon
+./gradlew :app:androidApp:assembleDebug :app:androidApp:testDebugUnitTest :app:desktopApp:compileKotlin :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs :app:webApp:compileKotlinJs :app:webApp:compileKotlinWasmJs --parallel --no-daemon
 ```
 
 The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. These are compile checks, not full device/browser runtime or end-to-end checks. Secret scanning is also required by the protected-branch ruleset.
@@ -52,6 +52,9 @@ The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and 
 ## Manual smoke (when UI changes)
 
 1. Login admin → catalog → add to cart → checkout → pay → orders.
+2. Android Stripe sandbox: create a session, complete a test payment requiring 3DS where available, and verify the UI does not show PAID until the server webhook has updated the order.
+3. Android Stripe sandbox: rotate/recreate the host Activity while PaymentSheet is open, then verify its result still refreshes the correct order without persisting/logging the client secret.
+4. Android Stripe sandbox: cancel the sheet and simulate a declined payment; verify the order remains PENDING, can be retried, and can still be cancelled.
 2. Register new user (password ≥ 8).
 3. Profile: reject digit-only name; phone accepts only digits/`+`.
 4. Addresses: add, set default; checkout with saved address.

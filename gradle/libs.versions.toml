@@ -5,6 +5,7 @@ android-compileSdk = "37"
 android-minSdk = "24"
 android-targetSdk = "37"
 androidx-security-crypto = "1.0.0"
+stripe-android = "23.22.0"
 androidx-activity = "1.13.0"
 androidx-lifecycle = "2.11.0"
 composeMultiplatform = "1.11.1"
@@ -37,7 +38,9 @@ archunit = "1.4.1"
 
 [libraries]
 androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "androidx-security-crypto" }
+stripe-android = { module = "com.stripe:stripe-android", version.ref = "stripe-android" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit4 = { module = "junit:junit", version = "4.13.2" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }

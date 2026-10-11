@@ -9,8 +9,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
+import com.kenlikdev.qmarket.network.StripePaymentResult
+import com.kenlikdev.qmarket.network.StripePaymentResultEvent
 import com.kenlikdev.qmarket.network.createPlatformHttpClient
 import com.kenlikdev.qmarket.network.createPlatformSessionStore
 import com.kenlikdev.qmarket.network.defaultApiBaseUrl
@@ -30,9 +33,15 @@ import com.kenlikdev.qmarket.ui.ProfileScreen
 import com.kenlikdev.qmarket.ui.RegisterScreen
 import com.kenlikdev.qmarket.ui.slugifyProductName
 import com.kenlikdev.qmarket.validation.ClientInputValidation
+import kotlinx.coroutines.CompletableDeferred
 
 @Composable
-fun App(apiBaseUrl: String = defaultApiBaseUrl()) {
+fun App(
+    apiBaseUrl: String = defaultApiBaseUrl(),
+    onConfirmStripePayment: ((PaymentSessionDto) -> Boolean)? = null,
+    stripePaymentResult: StripePaymentResultEvent? = null,
+    onStripePaymentResultConsumed: ((Long) -> Unit)? = null,
+) {
     val validatedApiBaseUrl = remember(apiBaseUrl) { validateApiBaseUrl(apiBaseUrl) }
 
     MaterialTheme {
@@ -62,11 +71,41 @@ fun App(apiBaseUrl: String = defaultApiBaseUrl()) {
             onDispose { http.close() }
         }
 
+        val appReady = remember(model) { CompletableDeferred<Unit>() }
         LaunchedEffect(model) {
-            model.restoreSessionIfNeeded(initialSession)
+            try {
+                model.restoreSessionIfNeeded(initialSession)
+            } finally {
+                // A restored payment result must not race session restoration and lose its
+                // navigation/state update to a late Catalog assignment.
+                appReady.complete(Unit)
+            }
         }
 
         val m = model
+
+        LaunchedEffect(m.paymentSession) {
+            val session = m.paymentSession ?: return@LaunchedEffect
+            val confirmer = onConfirmStripePayment
+            if (confirmer == null) {
+                m.handleStripePaymentResult(session.orderId, StripePaymentResult.FAILED).join()
+                return@LaunchedEffect
+            }
+            if (!confirmer(session)) {
+                // The native host refused a stale/overlapping order route; reconcile this order
+                // locally rather than leaving a session spinner that can never receive a callback.
+                m.handleStripePaymentResult(session.orderId, StripePaymentResult.FAILED).join()
+            }
+        }
+
+        LaunchedEffect(stripePaymentResult?.eventId) {
+            val event = stripePaymentResult ?: return@LaunchedEffect
+            appReady.await()
+            // Acknowledge only after the server state was reloaded. If this composition is
+            // canceled during Activity recreation, SavedStateHandle keeps the event for replay.
+            m.handleStripePaymentResult(event.orderId, event.result).join()
+            onStripePaymentResultConsumed?.invoke(event.eventId)
+        }
 
         Scaffold { padding ->
 
@@ -330,6 +369,13 @@ fun App(apiBaseUrl: String = defaultApiBaseUrl()) {
                         onBackToOrders = { m.loadOrders() },
                         onPay = { m.detailOrder?.let { m.payOrder(it.id) } },
                         paymentProviderId = m.paymentProviderId,
+                        onStartPaymentSession =
+                            if (onConfirmStripePayment != null) {
+                                { m.detailOrder?.let { m.startPaymentSession(it.id) } }
+                            } else {
+                                null
+                            },
+                        paymentSessionActive = m.paymentSession != null,
                         onCancel = { m.detailOrder?.let { m.cancelOrder(it.id) } },
                         onRefresh = { m.detailOrder?.let { m.refreshOrder(it.id) } },
                         onCart = { m.loadCart() },

@@ -12,6 +12,7 @@ import com.kenlikdev.qmarket.api.CreateOrderRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.NotificationDto
 import com.kenlikdev.qmarket.api.OrderDto
+import com.kenlikdev.qmarket.api.PaymentSessionDto
 import com.kenlikdev.qmarket.api.ProductDto
 import com.kenlikdev.qmarket.api.ProfileDto
 import com.kenlikdev.qmarket.api.RegisterRequestDto
@@ -20,6 +21,7 @@ import com.kenlikdev.qmarket.network.ApiException
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.network.SessionClearedWithCleanupFailure
+import com.kenlikdev.qmarket.network.StripePaymentResult
 import com.kenlikdev.qmarket.ui.AppScreen
 import com.kenlikdev.qmarket.ui.CatalogFilterParams
 import com.kenlikdev.qmarket.ui.CheckoutIdempotency
@@ -87,6 +89,9 @@ class QMarketAppModel(
     var detailOrder by mutableStateOf<OrderDto?>(null)
     /** Server-selected gateway; null disables payment actions until configuration can be read. */
     var paymentProviderId by mutableStateOf<String?>(null)
+    /** In-memory Stripe session passed directly to the native SDK; never persisted or logged. */
+    var paymentSession by mutableStateOf<PaymentSessionDto?>(null)
+        private set
     var notifications by mutableStateOf<List<NotificationDto>>(emptyList())
     var notificationsUnread by mutableStateOf(0L)
     var userLabel by mutableStateOf(tokens.sessionEmail())
@@ -190,6 +195,7 @@ class QMarketAppModel(
         detailProduct = null
         detailOrder = null
         paymentProviderId = null
+        paymentSession = null
         notifications = emptyList()
         notificationsUnread = 0L
         pendingCheckoutKey = null
@@ -503,20 +509,105 @@ class QMarketAppModel(
         if (paymentProviderId != "mock") {
             error =
                 when (paymentProviderId) {
-                    "stripe" -> "Stripe payment confirmation is not implemented in this app yet."
+                    "stripe" -> "Use the secure Stripe payment option for this order."
                     else -> "Payment provider is unavailable. Refresh the order before trying again."
                 }
             return
         }
         runApi {
             val paid = api.payOrder(orderId)
-            if (screen is AppScreen.OrderDone) {
-                screen = AppScreen.OrderDone(paid)
-            }
-            detailOrder = paid
+            updateOrderSnapshot(paid)
             statusMessage = "Paid"
-            // refresh list if visible
-            orders = orders.map { if (it.id == paid.id) paid else it }
+        }
+    }
+
+    /**
+     * Creates a short-lived client session only on a platform that has an attached Stripe SDK.
+     * The caller must not invoke this action on unsupported targets.
+     */
+    fun startPaymentSession(orderId: String) {
+        if (paymentProviderId != "stripe") {
+            error = "Stripe payment is not available for the active payment provider."
+            return
+        }
+        if (paymentSession != null || loading) return
+
+        runApi {
+            val session = api.createPaymentSession(orderId)
+            if (
+                session.providerId != "stripe" ||
+                session.clientSecret.isBlank() ||
+                !session.publishableKey.matches(Regex("^pk_(test|live)_[A-Za-z0-9]+$"))
+            ) {
+                error = "Stripe is not configured correctly. No payment sheet was opened."
+                return@runApi
+            }
+            paymentSession = session
+            statusMessage = "Opening secure Stripe payment…"
+        }
+    }
+
+    /**
+     * Handles the native SDK result without ever treating the client callback as authoritative.
+     * The server's verified webhook remains the only source of a PAID order state.
+     */
+    fun handleStripePaymentResult(
+        orderId: String,
+        result: StripePaymentResult,
+    ): Job {
+        paymentSession = null
+        // A native activity may have been recreated while PaymentSheet was visible. Restore the
+        // affected order as the active screen so its verified server state and next action are visible.
+        if (screen != AppScreen.OrderDetail && screen !is AppScreen.OrderDone) {
+            screen = AppScreen.OrderDetail
+        }
+        return when (result) {
+            StripePaymentResult.CANCELED -> {
+                runApi {
+                    refreshOrderSnapshot(orderId)
+                    statusMessage =
+                        if (detailOrder?.status?.name == "PAID") {
+                            "Payment confirmed by the server."
+                        } else {
+                            "Payment cancelled. The order remains pending."
+                        }
+                }
+            }
+            StripePaymentResult.FAILED -> {
+                runApi {
+                    refreshOrderSnapshot(orderId)
+                    if (detailOrder?.status?.name == "PAID") {
+                        statusMessage = "Payment confirmed by the server."
+                    } else {
+                        error = "Stripe could not complete the payment. The order remains pending."
+                    }
+                }
+            }
+            StripePaymentResult.COMPLETED -> {
+                runApi {
+                    refreshOrderSnapshot(orderId)
+                    statusMessage =
+                        if (detailOrder?.status?.name == "PAID") {
+                            "Payment confirmed by the server."
+                        } else {
+                            "Stripe submitted the payment. Waiting for verified server confirmation; refresh shortly."
+                        }
+                }
+            }
+        }
+    }
+
+    private suspend fun refreshOrderSnapshot(orderId: String) {
+        val latest = api.getOrder(orderId)
+        updateOrderSnapshot(latest)
+    }
+
+    private fun updateOrderSnapshot(order: OrderDto) {
+        detailOrder = order
+        orders = orders.map { if (it.id == order.id) order else it }
+        adminOrders = adminOrders.map { if (it.id == order.id) order else it }
+        if (screen is AppScreen.OrderDone) {
+            screen = AppScreen.OrderDone(order)
         }
     }
 
