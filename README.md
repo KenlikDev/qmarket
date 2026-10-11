@@ -16,7 +16,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Unit / controller / integration tests | ✅ |
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
 | Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V18, app: `validate`, tests: Flyway |
-| Payments | ✅ mock locally; Stripe PaymentIntent + webhook path available |
+| Payments | ✅ mock flow in shared UI; Stripe server PaymentIntent/webhook infrastructure exists, but client confirmation is not implemented yet |
 | Profile (GET/PATCH /users/me) | ✅ |
 | Shipping addresses | ✅ |
 | catalog-api (ProductCatalog port) | ✅ |
@@ -77,7 +77,7 @@ POST   /api/v1/orders                 # { shippingAddress? | addressId?, custome
 GET    /api/v1/orders?page=0&size=20  # no sort param (Swagger sort=string broke JPA)
 GET    /api/v1/orders/{id}
 POST   /api/v1/orders/{id}/cancel
-POST   /api/v1/orders/{id}/pay     # local mock gateway; production uses Stripe client payment flow
+POST   /api/v1/orders/{id}/pay     # local mock gateway; Stripe uses a separate client-confirmation flow (not implemented in shared UI yet)
 GET    /api/v1/orders/admin/all
 GET    /api/v1/orders/admin/{id}
 PUT    /api/v1/orders/admin/{id}/status  { "status": "CONFIRMED" }
@@ -104,8 +104,8 @@ Android emulator API host: `10.0.2.2:8080`
 1c. Addresses (list/add/delete; use on checkout)
 2. Add to cart (requires login)
 3. Cart → checkout with shipping address
-4. Complete payment using the configured provider (mock locally; Stripe PaymentIntent in production)
-5. My orders — list, pay, cancel (PENDING)
+4. Pay is currently supported in the shared UI with the local mock provider. Stripe confirmation is not yet implemented in the shared UI; Stripe-configured orders remain pending.
+5. My orders — list/cancel pending orders; the generic Pay action appears only for the mock provider.
 
 ### Production notes
 
