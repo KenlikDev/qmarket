@@ -15,6 +15,18 @@ import kotlinx.serialization.json.jsonPrimitive
 internal const val SESSION_RECORD_KEY = "qmarket.session.v2"
 
 /**
+ * The durable tombstone was committed, so the session is cleared even though obsolete legacy
+ * entries could not all be removed. Callers must clear their in-memory session, then surface this
+ * cleanup warning without treating logout as uncommitted.
+ */
+internal class SessionClearedWithCleanupFailure(
+    cause: Throwable,
+) : IllegalStateException(
+        "The session was cleared, but legacy session storage could not be fully cleaned",
+        cause,
+    )
+
+/**
  * Single-key persistence adapter. Each platform maps one key write to an atomic native operation:
  * localStorage.setItem, one Keychain item update, or one committed SharedPreferences editor.
  */
@@ -148,7 +160,11 @@ internal class AtomicSessionRecordStore(
         // Commit the tombstone first. If this single write fails, do not touch the previous record.
         // If subsequent legacy cleanup fails, future reads still see the tombstone and fail closed.
         storage.put(recordKey, SessionRecordCodec.encode(StoredSessionRecord(cleared = true)))
-        removeLegacyKeys(failOnError = true)
+        try {
+            removeLegacyKeys(failOnError = true)
+        } catch (exception: IllegalStateException) {
+            throw SessionClearedWithCleanupFailure(exception)
+        }
     }
 
     private fun readRecord(): StoredSessionRecord {
