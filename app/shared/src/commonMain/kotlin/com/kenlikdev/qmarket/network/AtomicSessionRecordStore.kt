@@ -90,7 +90,9 @@ internal object SessionRecordCodec {
     private fun JsonObject.nullableString(key: String): String? {
         val element: JsonElement = this[key] ?: return null
         if (element == JsonNull) return null
-        return element.jsonPrimitive.contentOrNull?.ifBlank { null }
+        val primitive = element.jsonPrimitive
+        check(primitive.isString) { "Stored session field '$key' is not a string" }
+        return primitive.contentOrNull?.ifBlank { null }
     }
 }
 
