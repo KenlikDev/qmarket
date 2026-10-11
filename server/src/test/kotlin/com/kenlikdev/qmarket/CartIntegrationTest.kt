@@ -15,6 +15,8 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.time.Instant
+import kotlin.test.assertTrue
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -111,4 +113,109 @@ class CartIntegrationTest {
             ).andExpect(status().isOk)
             .andExpect(jsonPath("$.totalItems").value(0))
     }
+
+    @Test
+    fun `updatedAt advances after add update remove and clear`() {
+        val initialResponse =
+            mockMvc
+                .perform(
+                    get("/api/v1/cart")
+                        .header("Authorization", "Bearer $token"),
+                ).andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        var previousUpdatedAt = cartUpdatedAt(initialResponse)
+
+        // PostgreSQL timestamp precision is microseconds; leave a small margin so each
+        // separate mutation is expected to produce an observably later server timestamp.
+        Thread.sleep(5)
+        val added =
+            mockMvc
+                .perform(
+                    post("/api/v1/cart/items")
+                        .header("Authorization", "Bearer $token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"productId":"$productId","quantity":2}"""),
+                ).andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        previousUpdatedAt = assertUpdatedAtAdvances(previousUpdatedAt, added, "add")
+
+        Thread.sleep(5)
+        val updated =
+            mockMvc
+                .perform(
+                    put("/api/v1/cart/items/$productId")
+                        .header("Authorization", "Bearer $token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"quantity":3}"""),
+                ).andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        previousUpdatedAt = assertUpdatedAtAdvances(previousUpdatedAt, updated, "update")
+
+        Thread.sleep(5)
+        val removed =
+            mockMvc
+                .perform(
+                    delete("/api/v1/cart/items/$productId")
+                        .header("Authorization", "Bearer $token"),
+                ).andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        previousUpdatedAt = assertUpdatedAtAdvances(previousUpdatedAt, removed, "remove")
+
+        Thread.sleep(5)
+        val addedAgain =
+            mockMvc
+                .perform(
+                    post("/api/v1/cart/items")
+                        .header("Authorization", "Bearer $token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""{"productId":"$productId","quantity":1}"""),
+                ).andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        previousUpdatedAt = assertUpdatedAtAdvances(previousUpdatedAt, addedAgain, "add before clear")
+
+        Thread.sleep(5)
+        val cleared =
+            mockMvc
+                .perform(
+                    delete("/api/v1/cart")
+                        .header("Authorization", "Bearer $token"),
+                ).andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        assertUpdatedAtAdvances(previousUpdatedAt, cleared, "clear")
+    }
+
+    private fun cartUpdatedAt(responseBody: String): Instant {
+        val raw =
+            TestJson.parse(responseBody)
+                .path("updatedAt")
+                .asString(null)
+                ?: error("Cart response has no updatedAt: $responseBody")
+        return Instant.parse(raw)
+    }
+
+    private fun assertUpdatedAtAdvances(
+        previous: Instant,
+        responseBody: String,
+        operation: String,
+    ): Instant {
+        val next = cartUpdatedAt(responseBody)
+        assertTrue(
+            next.isAfter(previous),
+            "Cart updatedAt must advance after $operation (previous=$previous, actual=$next)",
+        )
+        return next
+    }
+
 }
