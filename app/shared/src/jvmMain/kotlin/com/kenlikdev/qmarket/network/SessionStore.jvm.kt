@@ -37,22 +37,30 @@ class FileSessionStore(
         refreshToken: String,
         email: String?,
     ) {
-        props.setProperty(KEY_ACCESS, accessToken)
-        props.setProperty(KEY_REFRESH, refreshToken)
-        if (email != null) {
-            props.setProperty(KEY_EMAIL, email)
-        } else {
-            props.remove(KEY_EMAIL)
+        val updated = Properties().apply {
+            putAll(props)
+            setProperty(KEY_ACCESS, accessToken)
+            setProperty(KEY_REFRESH, refreshToken)
+            if (email != null) {
+                setProperty(KEY_EMAIL, email)
+            } else {
+                remove(KEY_EMAIL)
+            }
         }
-        persist()
+        // Do not mutate the in-memory snapshot until the replacement file is durable.
+        persist(updated)
+        props.clear()
+        props.putAll(updated)
     }
 
     override fun clear() {
+        // Replace the single credential file with an empty record atomically. If persistence fails,
+        // both the current in-memory snapshot and the old file remain unchanged.
+        persist(Properties())
         props.clear()
-        Files.deleteIfExists(file)
     }
 
-    private fun persist() {
+    private fun persist(properties: Properties = props) {
         val parent = file.parent ?: error("Session file must have a parent directory")
         Files.createDirectories(parent)
         restrictPermissions(parent)
@@ -61,7 +69,7 @@ class FileSessionStore(
             Files.createTempFile(parent, ".session-", ".tmp")
         try {
             Files.newOutputStream(temp).use { out ->
-                props.store(out, "QMarket session — do not share")
+                properties.store(out, "QMarket session — do not share")
             }
             restrictPermissions(temp)
             try {
@@ -78,7 +86,8 @@ class FileSessionStore(
                     StandardCopyOption.REPLACE_EXISTING,
                 )
             }
-            restrictPermissions(file)
+            // The temporary file already carries owner-only permissions; moving it preserves them.
+            // Avoid a fallible operation after the new record has become the committed file.
         } finally {
             Files.deleteIfExists(temp)
         }
@@ -86,13 +95,21 @@ class FileSessionStore(
 
     private fun restrictPermissions(path: Path) {
         try {
-            Files.setPosixFilePermissions(
-                path,
-                EnumSet.of(
-                    PosixFilePermission.OWNER_READ,
-                    PosixFilePermission.OWNER_WRITE,
-                ),
-            )
+            val permissions =
+                if (Files.isDirectory(path)) {
+                    // Directories require execute permission to be traversed.
+                    EnumSet.of(
+                        PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_WRITE,
+                        PosixFilePermission.OWNER_EXECUTE,
+                    )
+                } else {
+                    EnumSet.of(
+                        PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_WRITE,
+                    )
+                }
+            Files.setPosixFilePermissions(path, permissions)
         } catch (_: UnsupportedOperationException) {
             // Non-POSIX filesystems use their platform's user permissions.
         }

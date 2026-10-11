@@ -60,11 +60,22 @@ class MutableTokenProvider(
     fun clear() {
         try {
             store.clear()
-        } finally {
-            token = null
-            refresh = null
-            email = null
-            roles = emptyList()
+        } catch (exception: SessionClearedWithCleanupFailure) {
+            // The durable tombstone committed successfully; only obsolete-key cleanup failed.
+            // The caller receives the warning, but memory must match the persisted logged-out state.
+            clearMemory()
+            throw exception
         }
+
+        // A generic storage failure means persistence did not commit the clear. Retain memory so
+        // callers can report failure without leaving the application in a split logged-out state.
+        clearMemory()
+    }
+
+    private fun clearMemory() {
+        token = null
+        refresh = null
+        email = null
+        roles = emptyList()
     }
 }

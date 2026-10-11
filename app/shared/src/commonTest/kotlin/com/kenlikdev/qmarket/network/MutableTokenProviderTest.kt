@@ -4,10 +4,10 @@ import com.kenlikdev.qmarket.api.AuthResponseDto
 import com.kenlikdev.qmarket.api.UserDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.test.assertFailsWith
 
 class MutableTokenProviderTest {
     @Test
@@ -38,7 +38,46 @@ class MutableTokenProviderTest {
     }
 
     @Test
-    fun clearAlwaysClearsMemoryWhenStoreClearFails() {
+    fun applyAuthKeepsCurrentMemorySessionWhenAtomicWriteFails() {
+        val backingStore = InMemorySessionStore().apply {
+            write("old-access", "old-refresh", "old@qmarket.test")
+        }
+        val failingStore =
+            object : SessionStore {
+                override fun readAccessToken(): String? = backingStore.readAccessToken()
+
+                override fun readRefreshToken(): String? = backingStore.readRefreshToken()
+
+                override fun readEmail(): String? = backingStore.readEmail()
+
+                override fun write(
+                    accessToken: String,
+                    refreshToken: String,
+                    email: String?,
+                ): Unit = error("simulated atomic record write failure")
+
+                override fun clear() = backingStore.clear()
+            }
+        val provider = MutableTokenProvider(failingStore)
+
+        assertFailsWith<IllegalStateException> {
+            provider.applyAuth(
+                AuthResponseDto(
+                    accessToken = "new-access",
+                    refreshToken = "new-refresh",
+                    expiresIn = 60,
+                    user = UserDto(id = "2", email = "new@qmarket.test"),
+                ),
+            )
+        }
+
+        assertEquals("old-access", provider.accessToken())
+        assertEquals("old-refresh", provider.refreshToken())
+        assertEquals("old@qmarket.test", provider.sessionEmail())
+    }
+
+    @Test
+    fun clearPreservesMemoryWhenDurableStoreClearFails() {
         val store =
             object : SessionStore {
                 override fun readAccessToken(): String? = "access"
@@ -58,10 +97,10 @@ class MutableTokenProviderTest {
         assertFailsWith<IllegalStateException> {
             provider.clear()
         }
-        assertNull(provider.accessToken())
-        assertNull(provider.refreshToken())
-        assertNull(provider.sessionEmail())
-        assertFalse(provider.hasSession())
+        assertEquals("access", provider.accessToken())
+        assertEquals("refresh", provider.refreshToken())
+        assertEquals("user@example.com", provider.sessionEmail())
+        assertTrue(provider.hasSession())
     }
 
     @Test

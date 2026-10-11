@@ -17,41 +17,35 @@ private external interface DomStorage {
 @JsName("localStorage")
 private external val browserLocalStorage: DomStorage
 
-/**
- * Browser: localStorage (origin-scoped; not HTTP-only cookie security).
- */
-class JsLocalStorageSessionStore : SessionStore {
-    override fun readAccessToken(): String? = browserLocalStorage.getItem(KEY_ACCESS)?.ifBlank { null }
+private object BrowserLocalStorageKeyValueStore : SessionKeyValueStore {
+    override fun get(key: String): String? = browserLocalStorage.getItem(key)
 
-    override fun readRefreshToken(): String? = browserLocalStorage.getItem(KEY_REFRESH)?.ifBlank { null }
-
-    override fun readEmail(): String? = browserLocalStorage.getItem(KEY_EMAIL)?.ifBlank { null }
-
-    override fun write(
-        accessToken: String,
-        refreshToken: String,
-        email: String?,
+    override fun put(
+        key: String,
+        value: String,
     ) {
-        browserLocalStorage.setItem(KEY_ACCESS, accessToken)
-        browserLocalStorage.setItem(KEY_REFRESH, refreshToken)
-        if (email != null) {
-            browserLocalStorage.setItem(KEY_EMAIL, email)
-        } else {
-            browserLocalStorage.removeItem(KEY_EMAIL)
-        }
+        // localStorage.setItem is synchronous and replaces the one canonical value atomically.
+        browserLocalStorage.setItem(key, value)
     }
 
-    override fun clear() {
-        browserLocalStorage.removeItem(KEY_ACCESS)
-        browserLocalStorage.removeItem(KEY_REFRESH)
-        browserLocalStorage.removeItem(KEY_EMAIL)
-    }
-
-    private companion object {
-        const val KEY_ACCESS = "qmarket.accessToken"
-        const val KEY_REFRESH = "qmarket.refreshToken"
-        const val KEY_EMAIL = "qmarket.email"
+    override fun remove(key: String) {
+        browserLocalStorage.removeItem(key)
     }
 }
+
+/**
+ * Browser session persistence uses one serialized record instead of three independently updated
+ * localStorage entries. This improves consistency, but localStorage remains readable by same-origin
+ * JavaScript and is not equivalent to an HttpOnly cookie.
+ */
+class JsLocalStorageSessionStore : SessionStore by AtomicSessionRecordStore(
+    storage = BrowserLocalStorageKeyValueStore,
+    legacyKeys =
+        LegacySessionKeys(
+            accessToken = "qmarket.accessToken",
+            refreshToken = "qmarket.refreshToken",
+            email = "qmarket.email",
+        ),
+)
 
 actual fun createPlatformSessionStore(): SessionStore = JsLocalStorageSessionStore()

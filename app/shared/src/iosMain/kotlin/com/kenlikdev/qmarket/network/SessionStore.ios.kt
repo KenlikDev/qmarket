@@ -50,39 +50,22 @@ import platform.Security.kSecValueData
 import platform.posix.memcpy
 
 /**
- * iOS Keychain-backed [SessionStore].
+ * iOS Keychain key-value adapter. [AtomicSessionRecordStore] uses a single account for the full session.
  *
  * CFDictionary for SecItem* (KN 2.4). CFType callbacks retain/release dictionary keys/values, and values as CFData via encodeToByteArray /
  * CFDataCreate — no NSString casts.
  */
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-class IosKeychainSessionStore : SessionStore {
+private class IosKeychainKeyValueStore : SessionKeyValueStore {
 
-    override fun readAccessToken(): String? = read(KEY_ACCESS)
+    override fun get(key: String): String? = read(key)
 
-    override fun readRefreshToken(): String? = read(KEY_REFRESH)
+    override fun put(
+        key: String,
+        value: String,
+    ) = write(key, value)
 
-    override fun readEmail(): String? = read(KEY_EMAIL)
-
-    override fun write(
-        accessToken: String,
-        refreshToken: String,
-        email: String?,
-    ) {
-        write(KEY_ACCESS, accessToken)
-        write(KEY_REFRESH, refreshToken)
-        if (email != null) {
-            write(KEY_EMAIL, email)
-        } else {
-            delete(KEY_EMAIL)
-        }
-    }
-
-    override fun clear() {
-        delete(KEY_ACCESS)
-        delete(KEY_REFRESH)
-        delete(KEY_EMAIL)
-    }
+    override fun remove(key: String) = delete(key)
 
     private fun read(account: String): String? = memScoped {
         withQuery(account, returnData = true) { query ->
@@ -113,7 +96,7 @@ class IosKeychainSessionStore : SessionStore {
 
     private fun write(account: String, value: String) {
         val utf8 = value.encodeToByteArray()
-        if (utf8.isEmpty()) return
+        require(utf8.isNotEmpty()) { "Keychain value must not be empty" }
 
         val cfData: CFDataRef =
             utf8.usePinned { pinned ->
@@ -123,13 +106,18 @@ class IosKeychainSessionStore : SessionStore {
                     bytesPtr,
                     utf8.size.convert(),
                 )
-            } ?: return
+            } ?: throw IllegalStateException("Unable to encode Keychain value")
 
-        val attributes = CFDictionaryCreateMutable(kCFAllocatorDefault, 1, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)
-        if (attributes == null) {
-            CFRelease(cfData)
-            return
-        }
+        val attributes =
+            CFDictionaryCreateMutable(
+                kCFAllocatorDefault,
+                1,
+                kCFTypeDictionaryKeyCallBacks.ptr,
+                kCFTypeDictionaryValueCallBacks.ptr,
+            ) ?: run {
+                CFRelease(cfData)
+                throw IllegalStateException("Unable to create Keychain update attributes")
+            }
 
         var status: Int
         try {
@@ -240,22 +228,28 @@ class IosKeychainSessionStore : SessionStore {
         key: CFStringRef?,
         value: String,
     ) {
-        val string = CFStringCreateWithCString(kCFAllocatorDefault, value, kCFStringEncodingUTF8)
-        if (string != null) {
-            try {
-                CFDictionaryAddValue(this, requireNotNull(key), string)
-            } finally {
-                CFRelease(string)
-            }
+        val string =
+            CFStringCreateWithCString(kCFAllocatorDefault, value, kCFStringEncodingUTF8)
+                ?: throw IllegalStateException("Unable to encode Keychain query string")
+        try {
+            CFDictionaryAddValue(this, requireNotNull(key), string)
+        } finally {
+            CFRelease(string)
         }
     }
 
     private companion object {
         const val SERVICE = "com.kenlikdev.qmarket.session"
-        const val KEY_ACCESS = "accessToken"
-        const val KEY_REFRESH = "refreshToken"
-        const val KEY_EMAIL = "email"
     }
 }
 
-actual fun createPlatformSessionStore(): SessionStore = IosKeychainSessionStore()
+actual fun createPlatformSessionStore(): SessionStore =
+    AtomicSessionRecordStore(
+        storage = IosKeychainKeyValueStore(),
+        legacyKeys =
+            LegacySessionKeys(
+                accessToken = "accessToken",
+                refreshToken = "refreshToken",
+                email = "email",
+            ),
+    )
