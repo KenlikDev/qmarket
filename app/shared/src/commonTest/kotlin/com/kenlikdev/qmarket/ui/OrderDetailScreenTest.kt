@@ -9,7 +9,6 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import com.kenlikdev.qmarket.api.OrderDto
 import com.kenlikdev.qmarket.api.OrderItemDto
 import com.kenlikdev.qmarket.api.OrderStatusDto
-import com.kenlikdev.qmarket.api.PaymentSessionDto
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -97,9 +96,8 @@ class OrderDetailScreenTest {
         }
 
     @Test
-    fun stripeProviderShowsSessionActionAndNeverShowsGenericPay() =
+    fun stripeProviderExplainsUnsupportedPaymentAndNeverShowsGenericPay() =
         runComposeUiTest {
-            var sessionRequested = false
             setContent {
                 OrderDetailScreen(
                     order = sample(),
@@ -112,8 +110,6 @@ class OrderDetailScreenTest {
                     paymentProviderId = "stripe",
                     onBackToOrders = {},
                     onPay = { error("Generic Pay must not be invoked for Stripe") },
-                    onStartPaymentSession = { sessionRequested = true },
-                    paymentSession = null,
                     onCancel = {},
                     onRefresh = {},
                     onCart = {},
@@ -124,9 +120,8 @@ class OrderDetailScreenTest {
             }
 
             onNodeWithTag("orderDetailPay").assertDoesNotExist()
-            onNodeWithTag("orderDetailPaymentSessionBtn").assertIsEnabled()
-            onNodeWithText("Create Stripe session").performClick()
-            assertTrue(sessionRequested)
+            onNodeWithTag("orderPaymentUnavailable").assertExists()
+            onNodeWithText("Stripe payment confirmation is not implemented in this app yet.").assertExists()
         }
 
     @Test
@@ -144,7 +139,6 @@ class OrderDetailScreenTest {
                     paymentProviderId = null,
                     onBackToOrders = {},
                     onPay = { error("Payment must remain disabled until provider is known") },
-                    onStartPaymentSession = {},
                     onCancel = {},
                     onRefresh = {},
                     onCart = {},
@@ -160,45 +154,5 @@ class OrderDetailScreenTest {
         }
 
 
-    @Test
-    fun createdStripeSessionDoesNotImplyOrderIsPaid() =
-        runComposeUiTest {
-            setContent {
-                OrderDetailScreen(
-                    order = sample(),
-                    loggedIn = true,
-                    userLabel = "user@test.com",
-                    cartCount = 0,
-                    error = null,
-                    statusMessage = null,
-                    loading = false,
-                    paymentProviderId = "stripe",
-                    paymentSession =
-                        PaymentSessionDto(
-                            orderId = "o1",
-                            providerId = "stripe",
-                            paymentIntentId = "pi_test",
-                            clientSecret = "pi_test_secret",
-                            publishableKey = "pk_test",
-                        ),
-                    onBackToOrders = {},
-                    onPay = { error("Stripe must not use generic Pay") },
-                    onStartPaymentSession = {},
-                    onCancel = {},
-                    onRefresh = {},
-                    onCart = {},
-                    onAddresses = {},
-                    onProfile = {},
-                    onLogout = {},
-                )
-            }
-
-            onNodeWithTag("orderDetailStatus").assertExists()
-            onNodeWithText("PENDING").assertExists()
-            onNodeWithTag("orderDetailPaymentSession").assertExists()
-            onNodeWithTag("orderDetailPaymentIntentId").assertExists()
-            onNodeWithText("Stripe confirmation is not supported", substring = true).assertExists()
-            onNodeWithTag("orderDetailPay").assertDoesNotExist()
-        }
 
 }
