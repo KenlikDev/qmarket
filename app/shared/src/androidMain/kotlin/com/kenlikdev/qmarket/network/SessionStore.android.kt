@@ -57,10 +57,6 @@ private class EncryptedPrefsKeyValueStore(
     private companion object {
         const val ENCRYPTED_PREFS_NAME = "qmarket_session_secure"
         const val LEGACY_PREFS_NAME = "qmarket_session"
-        const val SESSION_RECORD_KEY = "qmarket.session.v2"
-        const val LEGACY_KEY_ACCESS = "accessToken"
-        const val LEGACY_KEY_REFRESH = "refreshToken"
-        const val LEGACY_KEY_EMAIL = "email"
 
         fun createEncryptedPrefs(context: Context): SharedPreferences {
             val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
