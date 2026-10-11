@@ -389,4 +389,23 @@ class QMarketAppModelTest {
             assertFalse(model.loading)
         }
 
+
+    @Test
+    fun loadOrdersClearsCachedProviderWhenOrdersRequestFails() =
+        runBlocking {
+            val tokens = MutableTokenProvider(InMemorySessionStore())
+            val engine = MockEngine { error("simulated orders outage") }
+            val api = QMarketApiClient(httpClient(engine))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = false)
+            model.paymentProviderId = "mock"
+
+            model.loadOrders()
+            while (model.loading) {
+                kotlinx.coroutines.yield()
+            }
+
+            assertNull(model.paymentProviderId)
+            assertEquals("simulated orders outage", model.error)
+        }
+
 }
