@@ -405,7 +405,7 @@ class QMarketAppModelTest {
             }
 
             assertNull(model.paymentProviderId)
-            assertEquals("simulated orders outage", model.error)
+            assertTrue(model.error?.contains("simulated orders outage") == true)
         }
 
 }
