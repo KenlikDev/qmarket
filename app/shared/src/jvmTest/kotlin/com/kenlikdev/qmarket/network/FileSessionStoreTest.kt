@@ -1,9 +1,11 @@
 package com.kenlikdev.qmarket.network
 
 import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermission
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class FileSessionStoreTest {
     @Test
@@ -17,6 +19,17 @@ class FileSessionStoreTest {
                 refreshToken = "refresh-before-restart",
                 email = "user@qmarket.test",
             )
+
+            if (Files.getFileStore(sessionFile).supportsFileAttributeView("posix")) {
+                assertTrue(
+                    PosixFilePermission.OWNER_EXECUTE in Files.getPosixFilePermissions(directory),
+                    "The private session directory must remain traversable by its owner",
+                )
+                assertEquals(
+                    setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
+                    Files.getPosixFilePermissions(sessionFile),
+                )
+            }
 
             val restored = FileSessionStore(sessionFile)
             assertEquals("access-before-restart", restored.readAccessToken())
