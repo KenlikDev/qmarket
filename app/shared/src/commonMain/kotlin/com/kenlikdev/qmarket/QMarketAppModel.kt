@@ -554,14 +554,14 @@ class QMarketAppModel(
     fun handleStripePaymentResult(
         orderId: String,
         result: StripePaymentResult,
-    ) {
+    ): Job {
         paymentSession = null
         // A native activity may have been recreated while PaymentSheet was visible. Restore the
         // affected order as the active screen so its verified server state and next action are visible.
         if (screen != AppScreen.OrderDetail && screen !is AppScreen.OrderDone) {
             screen = AppScreen.OrderDetail
         }
-        when (result) {
+        return when (result) {
             StripePaymentResult.CANCELED -> {
                 runApi {
                     refreshOrderSnapshot(orderId)
