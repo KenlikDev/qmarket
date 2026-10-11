@@ -486,7 +486,7 @@ class QMarketAppModel(
         if (paymentProviderId != "mock") {
             error =
                 when (paymentProviderId) {
-                    "stripe" -> "Direct Pay is disabled for Stripe. Open the order to create a Stripe session."
+                    "stripe" -> "Stripe payment confirmation is not implemented in this app yet."
                     else -> "Payment provider is unavailable. Refresh the order before trying again."
                 }
             return
