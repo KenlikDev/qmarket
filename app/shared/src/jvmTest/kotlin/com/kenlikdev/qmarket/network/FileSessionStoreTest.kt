@@ -47,4 +47,66 @@ class FileSessionStoreTest {
             Files.deleteIfExists(directory)
         }
     }
+
+    @Test
+    fun repairsLegacyDirectoryAndFilePermissionsBeforeReadingSession() {
+        val home = Files.createTempDirectory("qmarket-session-home")
+        val directory = home.resolve(".qmarket")
+        val sessionFile = directory.resolve("session.properties")
+        val posixPermissions =
+            setOf(
+                PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_WRITE,
+                PosixFilePermission.OWNER_EXECUTE,
+            )
+
+        try {
+            FileSessionStore(sessionFile).write(
+                accessToken = "legacy-access",
+                refreshToken = "legacy-refresh",
+                email = "legacy@qmarket.test",
+            )
+
+            if (!Files.getFileStore(sessionFile).supportsFileAttributeView("posix")) {
+                return
+            }
+
+            // Reproduce older desktop builds: directory missing search/execute permission,
+            // and credentials file broader than owner-only. The next app start must recover both.
+            Files.setPosixFilePermissions(
+                sessionFile,
+                setOf(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE,
+                    PosixFilePermission.GROUP_READ,
+                    PosixFilePermission.OTHERS_READ,
+                ),
+            )
+            Files.setPosixFilePermissions(
+                directory,
+                setOf(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE,
+                ),
+            )
+
+            val restored = FileSessionStore(sessionFile)
+
+            assertEquals("legacy-access", restored.readAccessToken())
+            assertEquals("legacy-refresh", restored.readRefreshToken())
+            assertEquals("legacy@qmarket.test", restored.readEmail())
+            assertEquals(posixPermissions, Files.getPosixFilePermissions(directory))
+            assertEquals(
+                setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
+                Files.getPosixFilePermissions(sessionFile),
+            )
+        } finally {
+            // Ensure cleanup remains possible even when the regression assertion fails.
+            runCatching { Files.setPosixFilePermissions(directory, posixPermissions) }
+            Files.deleteIfExists(sessionFile)
+            Files.deleteIfExists(directory)
+            Files.deleteIfExists(home)
+        }
+    }
+
 }

@@ -21,7 +21,15 @@ class FileSessionStore(
     private val props = Properties()
 
     init {
+        // Harden the directory before probing the file. Older versions accidentally removed
+        // OWNER_EXECUTE from this directory, making a valid session file appear nonexistent.
+        val parent = file.parent ?: error("Session file must have a parent directory")
+        Files.createDirectories(parent)
+        restrictPermissions(parent)
+
         if (Files.isRegularFile(file)) {
+            // Existing files may have been created by an older build with broader permissions.
+            restrictPermissions(file)
             Files.newInputStream(file).use { props.load(it) }
         }
     }
