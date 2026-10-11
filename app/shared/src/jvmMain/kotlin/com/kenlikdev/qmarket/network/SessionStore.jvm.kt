@@ -86,7 +86,8 @@ class FileSessionStore(
                     StandardCopyOption.REPLACE_EXISTING,
                 )
             }
-            restrictPermissions(file)
+            // The temporary file already carries owner-only permissions; moving it preserves them.
+            // Avoid a fallible operation after the new record has become the committed file.
         } finally {
             Files.deleteIfExists(temp)
         }
