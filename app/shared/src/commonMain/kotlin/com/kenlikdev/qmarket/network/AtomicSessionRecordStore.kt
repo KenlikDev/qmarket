@@ -106,6 +106,8 @@ internal class AtomicSessionRecordStore(
     private val legacyKeys: LegacySessionKeys,
     private val recordKey: String = SESSION_RECORD_KEY,
 ) : SessionStore {
+    private var legacyKeysCleaned = false
+
     override fun readAccessToken(): String? =
         readRecord().takeUnless { it.cleared }?.accessToken?.ifBlank { null }
 
@@ -168,6 +170,8 @@ internal class AtomicSessionRecordStore(
     }
 
     private fun removeLegacyKeys(failOnError: Boolean) {
+        if (legacyKeysCleaned && !failOnError) return
+
         var firstFailure: Exception? = null
         legacyKeys.all().filter { it != recordKey }.forEach { key ->
             try {
@@ -175,6 +179,10 @@ internal class AtomicSessionRecordStore(
             } catch (exception: Exception) {
                 if (firstFailure == null) firstFailure = exception
             }
+        }
+
+        if (firstFailure == null) {
+            legacyKeysCleaned = true
         }
 
         if (failOnError && firstFailure != null) {
