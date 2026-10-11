@@ -11,3 +11,13 @@ enum class StripePaymentResult {
     CANCELED,
     FAILED,
 }
+
+/**
+ * A one-shot platform result event. It contains only an order id and outcome—never a client secret.
+ * [eventId] lets the platform host acknowledge exactly the event it delivered.
+ */
+data class StripePaymentResultEvent(
+    val eventId: Long,
+    val orderId: String,
+    val result: StripePaymentResult,
+)
