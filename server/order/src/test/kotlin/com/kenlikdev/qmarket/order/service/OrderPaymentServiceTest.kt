@@ -592,6 +592,25 @@ class OrderPaymentServiceTest {
     }
 
     @Test
+    fun `createPaymentSession rejects mismatched Stripe key modes before claiming operation`() {
+        stripeProperties =
+            stripeProperties.copy(
+                secretKey = "sk_test_secret",
+                publishableKey = "pk_live_publishable",
+            )
+
+        assertThrows(PaymentProviderException::class.java) {
+            service.createPaymentSession(userId, orderId)
+        }
+
+        verify(exactly = 0) { orderRepository.findByIdAndUserIdForUpdate(any(), any()) }
+        verify(exactly = 0) { orderRepository.save(any()) }
+        verify(exactly = 0) {
+            stripeApi.createPaymentIntentForClient(any(), any(), any(), any(), any())
+        }
+    }
+
+    @Test
     fun `createPaymentSession rejects missing publishable key before claiming operation`() {
         stripeProperties = stripeProperties.copy(publishableKey = "")
 
