@@ -570,6 +570,7 @@ class QMarketAppModelTest {
                 model.handleStripePaymentResult("order-1", StripePaymentResult.COMPLETED)
                 while (model.loading) kotlinx.coroutines.yield()
 
+                assertEquals(AppScreen.OrderDetail, model.screen)
                 assertEquals("PENDING", model.detailOrder?.status?.name)
                 assertTrue(model.statusMessage.orEmpty().contains("Waiting for verified server confirmation"))
                 assertNull(model.paymentSession)
@@ -681,6 +682,7 @@ class QMarketAppModelTest {
                 model.handleStripePaymentResult("order-1", StripePaymentResult.CANCELED)
                 while (model.loading) kotlinx.coroutines.yield()
 
+                assertEquals(AppScreen.OrderDetail, model.screen)
                 assertEquals("PAID", model.detailOrder?.status?.name)
                 assertEquals("Payment confirmed by the server.", model.statusMessage)
                 assertNull(model.error)
@@ -716,6 +718,7 @@ class QMarketAppModelTest {
                 model.handleStripePaymentResult("order-1", StripePaymentResult.FAILED)
                 while (model.loading) kotlinx.coroutines.yield()
 
+                assertEquals(AppScreen.OrderDetail, model.screen)
                 assertEquals("PENDING", model.detailOrder?.status?.name)
                 assertEquals(
                     "Stripe could not complete the payment. The order remains pending.",
