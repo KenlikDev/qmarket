@@ -140,6 +140,42 @@ class QMarketAppModelTest {
         }
 
     @Test
+    fun logoutPreservesInMemorySessionWhenDurableClearFails() =
+        runBlocking {
+            val store =
+                object : SessionStore {
+                    override fun readAccessToken(): String? = "active-access"
+
+                    override fun readRefreshToken(): String? = null
+
+                    override fun readEmail(): String? = "u@test.local"
+
+                    override fun write(
+                        accessToken: String,
+                        refreshToken: String,
+                        email: String?,
+                    ) = Unit
+
+                    override fun clear(): Unit = error("persistent storage unavailable")
+                }
+            val tokens = MutableTokenProvider(store)
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = true)
+            model.loggedIn = true
+            model.userLabel = "u@test.local"
+            model.screen = AppScreen.Catalog
+
+            model.logout().join()
+
+            assertFalse(model.loading)
+            assertTrue(model.error?.contains("persistent storage unavailable") == true)
+            assertTrue(model.loggedIn)
+            assertEquals("u@test.local", model.userLabel)
+            assertEquals(AppScreen.Catalog, model.screen)
+            assertEquals("active-access", tokens.accessToken())
+        }
+
+    @Test
     fun logoutWithRefreshTokenCallsApiThenClearsSession() =
         runBlocking {
             val tokens = MutableTokenProvider(InMemorySessionStore())
