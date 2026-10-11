@@ -37,24 +37,30 @@ class FileSessionStore(
         refreshToken: String,
         email: String?,
     ) {
-        props.setProperty(KEY_ACCESS, accessToken)
-        props.setProperty(KEY_REFRESH, refreshToken)
-        if (email != null) {
-            props.setProperty(KEY_EMAIL, email)
-        } else {
-            props.remove(KEY_EMAIL)
+        val updated = Properties().apply {
+            putAll(props)
+            setProperty(KEY_ACCESS, accessToken)
+            setProperty(KEY_REFRESH, refreshToken)
+            if (email != null) {
+                setProperty(KEY_EMAIL, email)
+            } else {
+                remove(KEY_EMAIL)
+            }
         }
-        persist()
+        // Do not mutate the in-memory snapshot until the replacement file is durable.
+        persist(updated)
+        props.clear()
+        props.putAll(updated)
     }
 
     override fun clear() {
         // Replace the single credential file with an empty record atomically. If persistence fails,
-        // the exception is surfaced and the old file is not silently treated as cleared.
+        // both the current in-memory snapshot and the old file remain unchanged.
+        persist(Properties())
         props.clear()
-        persist()
     }
 
-    private fun persist() {
+    private fun persist(properties: Properties = props) {
         val parent = file.parent ?: error("Session file must have a parent directory")
         Files.createDirectories(parent)
         restrictPermissions(parent)
@@ -63,7 +69,7 @@ class FileSessionStore(
             Files.createTempFile(parent, ".session-", ".tmp")
         try {
             Files.newOutputStream(temp).use { out ->
-                props.store(out, "QMarket session — do not share")
+                properties.store(out, "QMarket session — do not share")
             }
             restrictPermissions(temp)
             try {
