@@ -323,19 +323,25 @@ class QMarketAppModel(
     fun logout(): Job {
         beginSessionTransition()
         val refresh = tokens.refreshToken()
+        val cleanupError = clearSessionState()
+
+        if (cleanupError != null && cleanupError !is SessionClearedWithCleanupFailure) {
+            // The local logout was not durably committed. Keep the current UI/session and do not
+            // revoke the server refresh family until the user can successfully retry local logout.
+            return runApi { throw cleanupError }
+        }
+
         return runApi {
-            try {
-                if (!refresh.isNullOrBlank()) {
-                    api.logout(refresh)
-                }
-            } finally {
-                val cleanupError = clearSessionState()
-                if (cleanupError != null) {
-                    throw cleanupError
-                }
-                error = null
-                screen = AppScreen.Login
+            // Local credentials are already durably cleared. Remote revocation is best-effort;
+            // a network failure must never cause the local client to resurrect the session.
+            if (!refresh.isNullOrBlank()) {
+                api.logout(refresh)
             }
+            if (cleanupError != null) {
+                throw cleanupError
+            }
+            error = null
+            screen = AppScreen.Login
         }
     }
 
