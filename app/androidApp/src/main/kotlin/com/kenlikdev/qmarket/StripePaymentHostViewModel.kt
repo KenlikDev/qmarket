@@ -24,8 +24,14 @@ class StripePaymentHostViewModel(
     val pendingOrderId: String?
         get() = savedStateHandle[KEY_PENDING_ORDER_ID]
 
-    fun begin(orderId: String) {
+    fun begin(orderId: String): Boolean {
+        val pendingId = pendingOrderId
+        if (pendingId != null && pendingId != orderId) {
+            // Never let a late Activity Result for an older sheet be attributed to another order.
+            return false
+        }
         savedStateHandle[KEY_PENDING_ORDER_ID] = orderId
+        return true
     }
 
     fun publishResult(
