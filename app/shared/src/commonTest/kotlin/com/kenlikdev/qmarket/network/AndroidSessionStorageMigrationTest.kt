@@ -300,4 +300,49 @@ class AndroidSessionStorageMigrationTest {
             entries.remove(key)
         }
     }
+
+    @Test
+    fun unreadableEncryptedLegacyStoreNeverFallsBackToPlaintextOrClearsBeforeRecovery() {
+        val target = store()
+        val encrypted =
+            object : SessionKeyValueStore {
+                override fun get(key: String): String? {
+                    throw LegacyAndroidEncryptedStoreReadException(
+                        IllegalStateException("Simulated legacy decryption failure"),
+                    )
+                }
+
+                override fun put(
+                    key: String,
+                    value: String,
+                ) = error("The migration must not write to the old encrypted store")
+
+                override fun remove(key: String) =
+                    error("The migration must not remove old encrypted entries directly")
+            }
+        val plaintext = store(
+            mapOf(
+                keys.accessToken to "stale-plain-a",
+                keys.refreshToken to "stale-plain-r",
+            ),
+        )
+        var cleanupAttempted = false
+
+        assertFailsWith<LegacyAndroidEncryptedStoreReadException> {
+            migrate(
+                target = target,
+                encrypted = encrypted,
+                encryptedPresent = true,
+                plaintext = plaintext,
+                clearEncrypted = { cleanupAttempted = true },
+                clearPlaintext = { cleanupAttempted = true; plaintext.entries.clear() },
+            )
+        }
+
+        assertFalse(cleanupAttempted)
+        assertFalse(SESSION_RECORD_KEY in target.entries)
+        assertEquals("stale-plain-a", plaintext.entries[keys.accessToken])
+        assertEquals("stale-plain-r", plaintext.entries[keys.refreshToken])
+    }
+
 }
