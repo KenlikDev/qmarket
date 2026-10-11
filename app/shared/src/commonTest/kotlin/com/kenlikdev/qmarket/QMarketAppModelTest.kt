@@ -653,4 +653,77 @@ class QMarketAppModelTest {
             }
         }
 
+
+    @Test
+    fun canceledStripeSheetStillDetectsServerConfirmedPaymentRace() =
+        runBlocking {
+            val paidOrderJson =
+                """{"id":"order-1","userId":"user-1","status":"PAID","totalAmount":"10.00","items":[]}"""
+            val engine =
+                MockEngine { request ->
+                    assertEquals("/api/v1/orders/order-1", request.url.fullPath)
+                    respond(
+                        content = ByteReadChannel(paidOrderJson),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = httpClient(engine)
+            try {
+                val model =
+                    QMarketAppModel(
+                        QMarketApiClient(client),
+                        MutableTokenProvider(InMemorySessionStore()),
+                        modelScope(),
+                        restoredSession = false,
+                    )
+
+                model.handleStripePaymentResult("order-1", StripePaymentResult.CANCELED)
+                while (model.loading) kotlinx.coroutines.yield()
+
+                assertEquals("PAID", model.detailOrder?.status?.name)
+                assertEquals("Payment confirmed by the server.", model.statusMessage)
+                assertNull(model.error)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun failedStripeSheetKeepsPendingOrderRetryable() =
+        runBlocking {
+            val pendingOrderJson =
+                """{"id":"order-1","userId":"user-1","status":"PENDING","totalAmount":"10.00","items":[]}"""
+            val engine =
+                MockEngine { request ->
+                    assertEquals("/api/v1/orders/order-1", request.url.fullPath)
+                    respond(
+                        content = ByteReadChannel(pendingOrderJson),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            val client = httpClient(engine)
+            try {
+                val model =
+                    QMarketAppModel(
+                        QMarketApiClient(client),
+                        MutableTokenProvider(InMemorySessionStore()),
+                        modelScope(),
+                        restoredSession = false,
+                    )
+
+                model.handleStripePaymentResult("order-1", StripePaymentResult.FAILED)
+                while (model.loading) kotlinx.coroutines.yield()
+
+                assertEquals("PENDING", model.detailOrder?.status?.name)
+                assertEquals(
+                    "Stripe could not complete the payment. The order remains pending.",
+                    model.error,
+                )
+            } finally {
+                client.close()
+            }
+        }
+
 }
