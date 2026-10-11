@@ -40,6 +40,17 @@ class StripePaymentHostViewModelTest {
     }
 
     @Test
+    fun duplicateBeginForSameOrderCannotLaunchAnotherPaymentSheet() {
+        val host = StripePaymentHostViewModel(SavedStateHandle())
+
+        assertTrue(host.begin("order-1"))
+        assertFalse(host.begin("order-1"))
+        assertFalse(host.begin("order-2"))
+
+        assertEquals("order-1", host.pendingOrderId)
+    }
+
+    @Test
     fun mismatchedEventIdCannotConsumePendingResult() {
         val host = StripePaymentHostViewModel(SavedStateHandle())
         host.begin("order-1")
