@@ -38,6 +38,45 @@ class MutableTokenProviderTest {
     }
 
     @Test
+    fun applyAuthKeepsCurrentMemorySessionWhenAtomicWriteFails() {
+        val backingStore = InMemorySessionStore().apply {
+            write("old-access", "old-refresh", "old@qmarket.test")
+        }
+        val failingStore =
+            object : SessionStore {
+                override fun readAccessToken(): String? = backingStore.readAccessToken()
+
+                override fun readRefreshToken(): String? = backingStore.readRefreshToken()
+
+                override fun readEmail(): String? = backingStore.readEmail()
+
+                override fun write(
+                    accessToken: String,
+                    refreshToken: String,
+                    email: String?,
+                ): Unit = error("simulated atomic record write failure")
+
+                override fun clear() = backingStore.clear()
+            }
+        val provider = MutableTokenProvider(failingStore)
+
+        assertFailsWith<IllegalStateException> {
+            provider.applyAuth(
+                AuthResponseDto(
+                    accessToken = "new-access",
+                    refreshToken = "new-refresh",
+                    expiresIn = 60,
+                    user = UserDto(id = "2", email = "new@qmarket.test"),
+                ),
+            )
+        }
+
+        assertEquals("old-access", provider.accessToken())
+        assertEquals("old-refresh", provider.refreshToken())
+        assertEquals("old@qmarket.test", provider.sessionEmail())
+    }
+
+    @Test
     fun clearAlwaysClearsMemoryWhenStoreClearFails() {
         val store =
             object : SessionStore {
