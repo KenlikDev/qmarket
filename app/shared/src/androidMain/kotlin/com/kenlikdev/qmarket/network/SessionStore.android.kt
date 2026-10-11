@@ -37,7 +37,7 @@ private fun createAndroidSessionStore(context: Context): SessionStore {
         context.getSharedPreferences(LEGACY_ENCRYPTED_PREFS_NAME, Context.MODE_PRIVATE)
     val previousPlaintextPreferences =
         context.getSharedPreferences(LEGACY_PLAINTEXT_PREFS_NAME, Context.MODE_PRIVATE)
-    val previousEncryptedPresent = previousEncryptedPreferences.all.isNotEmpty()
+    val previousEncryptedFilePresent = previousEncryptedPreferences.all.isNotEmpty()
 
     val clearPreviousEncrypted = {
         check(previousEncryptedPreferences.edit().clear().commit()) {
@@ -53,10 +53,11 @@ private fun createAndroidSessionStore(context: Context): SessionStore {
     // If the new canonical record already exists (including a logout tombstone), do not even
     // initialize the old cryptographic store. A broken legacy key must never override current data.
     val currentRecord = target.get(SESSION_RECORD_KEY)
+    var previousEncryptedReadFailed = false
     val previousEncrypted =
-        if (currentRecord == null && previousEncryptedPresent) {
+        if (currentRecord == null && previousEncryptedFilePresent) {
             try {
-                LegacyEncryptedPrefsKeyValueStore(context)
+                LegacyEncryptedPrefsKeyValueStore(context).takeIf { it.hasLogicalEntries() }
             } catch (_: Exception) {
                 // The previous encrypted file exists but is unreadable. Commit a tombstone first;
                 // only then may the unreadable encrypted and old plaintext files be removed.
@@ -66,15 +67,15 @@ private fun createAndroidSessionStore(context: Context): SessionStore {
                 )
                 clearPreviousEncrypted()
                 clearPreviousPlaintext()
+                previousEncryptedReadFailed = true
                 null
             }
         } else {
             null
         }
 
-    if (currentRecord == null && previousEncryptedPresent && previousEncrypted == null) {
-        // The unreadable-store recovery above has already committed a logout tombstone and cleared
-        // both old stores. Do not try a plaintext fallback in this launch.
+    if (previousEncryptedReadFailed) {
+        // Never fall back to plaintext after any error reading a non-empty encrypted store.
         return AtomicSessionRecordStore(target, androidLegacySessionKeys())
     }
 
@@ -82,7 +83,7 @@ private fun createAndroidSessionStore(context: Context): SessionStore {
         AndroidSessionStorageMigration.migrate(
             target = target,
             previousEncrypted = previousEncrypted,
-            previousEncryptedStorePresent = previousEncryptedPresent,
+            previousEncryptedStorePresent = previousEncrypted != null,
             previousPlaintext = PlainPreferencesKeyValueStore(previousPlaintextPreferences),
             legacyKeys = androidLegacySessionKeys(),
             clearPreviousEncrypted = clearPreviousEncrypted,
@@ -164,6 +165,13 @@ private class LegacyEncryptedPrefsKeyValueStore(
     context: Context,
 ) : SessionKeyValueStore {
     private val prefs = createLegacyEncryptedPreferences(context)
+
+    fun hasLogicalEntries(): Boolean =
+        try {
+            prefs.all.isNotEmpty()
+        } catch (exception: Exception) {
+            throw LegacyAndroidEncryptedStoreReadException(exception)
+        }
 
     override fun get(key: String): String? =
         try {
