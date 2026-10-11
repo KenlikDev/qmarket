@@ -1,5 +1,7 @@
 package com.kenlikdev.qmarket.network
 
+import com.kenlikdev.qmarket.api.AuthResponseDto
+import com.kenlikdev.qmarket.api.UserDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -71,6 +73,43 @@ class AtomicSessionRecordStoreTest {
         assertNull(restarted.readRefreshToken())
         assertNull(restarted.readEmail())
         assertEquals("stale-refresh", storage.entries[legacyKeys.refreshToken])
+    }
+
+    @Test
+    fun committedTombstoneClearsMemoryEvenWhenLegacyCleanupFails() {
+        val storage = FakeSessionKeyValueStore()
+        val store = AtomicSessionRecordStore(storage, legacyKeys)
+        val provider = MutableTokenProvider(store)
+        provider.applyAuth(
+            AuthResponseDto(
+                accessToken = "active-access",
+                refreshToken = "active-refresh",
+                expiresIn = 60,
+                user = UserDto(id = "u1", email = "active@qmarket.test"),
+            ),
+        )
+
+        // Model leftover entries that the current app no longer trusts, but must clean up.
+        storage.entries[legacyKeys.accessToken] = "stale-access"
+        storage.entries[legacyKeys.refreshToken] = "stale-refresh"
+        storage.entries[legacyKeys.email] = "stale@qmarket.test"
+        storage.failRemoveKeys += legacyKeys.refreshToken
+
+        assertFailsWith<SessionClearedWithCleanupFailure> {
+            provider.clear()
+        }
+
+        assertNull(provider.accessToken())
+        assertNull(provider.refreshToken())
+        assertNull(provider.sessionEmail())
+        assertFalse(provider.hasSession())
+
+        // A newly created store after process restart still obeys the committed tombstone.
+        val restarted = MutableTokenProvider(AtomicSessionRecordStore(storage, legacyKeys))
+        assertNull(restarted.accessToken())
+        assertNull(restarted.refreshToken())
+        assertNull(restarted.sessionEmail())
+        assertFalse(restarted.hasSession())
     }
 
     @Test
