@@ -32,8 +32,14 @@ class AndroidSessionStorageMigrationTest {
             encrypted = encrypted,
             encryptedPresent = true,
             plaintext = plaintext,
-            clearEncrypted = { encrypted.entries.clear(); encryptedCleared = true },
-            clearPlaintext = { plaintext.entries.clear(); plaintextCleared = true },
+            clearEncrypted = {
+                encrypted.entries.clear()
+                encryptedCleared = true
+            },
+            clearPlaintext = {
+                plaintext.entries.clear()
+                plaintextCleared = true
+            },
         )
 
         assertEquals(AndroidSessionMigrationSource.CURRENT_KEYSTORE_RECORD, source)
@@ -93,7 +99,10 @@ class AndroidSessionStorageMigrationTest {
             encrypted = encrypted,
             encryptedPresent = true,
             plaintext = plaintext,
-            clearEncrypted = { encrypted.entries.clear(); encryptedCleared = true },
+            clearEncrypted = {
+                encrypted.entries.clear()
+                encryptedCleared = true
+            },
             clearPlaintext = { plaintext.entries.clear() },
         )
 

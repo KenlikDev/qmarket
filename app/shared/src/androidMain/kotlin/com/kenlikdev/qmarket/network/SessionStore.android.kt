@@ -117,18 +117,29 @@ private class AndroidKeystoreSessionKeyValueStore(
         context.getSharedPreferences(KEYSTORE_PREFS_NAME, Context.MODE_PRIVATE)
 
     override fun get(key: String): String? {
-        val encrypted = prefs.getString(key, null) ?: return null
+        val encrypted =
+            try {
+                prefs.getString(key, null) ?: return null
+            } catch (exception: Exception) {
+                return invalidValueOrThrow(key, exception)
+            }
         return try {
             AndroidKeystoreValueCipher.decrypt(key, encrypted)
         } catch (exception: Exception) {
-            if (key == SESSION_RECORD_KEY) {
-                // Return a non-null invalid record so AtomicSessionRecordStore invalidates it as a
-                // tombstone. Returning null here could make a legacy plaintext session win.
-                CORRUPT_SESSION_RECORD_MARKER
-            } else {
-                throw IllegalStateException("Unable to read Android session storage", exception)
-            }
+            invalidValueOrThrow(key, exception)
         }
+    }
+
+    private fun invalidValueOrThrow(
+        key: String,
+        cause: Exception,
+    ): String {
+        if (key == SESSION_RECORD_KEY) {
+            // Return a non-null invalid record so AtomicSessionRecordStore invalidates it as a
+            // tombstone. Returning null here could make a legacy plaintext session win.
+            return CORRUPT_SESSION_RECORD_MARKER
+        }
+        throw IllegalStateException("Unable to read Android session storage", cause)
     }
 
     override fun put(
