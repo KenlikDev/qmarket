@@ -16,8 +16,19 @@ class AndroidSessionStorageMigrationTest {
 
     @Test
     fun currentCanonicalRecordWinsAndOldStoresAreCleared() {
-        val target = store(record("current-a", "current-r", "current@qmarket.test"))
-        val encrypted = store(record("old-encrypted-a", "old-encrypted-r", "old-encrypted@qmarket.test"))
+        val target =
+            store(
+                mapOf(
+                    SESSION_RECORD_KEY to record("current-a", "current-r", "current@qmarket.test"),
+                ),
+            )
+        val encrypted =
+            store(
+                mapOf(
+                    SESSION_RECORD_KEY to
+                        record("old-encrypted-a", "old-encrypted-r", "old-encrypted@qmarket.test"),
+                ),
+            )
         val plaintext = store(
             mapOf(
                 keys.accessToken to "old-plain-a",
@@ -55,9 +66,13 @@ class AndroidSessionStorageMigrationTest {
 
     @Test
     fun existingLogoutTombstoneCannotBeOverwrittenByLegacyTokens() {
-        val target = store(
-            SessionRecordCodec.encode(StoredSessionRecord(cleared = true)),
-        )
+        val target =
+            store(
+                mapOf(
+                    SESSION_RECORD_KEY to
+                        SessionRecordCodec.encode(StoredSessionRecord(cleared = true)),
+                ),
+            )
         val encrypted = store(
             mapOf(
                 keys.accessToken to "old-encrypted-a",
