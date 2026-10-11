@@ -161,7 +161,12 @@ class QMarketAppModelTest {
                     override fun clear(): Unit = error("persistent storage unavailable")
                 }
             val tokens = MutableTokenProvider(store)
-            val networkEngine = MockEngine { error("server logout must not run before local clear succeeds") }
+            var remoteLogoutRequested = false
+            val networkEngine =
+                MockEngine {
+                    remoteLogoutRequested = true
+                    respond(content = ByteReadChannel.Empty, status = HttpStatusCode.NoContent)
+                }
             val api = QMarketApiClient(httpClient(networkEngine))
             val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = true)
             model.loggedIn = true
@@ -176,6 +181,7 @@ class QMarketAppModelTest {
             assertEquals("u@test.local", model.userLabel)
             assertEquals(AppScreen.Catalog, model.screen)
             assertEquals("active-access", tokens.accessToken())
+            assertFalse(remoteLogoutRequested)
         }
 
     @Test
