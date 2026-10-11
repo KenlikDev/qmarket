@@ -6,6 +6,7 @@ import com.kenlikdev.qmarket.api.UserDto
 import com.kenlikdev.qmarket.network.InMemorySessionStore
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
+import com.kenlikdev.qmarket.network.SessionClearedWithCleanupFailure
 import com.kenlikdev.qmarket.network.SessionStore
 import com.kenlikdev.qmarket.ui.AppScreen
 import io.ktor.client.HttpClient
@@ -175,6 +176,45 @@ class QMarketAppModelTest {
             assertEquals("u@test.local", model.userLabel)
             assertEquals(AppScreen.Catalog, model.screen)
             assertEquals("active-access", tokens.accessToken())
+        }
+
+    @Test
+    fun logoutFinishesLocallyWhenTombstoneCommittedButLegacyCleanupFails() =
+        runBlocking {
+            val store =
+                object : SessionStore {
+                    override fun readAccessToken(): String? = "active-access"
+
+                    override fun readRefreshToken(): String? = null
+
+                    override fun readEmail(): String? = "u@test.local"
+
+                    override fun write(
+                        accessToken: String,
+                        refreshToken: String,
+                        email: String?,
+                    ) = Unit
+
+                    override fun clear(): Unit =
+                        throw SessionClearedWithCleanupFailure(
+                            IllegalStateException("legacy key could not be removed"),
+                        )
+                }
+            val tokens = MutableTokenProvider(store)
+            val api = QMarketApiClient(httpClient(mockEngine()))
+            val model = QMarketAppModel(api, tokens, modelScope(), restoredSession = true)
+            model.loggedIn = true
+            model.userLabel = "u@test.local"
+            model.screen = AppScreen.Catalog
+
+            model.logout().join()
+
+            assertFalse(model.loading)
+            assertTrue(model.error?.contains("legacy session storage") == true)
+            assertFalse(model.loggedIn)
+            assertNull(model.userLabel)
+            assertEquals(AppScreen.Login, model.screen)
+            assertNull(tokens.accessToken())
         }
 
     @Test
