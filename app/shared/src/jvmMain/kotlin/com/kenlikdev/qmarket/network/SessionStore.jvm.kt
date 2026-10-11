@@ -88,13 +88,14 @@ class FileSessionStore(
 
     private fun restrictPermissions(path: Path) {
         try {
-            Files.setPosixFilePermissions(
-                path,
-                EnumSet.of(
-                    PosixFilePermission.OWNER_READ,
-                    PosixFilePermission.OWNER_WRITE,
-                ),
-            )
+            val permissions =
+                if (Files.isDirectory(path)) {
+                    // Directories require execute permission to be traversed.
+                    EnumSet.of(OWNER_READ, OWNER_WRITE, OWNER_EXECUTE)
+                } else {
+                    EnumSet.of(OWNER_READ, OWNER_WRITE)
+                }
+            Files.setPosixFilePermissions(path, permissions)
         } catch (_: UnsupportedOperationException) {
             // Non-POSIX filesystems use their platform's user permissions.
         }
