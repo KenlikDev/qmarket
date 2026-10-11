@@ -19,6 +19,10 @@ class StripePaymentHostViewModel(
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val _paymentResult = MutableStateFlow(loadSavedResult())
+
+    // Survives Activity recreation with this ViewModel, but deliberately isn't persisted:
+    // after process death the host may need to recover a stale routing record.
+    private var presentationActive = false
     val paymentResult: StateFlow<StripePaymentResultEvent?> = _paymentResult.asStateFlow()
 
     val pendingOrderId: String?
@@ -30,7 +34,13 @@ class StripePaymentHostViewModel(
             // Never let a late Activity Result for an older sheet be attributed to another order.
             return false
         }
+        if (presentationActive || _paymentResult.value != null) {
+            // Prevent a second PaymentSheet from opening while the current attempt/result is active,
+            // including a rapid second click for the same order.
+            return false
+        }
         savedStateHandle[KEY_PENDING_ORDER_ID] = orderId
+        presentationActive = true
         return true
     }
 
@@ -56,6 +66,7 @@ class StripePaymentHostViewModel(
         savedStateHandle[KEY_RESULT_EVENT_ID] = event.eventId
         savedStateHandle[KEY_RESULT_ORDER_ID] = event.orderId
         savedStateHandle[KEY_RESULT_VALUE] = event.result.name
+        presentationActive = false
         _paymentResult.value = event
     }
 
@@ -64,6 +75,7 @@ class StripePaymentHostViewModel(
         if (current.eventId != eventId) return
 
         _paymentResult.value = null
+        presentationActive = false
         savedStateHandle.remove<Long>(KEY_RESULT_EVENT_ID)
         savedStateHandle.remove<String>(KEY_RESULT_ORDER_ID)
         savedStateHandle.remove<String>(KEY_RESULT_VALUE)
