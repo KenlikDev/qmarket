@@ -12,6 +12,8 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+internal const val SESSION_RECORD_KEY = "qmarket.session.v2"
+
 /**
  * Single-key persistence adapter. Each platform maps one key write to an atomic native operation:
  * localStorage.setItem, one Keychain item update, or one committed SharedPreferences editor.
@@ -181,7 +183,4 @@ internal class AtomicSessionRecordStore(
         }
     }
 
-    private companion object {
-        const val SESSION_RECORD_KEY = "qmarket.session.v2"
-    }
 }
