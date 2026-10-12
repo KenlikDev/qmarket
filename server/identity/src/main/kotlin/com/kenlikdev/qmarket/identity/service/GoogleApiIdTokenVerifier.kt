@@ -23,10 +23,16 @@ import java.security.GeneralSecurityException
 class GoogleApiIdTokenVerifier(
     private val props: GoogleOAuthProperties,
 ) : GoogleIdTokenVerifier {
-    private val verifier: GoogleApiVerifier by lazy {
-        val audiences = props.clientIds.map(String::trim).filter(String::isNotEmpty)
-        require(audiences.isNotEmpty()) { "At least one Google OAuth client ID must be configured" }
+    private val audiences =
+        props.clientIds
+            .map(String::trim)
+            .filter(String::isNotEmpty)
 
+    init {
+        require(audiences.isNotEmpty()) { "At least one Google OAuth client ID must be configured" }
+    }
+
+    private val verifier: GoogleApiVerifier by lazy {
         try {
             GoogleApiVerifier
                 .Builder(
@@ -61,10 +67,15 @@ class GoogleApiIdTokenVerifier(
 
         val payload = verified.payload
         val email =
-            payload.email?.trim()?.lowercase()
+            payload.email
+                ?.trim()
+                ?.lowercase()
+                ?.ifBlank { null }
                 ?: throw UnauthorizedException("Google token missing email")
         val subject =
-            payload.subject?.trim()
+            payload.subject
+                ?.trim()
+                ?.ifBlank { null }
                 ?: throw UnauthorizedException("Google token missing sub")
         val emailVerified = payload.emailVerified ?: false
         if (props.requireEmailVerified && !emailVerified) {
