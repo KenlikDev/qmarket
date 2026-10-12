@@ -1,11 +1,12 @@
 package com.kenlikdev.qmarket.identity.service
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier as GoogleApiVerifier
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Component
 import java.io.IOException
 import java.security.GeneralSecurityException
@@ -17,16 +18,17 @@ import java.security.GeneralSecurityException
  * and expiration claims before this adapter exposes the identity claims used by QMarket.
  */
 @Component
+@Primary
 @ConditionalOnProperty(name = ["qmarket.security.oauth.google.enabled"], havingValue = "true")
 class GoogleApiIdTokenVerifier(
     private val props: GoogleOAuthProperties,
 ) : GoogleIdTokenVerifier {
-    private val verifier: GoogleIdTokenVerifier by lazy {
+    private val verifier: GoogleApiVerifier by lazy {
         val audiences = props.clientIds.map(String::trim).filter(String::isNotEmpty)
         require(audiences.isNotEmpty()) { "At least one Google OAuth client ID must be configured" }
 
         try {
-            GoogleIdTokenVerifier
+            GoogleApiVerifier
                 .Builder(
                     GoogleNetHttpTransport.newTrustedTransport(),
                     JacksonFactory.getDefaultInstance(),
