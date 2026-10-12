@@ -56,7 +56,8 @@ class GoogleApiIdTokenVerifier(
             throw UnauthorizedException("Google idToken is too long")
         }
 
-        val verified = try {
+        val verified =
+            try {
             verifier.verify(token)
         } catch (_: IOException) {
             throw UnauthorizedException("Unable to verify Google ID token")
