@@ -37,9 +37,7 @@ class GoogleApiIdTokenVerifier(
             GoogleApiVerifier.Builder(
                 GoogleNetHttpTransport.newTrustedTransport(),
                 JacksonFactory.getDefaultInstance(),
-            )
-                .setAudience(audiences)
-                .build()
+            ).setAudience(audiences).build()
         } catch (ex: GeneralSecurityException) {
             throw IllegalStateException("Unable to initialize Google ID token verification", ex)
         } catch (ex: IOException) {
@@ -58,12 +56,12 @@ class GoogleApiIdTokenVerifier(
 
         val verified =
             try {
-            verifier.verify(token)
-        } catch (_: IOException) {
-            throw UnauthorizedException("Unable to verify Google ID token")
-        } catch (_: GeneralSecurityException) {
-            throw UnauthorizedException("Unable to verify Google ID token")
-        } ?: throw UnauthorizedException("Invalid Google ID token")
+                verifier.verify(token)
+            } catch (_: IOException) {
+                throw UnauthorizedException("Unable to verify Google ID token")
+            } catch (_: GeneralSecurityException) {
+                throw UnauthorizedException("Unable to verify Google ID token")
+            } ?: throw UnauthorizedException("Invalid Google ID token")
 
         val payload = verified.payload
         val email =
