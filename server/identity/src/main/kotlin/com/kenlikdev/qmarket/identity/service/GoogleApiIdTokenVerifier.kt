@@ -22,13 +22,16 @@ class GoogleApiIdTokenVerifier(
     private val props: GoogleOAuthProperties,
 ) : GoogleIdTokenVerifier {
     private val verifier: GoogleIdTokenVerifier by lazy {
+        val audiences = props.clientIds.map(String::trim).filter(String::isNotEmpty)
+        require(audiences.isNotEmpty()) { "At least one Google OAuth client ID must be configured" }
+
         try {
             GoogleIdTokenVerifier
                 .Builder(
                     GoogleNetHttpTransport.newTrustedTransport(),
                     JacksonFactory.getDefaultInstance(),
                 )
-                .setAudience(props.normalizedClientIds())
+                .setAudience(audiences)
                 .build()
         } catch (ex: GeneralSecurityException) {
             throw IllegalStateException("Unable to initialize Google ID token verification", ex)
@@ -42,16 +45,17 @@ class GoogleApiIdTokenVerifier(
         if (token.isEmpty()) {
             throw UnauthorizedException("Google idToken must not be blank")
         }
+        if (token.length > MAX_ID_TOKEN_LENGTH) {
+            throw UnauthorizedException("Google idToken is too long")
+        }
 
-        val verified =
-            try {
-                verifier.verify(token)
-            } catch (_: IOException) {
-                throw UnauthorizedException("Unable to verify Google ID token")
-            } catch (_: GeneralSecurityException) {
-                throw UnauthorizedException("Unable to verify Google ID token")
-            }
-                ?: throw UnauthorizedException("Invalid Google ID token")
+        val verified = try {
+            verifier.verify(token)
+        } catch (_: IOException) {
+            throw UnauthorizedException("Unable to verify Google ID token")
+        } catch (_: GeneralSecurityException) {
+            throw UnauthorizedException("Unable to verify Google ID token")
+        } ?: throw UnauthorizedException("Invalid Google ID token")
 
         val payload = verified.payload
         val email =
@@ -72,5 +76,9 @@ class GoogleApiIdTokenVerifier(
             givenName = payload.givenName?.trim()?.ifBlank { null },
             familyName = payload.familyName?.trim()?.ifBlank { null },
         )
+    }
+
+    private companion object {
+        const val MAX_ID_TOKEN_LENGTH = 16_384
     }
 }

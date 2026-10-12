@@ -31,6 +31,7 @@ dependencyManagement {
 
 dependencies {
     api(project(":server:common"))
+    implementation("com.google.api-client:google-api-client:2.8.1")
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.mockk)
