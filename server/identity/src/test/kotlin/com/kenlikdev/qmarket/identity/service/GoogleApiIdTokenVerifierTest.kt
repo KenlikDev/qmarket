@@ -16,6 +16,24 @@ class GoogleApiIdTokenVerifierTest {
     private val verifier = GoogleApiIdTokenVerifier(props)
 
     @Test
+    fun `rejects missing Google client ids during construction`() {
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                GoogleApiIdTokenVerifier(
+                    GoogleOAuthProperties(
+                        enabled = true,
+                        clientIds = listOf(" ", ""),
+                    ),
+                )
+            }
+
+        assertEquals(
+            "At least one Google OAuth client ID must be configured",
+            exception.message,
+        )
+    }
+
+    @Test
     fun `rejects blank id token`() {
         val exception =
             assertThrows<UnauthorizedException> {
