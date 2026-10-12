@@ -1,9 +1,9 @@
 package com.kenlikdev.qmarket.identity.service
 
-import com.kenlikdev.qmarket.common.exception.UnauthorizedException
-import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.json.jackson2.JacksonFactory
+import com.kenlikdev.qmarket.common.exception.UnauthorizedException
+import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Primary
 import org.springframework.stereotype.Component
