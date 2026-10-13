@@ -34,13 +34,10 @@ class GoogleApiIdTokenVerifier(
 
     private val verifier: GoogleApiVerifier by lazy {
         try {
-            GoogleApiVerifier
-                .Builder(
-                    GoogleNetHttpTransport.newTrustedTransport(),
-                    JacksonFactory.getDefaultInstance(),
-                )
-                .setAudience(audiences)
-                .build()
+            GoogleApiVerifier.Builder(
+                GoogleNetHttpTransport.newTrustedTransport(),
+                JacksonFactory.getDefaultInstance(),
+            ).setAudience(audiences).build()
         } catch (ex: GeneralSecurityException) {
             throw IllegalStateException("Unable to initialize Google ID token verification", ex)
         } catch (ex: IOException) {
