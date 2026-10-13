@@ -22,6 +22,7 @@ import java.util.UUID
 class AuthControllerTest {
     private lateinit var mockMvc: MockMvc
     private lateinit var authService: AuthService
+    private lateinit var browserRefreshCookies: BrowserRefreshCookieSupport
 
     private val sampleResponse =
         AuthResponse(
@@ -41,9 +42,17 @@ class AuthControllerTest {
     @BeforeEach
     fun setUp() {
         authService = mockk()
+        browserRefreshCookies =
+            BrowserRefreshCookieSupport(
+                allowedOriginsSetting = "https://app.test",
+                cookieName = "__Secure-qmarket_web_refresh",
+                secure = true,
+                sameSiteSetting = "Strict",
+                refreshTokenExpirationMs = 604_800_000,
+            )
         mockMvc =
             MockMvcBuilders
-                .standaloneSetup(AuthController(authService))
+                .standaloneSetup(AuthController(authService, browserRefreshCookies))
                 .setControllerAdvice(GlobalExceptionHandler())
                 .build()
     }
