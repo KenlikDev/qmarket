@@ -52,9 +52,12 @@ The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and 
 ## Manual smoke (when UI changes)
 
 1. Login admin → catalog → add to cart → checkout → pay → orders.
-2. Android Stripe sandbox: create a session, complete a test payment requiring 3DS where available, and verify the UI does not show PAID until the server webhook has updated the order.
-3. Android Stripe sandbox: rotate/recreate the host Activity while PaymentSheet is open, then verify its result still refreshes the correct order without persisting/logging the client secret.
-4. Android Stripe sandbox: cancel the sheet and simulate a declined payment; verify the order remains PENDING, can be retried, and can still be cancelled.
 2. Register new user (password ≥ 8).
 3. Profile: reject digit-only name; phone accepts only digits/`+`.
 4. Addresses: add, set default; checkout with saved address.
+5. Android Stripe sandbox: create a session, complete a test payment requiring 3DS where available, and verify the UI does not show PAID until the server webhook has updated the order.
+6. Android Stripe sandbox: rotate/recreate the host Activity while PaymentSheet is open, then verify its result still refreshes the correct order without persisting/logging the client secret.
+7. Android Stripe sandbox: cancel the sheet and simulate a declined payment; verify the order remains PENDING, can be retried, and can still be cancelled.
+8. Android session-store migration: upgrade an install with existing EncryptedSharedPreferences, verify the session survives restart, and verify the old encrypted/plaintext preferences are cleared after migration.
+9. Android session-store migration: upgrade an install with only legacy plaintext keys; verify values are moved into the Keystore-backed canonical record and no plaintext keys remain.
+10. Android session-store logout: clear the session, force-stop/restart, and verify old split keys do not restore the session.

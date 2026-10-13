@@ -15,7 +15,7 @@
 - JWT configuration rejects missing or known placeholder secrets.
 - Production disables anonymous Swagger/OpenAPI access, limits actuator exposure, and requires database/JWT credentials.
 - Production error responses and SQL logging use safe defaults.
-- Android session storage uses encrypted preferences; iOS uses Keychain; JVM/JS/Wasm use target-appropriate stores.
+- Android stores the canonical session record as AES-GCM ciphertext using a non-exportable Android Keystore key. Existing EncryptedSharedPreferences and legacy plaintext sessions migrate to the canonical record, then old files are cleared; the deprecated crypto dependency is retained only as a read-only migration source. iOS uses Keychain; JVM/JS/Wasm use target-appropriate stores.
 - Password fields are masked in the shared Compose UI, and transient session-restore failures no longer destroy a valid local session.
 
 ### Payments

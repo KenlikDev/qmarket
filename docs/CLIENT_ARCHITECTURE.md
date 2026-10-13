@@ -45,3 +45,14 @@ Logout first commits a cleared-session tombstone, then attempts to remove legacy
 - The PaymentSheet callback is treated as a client-side UX result only. The app reloads the order from the API; only the server's verified Stripe webhook can make an order `PAID`.
 - The Android UI keeps a completed PaymentSheet distinct from a server-confirmed paid order. If the webhook has not updated the order yet, the order stays `PENDING` and the user can refresh.
 - Native Stripe confirmation is currently implemented only for Android. iOS, Desktop, JS and Wasm fail closed and do not create a PaymentIntent from an unsupported client. This is a partial milestone for issue #182, not full multi-platform payment completion.
+
+## Android session storage
+
+- Active session values are stored as a single canonical record encrypted with AES-GCM using a non-exportable key held by Android Keystore.
+- The encrypted payload authenticates its preference-key name as AES-GCM additional authenticated data. A corrupt or unreadable canonical record fails closed; it is never replaced with an older token tuple.
+- The old `EncryptedSharedPreferences` file is read-only migration input. After the new canonical record is committed, both legacy encrypted and plaintext preference files are cleared.
+- The encrypted legacy file wins over plaintext legacy values. If it exists but cannot be decrypted, the app commits a cleared tombstone before deleting old files; it does not fall back to plaintext tokens.
+- Logout's canonical cleared tombstone remains authoritative across restart and interrupted cleanup.
+- `androidx.security:security-crypto` remains temporarily as a migration-only dependency so already-installed app versions can be upgraded without losing the ability to decrypt their existing sessions. Current writes do not use that deprecated API.
+
+Android device migration/Keystore smoke tests are still required before release; host CI covers the migration precedence logic, not hardware-backed Keystore behavior.

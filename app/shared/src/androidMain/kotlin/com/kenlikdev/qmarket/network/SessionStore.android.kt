@@ -2,8 +2,17 @@ package com.kenlikdev.qmarket.network
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
+import java.nio.charset.StandardCharsets
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 private var androidAppContext: Context? = null
 
@@ -12,115 +21,295 @@ fun initAndroidSessionStore(context: Context) {
 }
 
 /**
- * Android session store backed by EncryptedSharedPreferences (AES-256).
- * The session itself is one encrypted value, committed synchronously so storage failures surface.
+ * Android session store using an AES-GCM key held by Android Keystore.
+ *
+ * The session tuple remains one encrypted SharedPreferences value, committed synchronously.
+ * The deprecated EncryptedSharedPreferences API is used only as a one-time read-only migration
+ * source for sessions created by older versions; all current writes use Android Keystore directly.
  */
-class AndroidEncryptedSessionStore(
+class AndroidKeystoreSessionStore(
     context: Context,
-) : SessionStore by AtomicSessionRecordStore(
-        storage = EncryptedPrefsKeyValueStore(context),
-        legacyKeys =
-            LegacySessionKeys(
-                accessToken = LEGACY_KEY_ACCESS,
-                refreshToken = LEGACY_KEY_REFRESH,
-                email = LEGACY_KEY_EMAIL,
-            ),
-    )
+) : SessionStore by createAndroidSessionStore(context)
 
-/** Key-value adapter used by [AtomicSessionRecordStore]; each put/remove is a committed editor. */
-private class EncryptedPrefsKeyValueStore(
-    context: Context,
-) : SessionKeyValueStore {
-    private val prefs: SharedPreferences = createEncryptedPrefs(context)
-
-    init {
-        migrateFromPlainPrefsIfNeeded(context, prefs)
+private fun createAndroidSessionStore(context: Context): SessionStore {
+    val target = AndroidKeystoreSessionKeyValueStore(context)
+    val previousEncryptedPreferences =
+        context.getSharedPreferences(LEGACY_ENCRYPTED_PREFS_NAME, Context.MODE_PRIVATE)
+    val previousPlaintextPreferences =
+        context.getSharedPreferences(LEGACY_PLAINTEXT_PREFS_NAME, Context.MODE_PRIVATE)
+    val clearPreviousEncrypted = {
+        check(previousEncryptedPreferences.edit().clear().commit()) {
+            "Unable to clear previous encrypted Android session storage"
+        }
+    }
+    val clearPreviousPlaintext = {
+        check(previousPlaintextPreferences.edit().clear().commit()) {
+            "Unable to clear previous plaintext Android session storage"
+        }
     }
 
-    override fun get(key: String): String? = prefs.getString(key, null)?.ifBlank { null }
+    // If the new canonical record already exists (including a logout tombstone), do not even
+    // initialize the old cryptographic store. A broken legacy key must never override current data.
+    val currentRecord = target.get(SESSION_RECORD_KEY)
+    val previousEncryptedFilePresent =
+        if (currentRecord != null) {
+            false
+        } else {
+            try {
+                previousEncryptedPreferences.all.isNotEmpty()
+            } catch (_: Exception) {
+                // If the legacy preferences file itself is unreadable, fail closed. The canonical
+                // tombstone must be committed before cleanup and before any plaintext fallback.
+                target.put(
+                    SESSION_RECORD_KEY,
+                    SessionRecordCodec.encode(StoredSessionRecord(cleared = true)),
+                )
+                clearPreviousEncrypted()
+                clearPreviousPlaintext()
+                return AtomicSessionRecordStore(target, androidLegacySessionKeys())
+            }
+        }
+    var previousEncryptedReadFailed = false
+    val previousEncrypted =
+        if (currentRecord == null && previousEncryptedFilePresent) {
+            try {
+                LegacyEncryptedPrefsKeyValueStore(context).takeIf { it.hasLogicalEntries() }
+            } catch (_: Exception) {
+                // The previous encrypted file exists but is unreadable. Commit a tombstone first;
+                // only then may the unreadable encrypted and old plaintext files be removed.
+                target.put(
+                    SESSION_RECORD_KEY,
+                    SessionRecordCodec.encode(StoredSessionRecord(cleared = true)),
+                )
+                clearPreviousEncrypted()
+                clearPreviousPlaintext()
+                previousEncryptedReadFailed = true
+                null
+            }
+        } else {
+            null
+        }
+
+    if (previousEncryptedReadFailed) {
+        // Never fall back to plaintext after any error reading a non-empty encrypted store.
+        return AtomicSessionRecordStore(target, androidLegacySessionKeys())
+    }
+
+    try {
+        AndroidSessionStorageMigration.migrate(
+            target = target,
+            previousEncrypted = previousEncrypted,
+            previousEncryptedStorePresent = previousEncrypted != null,
+            previousPlaintext = PlainPreferencesKeyValueStore(previousPlaintextPreferences),
+            legacyKeys = androidLegacySessionKeys(),
+            clearPreviousEncrypted = clearPreviousEncrypted,
+            clearPreviousPlaintext = clearPreviousPlaintext,
+        )
+    } catch (_: LegacyAndroidEncryptedStoreReadException) {
+        // An old encrypted value failed to decrypt. Fail closed instead of importing plaintext
+        // tokens; the tombstone is durable before either legacy file is touched.
+        target.put(
+            SESSION_RECORD_KEY,
+            SessionRecordCodec.encode(StoredSessionRecord(cleared = true)),
+        )
+        clearPreviousEncrypted()
+        clearPreviousPlaintext()
+    }
+
+    return AtomicSessionRecordStore(target, androidLegacySessionKeys())
+}
+
+private fun androidLegacySessionKeys() =
+    LegacySessionKeys(
+        accessToken = LEGACY_KEY_ACCESS,
+        refreshToken = LEGACY_KEY_REFRESH,
+        email = LEGACY_KEY_EMAIL,
+    )
+
+/** Current storage: each preference value is independently AES-GCM protected by Android Keystore. */
+private class AndroidKeystoreSessionKeyValueStore(
+    context: Context,
+) : SessionKeyValueStore {
+    private val prefs =
+        context.getSharedPreferences(KEYSTORE_PREFS_NAME, Context.MODE_PRIVATE)
+
+    override fun get(key: String): String? {
+        val encrypted =
+            try {
+                prefs.getString(key, null) ?: return null
+            } catch (exception: Exception) {
+                return invalidValueOrThrow(key, exception)
+            }
+        return try {
+            AndroidKeystoreValueCipher.decrypt(key, encrypted)
+        } catch (exception: Exception) {
+            invalidValueOrThrow(key, exception)
+        }
+    }
+
+    private fun invalidValueOrThrow(
+        key: String,
+        cause: Exception,
+    ): String {
+        if (key == SESSION_RECORD_KEY) {
+            // Commit the tombstone here, before migration code can clear legacy stores. If the
+            // Keystore key itself is unavailable, put() throws and old stores remain untouched.
+            val tombstone = SessionRecordCodec.encode(StoredSessionRecord(cleared = true))
+            put(SESSION_RECORD_KEY, tombstone)
+            return tombstone
+        }
+        throw IllegalStateException("Unable to read Android session storage", cause)
+    }
 
     override fun put(
         key: String,
         value: String,
     ) {
-        check(prefs.edit().putString(key, value).commit()) {
+        val encrypted = AndroidKeystoreValueCipher.encrypt(key, value)
+        check(prefs.edit().putString(key, encrypted).commit()) {
             "Unable to persist Android session storage"
         }
     }
 
     override fun remove(key: String) {
         check(prefs.edit().remove(key).commit()) {
-            "Unable to remove Android session storage entry: $key"
+            "Unable to remove Android session storage entry"
         }
     }
+}
+
+/** Read-only adapter for the previous EncryptedSharedPreferences format. */
+private class LegacyEncryptedPrefsKeyValueStore(
+    context: Context,
+) : SessionKeyValueStore {
+    private val prefs = createLegacyEncryptedPreferences(context)
+
+    fun hasLogicalEntries(): Boolean =
+        try {
+            prefs.all.isNotEmpty()
+        } catch (exception: Exception) {
+            throw LegacyAndroidEncryptedStoreReadException(exception)
+        }
+
+    override fun get(key: String): String? =
+        try {
+            prefs.getString(key, null)?.ifBlank { null }
+        } catch (exception: Exception) {
+            throw LegacyAndroidEncryptedStoreReadException(exception)
+        }
+
+    override fun put(
+        key: String,
+        value: String,
+    ): Unit = error("The previous encrypted Android session store is read-only")
+
+    override fun remove(key: String): Unit = error("The previous encrypted Android session store is read-only")
 
     private companion object {
-        const val ENCRYPTED_PREFS_NAME = "qmarket_session_secure"
-        const val LEGACY_PREFS_NAME = "qmarket_session"
-
-        fun createEncryptedPrefs(context: Context): SharedPreferences {
+        fun createLegacyEncryptedPreferences(context: Context): SharedPreferences {
             val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
             return EncryptedSharedPreferences.create(
-                ENCRYPTED_PREFS_NAME,
+                LEGACY_ENCRYPTED_PREFS_NAME,
                 masterKeyAlias,
                 context,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
             )
         }
-
-        /**
-         * One-time migration from the old plain preferences file to the encrypted preferences.
-         * Never re-import plaintext tokens if the canonical record or encrypted legacy keys exist:
-         * a cleared canonical tombstone must take precedence over stale legacy data.
-         */
-        fun migrateFromPlainPrefsIfNeeded(
-            context: Context,
-            encrypted: SharedPreferences,
-        ) {
-            val legacy =
-                context.getSharedPreferences(LEGACY_PREFS_NAME, Context.MODE_PRIVATE)
-
-            if (encrypted.contains(SESSION_RECORD_KEY) ||
-                encrypted.contains(LEGACY_KEY_ACCESS) ||
-                encrypted.contains(LEGACY_KEY_REFRESH)
-            ) {
-                if (legacy.all.isNotEmpty()) {
-                    check(legacy.edit().clear().commit()) {
-                        "Unable to clear stale plaintext Android session storage"
-                    }
-                }
-                return
-            }
-
-            val access = legacy.getString(LEGACY_KEY_ACCESS, null)
-            val refresh = legacy.getString(LEGACY_KEY_REFRESH, null)
-            val email = legacy.getString(LEGACY_KEY_EMAIL, null)
-            if (access.isNullOrBlank() && refresh.isNullOrBlank()) {
-                if (legacy.all.isNotEmpty()) {
-                    check(legacy.edit().clear().commit()) {
-                        "Unable to clear stale plaintext Android session storage"
-                    }
-                }
-                return
-            }
-
-            check(
-                encrypted.edit()
-                    .putString(LEGACY_KEY_ACCESS, access)
-                    .putString(LEGACY_KEY_REFRESH, refresh)
-                    .putString(LEGACY_KEY_EMAIL, email)
-                    .commit(),
-            ) {
-                "Unable to migrate Android session storage"
-            }
-            check(legacy.edit().clear().commit()) {
-                "Unable to clear legacy Android session storage"
-            }
-        }
     }
 }
 
+private class PlainPreferencesKeyValueStore(
+    private val prefs: SharedPreferences,
+) : SessionKeyValueStore {
+    override fun get(key: String): String? =
+        try {
+            prefs.getString(key, null)?.ifBlank { null }
+        } catch (exception: ClassCastException) {
+            throw IllegalStateException("Previous plaintext Android session data has an invalid type", exception)
+        }
+
+    override fun put(
+        key: String,
+        value: String,
+    ): Unit = error("Previous plaintext Android session storage is read-only")
+
+    override fun remove(key: String): Unit = error("Previous plaintext Android session storage is read-only")
+}
+
+/**
+ * Encrypts each value with AES-GCM using a non-exportable Android Keystore key.
+ * The preference key is authenticated as AAD to prevent ciphertext swapping between fields.
+ */
+private object AndroidKeystoreValueCipher {
+    private const val KEY_ALIAS = "com.kenlikdev.qmarket.session.aes.v1"
+    private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
+    private const val PREFIX = "qk1:"
+    private const val IV_LENGTH_BYTES = 12
+    private const val TAG_LENGTH_BITS = 128
+
+    @Synchronized
+    fun encrypt(
+        preferenceKey: String,
+        plaintext: String,
+    ): String {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey(create = true))
+        cipher.updateAAD(preferenceKey.toByteArray(StandardCharsets.UTF_8))
+        val iv = requireNotNull(cipher.iv)
+        check(iv.size == IV_LENGTH_BYTES) { "Unexpected Android Keystore AES-GCM IV length" }
+        val ciphertext = cipher.doFinal(plaintext.toByteArray(StandardCharsets.UTF_8))
+        val payload = iv + ciphertext
+        return PREFIX + Base64.encodeToString(payload, Base64.NO_WRAP)
+    }
+
+    @Synchronized
+    fun decrypt(
+        preferenceKey: String,
+        encoded: String,
+    ): String {
+        require(encoded.startsWith(PREFIX)) { "Unknown Android session storage format" }
+        val payload = Base64.decode(encoded.removePrefix(PREFIX), Base64.NO_WRAP)
+        require(payload.size > IV_LENGTH_BYTES + TAG_LENGTH_BITS / 8) {
+            "Android session ciphertext is truncated"
+        }
+        val iv = payload.copyOfRange(0, IV_LENGTH_BYTES)
+        val ciphertext = payload.copyOfRange(IV_LENGTH_BYTES, payload.size)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            getOrCreateKey(create = false),
+            GCMParameterSpec(TAG_LENGTH_BITS, iv),
+        )
+        cipher.updateAAD(preferenceKey.toByteArray(StandardCharsets.UTF_8))
+        return cipher.doFinal(ciphertext).toString(StandardCharsets.UTF_8)
+    }
+
+    private fun getOrCreateKey(create: Boolean): SecretKey {
+        val keyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
+        val existing = keyStore.getKey(KEY_ALIAS, null) as? SecretKey
+        if (existing != null) return existing
+
+        check(create) { "Android Keystore session key is unavailable" }
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE_PROVIDER)
+        generator.init(
+            KeyGenParameterSpec.Builder(
+                KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .setRandomizedEncryptionRequired(true)
+                .build(),
+        )
+        return generator.generateKey()
+    }
+}
+
+private const val KEYSTORE_PREFS_NAME = "qmarket_session_keystore_v1"
+private const val LEGACY_ENCRYPTED_PREFS_NAME = "qmarket_session_secure"
+private const val LEGACY_PLAINTEXT_PREFS_NAME = "qmarket_session"
 private const val LEGACY_KEY_ACCESS = "accessToken"
 private const val LEGACY_KEY_REFRESH = "refreshToken"
 private const val LEGACY_KEY_EMAIL = "email"
@@ -128,7 +317,7 @@ private const val LEGACY_KEY_EMAIL = "email"
 actual fun createPlatformSessionStore(): SessionStore {
     val context = androidAppContext
     return if (context != null) {
-        AndroidEncryptedSessionStore(context)
+        AndroidKeystoreSessionStore(context)
     } else {
         InMemorySessionStore()
     }

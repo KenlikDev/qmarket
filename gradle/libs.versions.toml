@@ -37,7 +37,8 @@ mockk = "1.14.11"
 archunit = "1.4.1"
 
 [libraries]
-androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "androidx-security-crypto" }
+# Deprecated API retained only to decrypt sessions created by older app versions.
+androidx-security-crypto-migration = { module = "androidx.security:security-crypto", version.ref = "androidx-security-crypto" }
 stripe-android = { module = "com.stripe:stripe-android", version.ref = "stripe-android" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit4 = { module = "junit:junit", version = "4.13.2" }
