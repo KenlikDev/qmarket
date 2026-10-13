@@ -38,7 +38,9 @@ class GoogleApiIdTokenVerifier(
                 .Builder(
                     GoogleNetHttpTransport.newTrustedTransport(),
                     JacksonFactory.getDefaultInstance(),
-                ).setAudience(audiences).build()
+                )
+                .setAudience(audiences)
+                .build()
         } catch (ex: GeneralSecurityException) {
             throw IllegalStateException("Unable to initialize Google ID token verification", ex)
         } catch (ex: IOException) {
