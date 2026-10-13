@@ -1,26 +1,26 @@
 package com.kenlikdev.qmarket.network
 
-import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.AuthResponseDto
-import com.kenlikdev.qmarket.api.UpdateProductRequestDto
+import com.kenlikdev.qmarket.api.CreateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.QMarketJson
-import com.kenlikdev.qmarket.api.UserDto
 import com.kenlikdev.qmarket.api.RefreshTokenRequestDto
-import io.ktor.client.HttpClient
+import com.kenlikdev.qmarket.api.UpdateProductRequestDto
+import com.kenlikdev.qmarket.api.UserDto
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
-import io.ktor.client.request.get
+import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.http.headersOf
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.test.runTest
-import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.Test
 
 class QMarketApiClientTest {
     private fun clientWith(engine: MockEngine): HttpClient =
@@ -678,7 +678,4 @@ class QMarketApiClientTest {
             } finally {
                 client.close()
             }
-        }
-
-
-}
+        }\n}

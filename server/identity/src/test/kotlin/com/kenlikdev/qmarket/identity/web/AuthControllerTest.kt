@@ -4,21 +4,21 @@ import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.GlobalExceptionHandler
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.identity.dto.AuthResponse
+import com.kenlikdev.qmarket.identity.dto.RefreshTokenRequest
 import com.kenlikdev.qmarket.identity.dto.UserResponse
 import com.kenlikdev.qmarket.identity.service.AuthService
-import jakarta.servlet.http.Cookie
-import com.kenlikdev.qmarket.identity.dto.RefreshTokenRequest
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.BeforeEach
+import jakarta.servlet.http.Cookie
 import org.hamcrest.Matchers.containsString
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import java.util.UUID
@@ -226,6 +226,7 @@ class AuthControllerTest {
                     ),
             ).andExpect(status().isBadRequest)
     }
+
     @Test
     fun `browser login stores refresh token only in a secure HttpOnly cookie`() {
         every { authService.login(any(), any()) } returns sampleResponse
@@ -294,7 +295,4 @@ class AuthControllerTest {
             .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
 
         verify(exactly = 1) { authService.logout(RefreshTokenRequest("cookie-refresh")) }
-    }
-
-
-}
+    }\n}

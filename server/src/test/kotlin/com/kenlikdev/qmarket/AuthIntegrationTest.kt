@@ -1,10 +1,9 @@
 package com.kenlikdev.qmarket
 
-import org.junit.jupiter.api.Test
-import java.util.UUID
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assertions.assertNotEquals
 import jakarta.servlet.http.Cookie
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -14,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.util.UUID
 
 /**
  * Auth API against Testcontainers PostgreSQL (jdbc:tc URL in application-test.yml).
@@ -114,6 +114,7 @@ class AuthIntegrationTest {
                     .content(body),
             ).andExpect(status().isConflict)
     }
+
     @Test
     fun `browser refresh token stays in a cookie across rotation and logout`() {
         val email = "browser-session-${UUID.randomUUID()}@test.local"
@@ -178,7 +179,4 @@ class AuthIntegrationTest {
         val clearCookie = requireNotNull(logoutResponse.getHeader("Set-Cookie")) as String
         assertTrue(clearCookie.contains("Max-Age=0"))
         assertTrue(clearCookie.contains("HttpOnly"))
-    }
-
-
-}
+    }\n}
