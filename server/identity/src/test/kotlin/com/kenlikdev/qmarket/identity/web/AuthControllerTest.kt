@@ -311,5 +311,4 @@ class AuthControllerTest {
             ).andExpect(status().isUnauthorized)
             .andExpect(header().doesNotExist("Set-Cookie"))
     }
-
 }
