@@ -65,17 +65,12 @@ class AuthController(
             }
 
         if (refreshToken.isNullOrBlank()) {
-            if (browserRequest) browserRefreshCookies.clearRefreshCookie(httpResponse)
             throw UnauthorizedException("Invalid refresh token")
         }
 
-        val auth =
-            try {
-                authService.refresh(RefreshTokenRequest(refreshToken))
-            } catch (exception: UnauthorizedException) {
-                if (browserRequest) browserRefreshCookies.clearRefreshCookie(httpResponse)
-                throw exception
-            }
+        // Do not clear a cookie on refresh failure. Another browser tab may have already rotated the
+        // cookie successfully; a late 401 response must not erase the newer credential.
+        val auth = authService.refresh(RefreshTokenRequest(refreshToken))
 
         return browserRefreshCookies.applyToResponse(auth, browserRequest, httpResponse)
     }

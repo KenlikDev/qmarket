@@ -296,4 +296,20 @@ class AuthControllerTest {
 
         verify(exactly = 1) { authService.logout(RefreshTokenRequest("cookie-refresh")) }
     }
+
+    @Test
+    fun `browser refresh failure does not clear a potentially rotated cookie`() {
+        every { authService.refresh(RefreshTokenRequest("stale-refresh")) } throws
+            UnauthorizedException("Refresh token already used")
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/refresh")
+                    .header("X-QMarket-Web-Auth", "1")
+                    .header("Origin", "https://app.test")
+                    .cookie(Cookie("__Secure-qmarket_web_refresh", "stale-refresh")),
+            ).andExpect(status().isUnauthorized)
+            .andExpect(header().doesNotExist("Set-Cookie"))
+    }
+
 }
