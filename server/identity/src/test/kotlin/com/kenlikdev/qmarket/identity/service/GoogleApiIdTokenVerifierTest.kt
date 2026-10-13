@@ -2,9 +2,9 @@ package com.kenlikdev.qmarket.identity.service
 
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.identity.config.GoogleOAuthProperties
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import kotlin.test.assertEquals
 
 class GoogleApiIdTokenVerifierTest {
     private val props =
@@ -14,6 +14,24 @@ class GoogleApiIdTokenVerifierTest {
         )
 
     private val verifier = GoogleApiIdTokenVerifier(props)
+
+    @Test
+    fun `rejects missing Google client ids during construction`() {
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                GoogleApiIdTokenVerifier(
+                    GoogleOAuthProperties(
+                        enabled = true,
+                        clientIds = listOf(" ", ""),
+                    ),
+                )
+            }
+
+        assertEquals(
+            "At least one Google OAuth client ID must be configured",
+            exception.message,
+        )
+    }
 
     @Test
     fun `rejects blank id token`() {
