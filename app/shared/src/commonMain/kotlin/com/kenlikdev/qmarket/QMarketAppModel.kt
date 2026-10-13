@@ -208,9 +208,15 @@ class QMarketAppModel(
 
     suspend fun restoreSessionIfNeeded(restoredSession: Boolean) {
         if (!restoredSession) return
+        val browserCookieBootstrap = api.browserCookieAuth && tokens.accessToken().isNullOrBlank()
+        var browserCookieRestored = false
         loading = true
         error = null
         try {
+            if (browserCookieBootstrap) {
+                tokens.applyAuth(api.refreshBrowserSession())
+                browserCookieRestored = true
+            }
             val currentProfile = api.getProfile()
             tokens.applyRoles(currentProfile.roles)
             isAdmin = tokens.isAdmin()
@@ -230,11 +236,17 @@ class QMarketAppModel(
                 val cleanupError = clearSessionState()
                 screen = AppScreen.Login
                 error =
-                    if (cleanupError == null) {
+                    if (browserCookieBootstrap && !browserCookieRestored) {
+                        null
+                    } else if (cleanupError == null) {
                         "Session expired — please sign in again"
                     } else {
                         "Session expired — local session cleanup failed"
                     }
+            } else if (browserCookieBootstrap && !browserCookieRestored) {
+                loggedIn = false
+                screen = AppScreen.Login
+                error = e.message
             } else {
                 loggedIn = true
                 userLabel = tokens.sessionEmail()
@@ -244,12 +256,18 @@ class QMarketAppModel(
                 error = e.message
             }
         } catch (e: Exception) {
-            loggedIn = true
-            userLabel = tokens.sessionEmail()
-            isAdmin = tokens.isAdmin()
-            canManageStore = tokens.canManageStore()
-            screen = AppScreen.Catalog
-            error = e.message ?: "Unable to restore session data"
+            if (browserCookieBootstrap && !browserCookieRestored) {
+                loggedIn = false
+                screen = AppScreen.Login
+                error = e.message ?: "Unable to verify browser session"
+            } else {
+                loggedIn = true
+                userLabel = tokens.sessionEmail()
+                isAdmin = tokens.isAdmin()
+                canManageStore = tokens.canManageStore()
+                screen = AppScreen.Catalog
+                error = e.message ?: "Unable to restore session data"
+            }
         } finally {
             loading = false
         }

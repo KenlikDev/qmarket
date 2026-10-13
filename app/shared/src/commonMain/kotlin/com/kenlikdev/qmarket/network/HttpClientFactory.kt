@@ -12,6 +12,7 @@ import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.post
+import io.ktor.client.request.header
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -29,6 +30,7 @@ import io.ktor.serialization.kotlinx.json.json
 fun HttpClientConfig<*>.qMarketConfig(
     baseUrl: String,
     tokenProvider: TokenProvider? = null,
+    browserCookieAuth: Boolean = false,
 ) {
     val normalized = baseUrl.trimEnd('/')
 
@@ -63,40 +65,48 @@ fun HttpClientConfig<*>.qMarketConfig(
                 }
 
                 refreshTokens {
-                    val currentRefresh =
-                        oldTokens?.refreshToken
-                            ?.takeIf(String::isNotBlank)
-                            ?: return@refreshTokens null
+                    val previousAccess = oldTokens?.accessToken
+                    val currentRefresh = oldTokens?.refreshToken?.takeIf(String::isNotBlank)
+                    if (!browserCookieAuth && currentRefresh == null) return@refreshTokens null
+                    if (browserCookieAuth && previousAccess.isNullOrBlank()) return@refreshTokens null
 
                     val response =
                         client.post("/api/v1/auth/refresh") {
                             markAsRefreshTokenRequest()
                             contentType(ContentType.Application.Json)
-                            setBody(
-                                RefreshTokenRequestDto(
-                                    refreshToken = currentRefresh,
-                                ),
-                            )
+                            if (browserCookieAuth) {
+                                header("X-QMarket-Web-Auth", "1")
+                            } else {
+                                setBody(
+                                    RefreshTokenRequestDto(
+                                        refreshToken = requireNotNull(currentRefresh),
+                                    ),
+                                )
+                            }
                         }
 
                     if (response.status != HttpStatusCode.OK) {
-                        if (tokenProvider is MutableTokenProvider && tokenProvider.refreshToken() == currentRefresh) {
-                            tokenProvider.clear()
+                        if (tokenProvider is MutableTokenProvider) {
+                            val stillCurrent =
+                                if (browserCookieAuth) tokenProvider.accessToken() == previousAccess
+                                else tokenProvider.refreshToken() == currentRefresh
+                            if (stillCurrent) tokenProvider.clear()
                         }
                         return@refreshTokens null
                     }
 
                     val auth = response.body<AuthResponseDto>()
-                    if (tokenProvider is MutableTokenProvider && tokenProvider.refreshToken() == currentRefresh) {
+                    if (tokenProvider is MutableTokenProvider) {
+                        val stillCurrent =
+                            if (browserCookieAuth) tokenProvider.accessToken() == previousAccess
+                            else tokenProvider.refreshToken() == currentRefresh
+                        if (!stillCurrent) return@refreshTokens null
                         tokenProvider.applyAuth(auth)
                     } else {
                         return@refreshTokens null
                     }
 
-                    BearerTokens(
-                        accessToken = auth.accessToken,
-                        refreshToken = auth.refreshToken,
-                    )
+                    BearerTokens(accessToken = auth.accessToken, refreshToken = auth.refreshToken)
                 }
 
                 sendWithoutRequest { request ->

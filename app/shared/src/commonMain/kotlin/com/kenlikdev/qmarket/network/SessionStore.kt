@@ -20,6 +20,9 @@ interface SessionStore {
     fun clear()
 }
 
+/** Marks the JS/browser store that uses an HttpOnly refresh cookie and memory-only access tokens. */
+internal interface BrowserCookieSessionStore : SessionStore
+
 /** In-memory store for tests and platforms that have not initialized persistence. */
 class InMemorySessionStore : SessionStore {
     private var record = StoredSessionRecord()

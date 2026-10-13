@@ -58,6 +58,7 @@ import io.ktor.http.isSuccess
  */
 class QMarketApiClient(
     private val http: HttpClient,
+    val browserCookieAuth: Boolean = false,
 ) {
     /**
      * Ktor Auth caches BearerTokens after the first loadTokens call.
@@ -81,12 +82,19 @@ class QMarketApiClient(
     suspend fun refresh(request: RefreshTokenRequestDto): AuthResponseDto =
         post("/api/v1/auth/refresh", request)
 
+    /** Bootstrap a browser session using its HttpOnly refresh cookie after a page reload. */
+    suspend fun refreshBrowserSession(): AuthResponseDto {
+        check(browserCookieAuth) { "Cookie-based browser session is not enabled for this client" }
+        return postEmpty("/api/v1/auth/refresh")
+    }
+
     suspend fun logout(refreshToken: String) {
         runCatchingCancellable {
-            postNoContent(
-                "/api/v1/auth/logout",
-                RefreshTokenRequestDto(refreshToken = refreshToken),
-            )
+            if (browserCookieAuth) {
+                postNoContent("/api/v1/auth/logout")
+            } else {
+                postNoContent("/api/v1/auth/logout", RefreshTokenRequestDto(refreshToken = refreshToken))
+            }
         }
     }
 
@@ -347,13 +355,25 @@ class QMarketApiClient(
             http.post(path) {
                 contentType(ContentType.Application.Json)
                 setBody(body)
+                if (browserCookieAuth && path.startsWith("/api/v1/auth/")) header("X-QMarket-Web-Auth", "1")
             }
         return response.parseBody()
     }
 
     private suspend inline fun <reified Res> postEmpty(path: String): Res {
-        val response = http.post(path)
+        val response =
+            http.post(path) {
+                if (browserCookieAuth && path.startsWith("/api/v1/auth/")) header("X-QMarket-Web-Auth", "1")
+            }
         return response.parseBody()
+    }
+
+    private suspend fun postNoContent(path: String) {
+        val response =
+            http.post(path) {
+                if (browserCookieAuth && path.startsWith("/api/v1/auth/")) header("X-QMarket-Web-Auth", "1")
+            }
+        response.ensureSuccess()
     }
 
     private suspend inline fun <reified Req : Any> postNoContent(
@@ -364,6 +384,7 @@ class QMarketApiClient(
             http.post(path) {
                 contentType(ContentType.Application.Json)
                 setBody(body)
+                if (browserCookieAuth && path.startsWith("/api/v1/auth/")) header("X-QMarket-Web-Auth", "1")
             }
         response.ensureSuccess()
     }
