@@ -1,6 +1,7 @@
 package com.kenlikdev.qmarket.network
 
 import com.kenlikdev.qmarket.api.CreateProductRequestDto
+import com.kenlikdev.qmarket.api.AuthResponseDto
 import com.kenlikdev.qmarket.api.UpdateProductRequestDto
 import com.kenlikdev.qmarket.api.LoginRequestDto
 import com.kenlikdev.qmarket.api.QMarketJson
@@ -9,6 +10,7 @@ import com.kenlikdev.qmarket.api.RefreshTokenRequestDto
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.request.get
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -619,5 +621,64 @@ class QMarketApiClientTest {
                 client.close()
             }
         }
+
+    @Test
+    fun browserCookieAuthRefreshesWithoutPersistentRefreshToken() =
+        runTest {
+            val provider = MutableTokenProvider(InMemorySessionStore())
+            provider.applyAuth(
+                AuthResponseDto(
+                    accessToken = "old-access",
+                    refreshToken = "",
+                    expiresIn = 60,
+                    user = UserDto(id = "1", email = "a@b.c"),
+                ),
+            )
+            var protectedRequests = 0
+            var refreshRequests = 0
+
+            val engine =
+                MockEngine { request ->
+                    when (request.url.encodedPath) {
+                        "/api/v1/protected" -> {
+                            protectedRequests += 1
+                            if (protectedRequests == 1) {
+                                respond(content = ByteReadChannel(""), status = HttpStatusCode.Unauthorized)
+                            } else {
+                                assertEquals("Bearer new-access", request.headers[HttpHeaders.Authorization])
+                                respond(content = ByteReadChannel("{}"), status = HttpStatusCode.OK)
+                            }
+                        }
+                        "/api/v1/auth/refresh" -> {
+                            refreshRequests += 1
+                            assertEquals("1", request.headers["X-QMarket-Web-Auth"])
+                            respond(
+                                content =
+                                    ByteReadChannel(
+                                        """{"accessToken":"new-access","refreshToken":"","tokenType":"Bearer","expiresIn":60,"user":{"id":"1","email":"a@b.c"}}""",
+                                    ),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        }
+                        else -> error("Unexpected request: ${request.url}")
+                    }
+                }
+            val client =
+                HttpClient(engine) {
+                    qMarketConfig("https://api.test", provider, browserCookieAuth = true)
+                }
+            try {
+                val response = client.get("/api/v1/protected")
+                assertEquals(HttpStatusCode.OK, response.status)
+                assertEquals(2, protectedRequests)
+                assertEquals(1, refreshRequests)
+                assertEquals("new-access", provider.accessToken())
+                assertEquals("", provider.refreshToken())
+            } finally {
+                client.close()
+            }
+        }
+
 
 }

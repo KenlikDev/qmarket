@@ -16,7 +16,7 @@
 - Android: one encrypted SharedPreferences value, committed synchronously. The existing plaintext `qmarket_session` preferences and old encrypted split keys are migrated forward.
 - iOS: one Keychain item (CFDictionary / CFData) for the complete session; old per-field Keychain accounts are migrated forward.
 - JVM/Desktop: one private `session.properties` file replaced through a temporary file and atomic move where supported. On POSIX, the containing directory is owner-only and traversable (`0700`); the session file is owner read/write only (`0600`).
-- Browser JS: one canonical `localStorage` value with migration from the previous three keys. This prevents partial multi-key session updates but **does not protect tokens from same-origin JavaScript/XSS**; see the separate browser-auth hardening task.
+- Browser JS: the short-lived access token stays in memory; the rotating refresh token is an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth` by default. Browser refresh/logout requires the `X-QMarket-Web-Auth: 1` header plus an allowed `Origin`; the cookie is not used to authenticate ordinary API calls. The JS session store is memory-only and removes legacy token-bearing `localStorage` keys on startup, so users must sign in again once after upgrading. This reduces refresh-token exfiltration by XSS but does not prevent malicious same-origin script from performing actions while the page is active.
 - Wasm: in-memory session only; full page reload discards it.
 
 Logout first commits a cleared-session tombstone, then attempts to remove legacy entries. The canonical tombstone takes precedence over any stale legacy keys, preventing a later launch from resurrecting a session if legacy cleanup fails. If the tombstone write itself fails, the app preserves the in-memory/UI session and does not request server refresh-token revocation; if the tombstone commits but legacy cleanup fails, the app completes local logout and surfaces a cleanup warning. Remote refresh-token revocation is attempted only after durable local logout. Session-store regression tests cover migration, failed writes, partial cleanup, process/store recreation, and desktop file permissions.
@@ -56,3 +56,11 @@ Logout first commits a cleared-session tombstone, then attempts to remove legacy
 - `androidx.security:security-crypto` remains temporarily as a migration-only dependency so already-installed app versions can be upgraded without losing the ability to decrypt their existing sessions. Current writes do not use that deprecated API.
 
 Android device migration/Keystore smoke tests are still required before release; host CI covers the migration precedence logic, not hardware-backed Keystore behavior.
+
+
+### Browser refresh-cookie configuration
+
+- Configure `QMARKET_WEB_AUTH_ALLOWED_ORIGINS` with exact trusted web origins in production (scheme + host + port, no path). Browser cookie operations reject absent or untrusted `Origin` headers even if the general CORS list is broader.
+- Keep `CORS_ORIGINS` aligned with those origins so credentialed fetch requests can pass preflight.
+- Defaults use Secure + HttpOnly + SameSite=Strict. If the web app and API are genuinely cross-site, explicitly configure SameSite=None and retain Secure; verify deployment topology and CSRF behavior before enabling it.
+- Native clients continue sending refresh tokens in JSON and receive them in JSON. Only requests carrying the valid browser marker switch to cookie-based refresh.

@@ -26,6 +26,7 @@ The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and 
 | Integration | `server/src/test` + Testcontainers | Real Postgres + full HTTP stack |
 | ArchUnit | `ModuleArchitectureTest` | Module boundaries |
 | API client | `app/shared` commonTest + MockEngine | DTO parsing, error mapping, refresh |
+| Browser authentication | `AuthIntegrationTest` + controller/client tests | HttpOnly refresh cookie, rotation, logout clearing, allowed-Origin rejection, and refresh after page reload |
 | Client validation | `ClientInputValidationTest` | Form rules match server intent |
 | Catalog/checkout rules | `CatalogFilterParamsTest`, `CheckoutSelectionTest` | Same objects the UI calls |
 | Session store | `MutableTokenProviderTest`, `InMemorySessionStoreTest` | Persist + reload tokens |
@@ -61,3 +62,12 @@ The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and 
 8. Android session-store migration: upgrade an install with existing EncryptedSharedPreferences, verify the session survives restart, and verify the old encrypted/plaintext preferences are cleared after migration.
 9. Android session-store migration: upgrade an install with only legacy plaintext keys; verify values are moved into the Keystore-backed canonical record and no plaintext keys remain.
 10. Android session-store logout: clear the session, force-stop/restart, and verify old split keys do not restore the session.
+
+
+## Browser refresh-cookie smoke
+
+1. Verify login/register places the refresh JWT only in the `HttpOnly; Secure; SameSite` cookie; the JSON response's `refreshToken` field must be empty.
+2. Reload the page. The JS store must contain no persistent tokens, and the client must refresh using the cookie before loading the profile.
+3. Confirm logout clears the cookie and a subsequent reload does not restore the previous session.
+4. Verify an untrusted Origin is rejected for cookie refresh/logout. Configure exact `QMARKET_WEB_AUTH_ALLOWED_ORIGINS` and matching `CORS_ORIGINS` before browser runtime testing.
+5. Upgrading from the older JS client removes the token-bearing legacy `localStorage` keys; the user must sign in again once.
