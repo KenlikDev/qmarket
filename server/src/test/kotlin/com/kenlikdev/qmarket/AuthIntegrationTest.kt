@@ -179,4 +179,5 @@ class AuthIntegrationTest {
         val clearCookie = requireNotNull(logoutResponse.getHeader("Set-Cookie")) as String
         assertTrue(clearCookie.contains("Max-Age=0"))
         assertTrue(clearCookie.contains("HttpOnly"))
-    }\n}
+    }
+}

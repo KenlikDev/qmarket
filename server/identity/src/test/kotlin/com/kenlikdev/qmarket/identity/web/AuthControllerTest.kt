@@ -295,4 +295,5 @@ class AuthControllerTest {
             .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
 
         verify(exactly = 1) { authService.logout(RefreshTokenRequest("cookie-refresh")) }
-    }\n}
+    }
+}
