@@ -1,5 +1,8 @@
 package com.kenlikdev.qmarket
 
+import jakarta.servlet.http.Cookie
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -10,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import java.util.UUID
 
 /**
  * Auth API against Testcontainers PostgreSQL (jdbc:tc URL in application-test.yml).
@@ -109,5 +113,71 @@ class AuthIntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body),
             ).andExpect(status().isConflict)
+    }
+
+    @Test
+    fun `browser refresh token stays in a cookie across rotation and logout`() {
+        val email = "browser-session-${UUID.randomUUID()}@test.local"
+        val credentials = """{"email":"$email","password":"password123"}"""
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(credentials),
+            ).andExpect(status().isCreated)
+
+        val loginResponse =
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/login")
+                        .header("X-QMarket-Web-Auth", "1")
+                        .header("Origin", "http://localhost:8080")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(credentials),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.refreshToken").value(""))
+                .andReturn()
+                .response
+
+        val cookieName = "__Secure-qmarket_web_refresh"
+        val loginSetCookie = requireNotNull(loginResponse.getHeader("Set-Cookie")) as String
+        assertTrue(loginSetCookie.contains("HttpOnly"))
+        assertTrue(loginSetCookie.contains("Secure"))
+        assertTrue(loginSetCookie.contains("SameSite=Strict"))
+        assertTrue(loginSetCookie.contains("Path=/api/v1/auth"))
+        val loginCookieValue = loginSetCookie.substringAfter("$cookieName=").substringBefore(";")
+        assertTrue(loginCookieValue.isNotBlank())
+
+        val refreshResponse =
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/refresh")
+                        .header("X-QMarket-Web-Auth", "1")
+                        .header("Origin", "http://localhost:8080")
+                        .cookie(Cookie(cookieName, loginCookieValue)),
+                ).andExpect(status().isOk)
+                .andExpect(jsonPath("$.refreshToken").value(""))
+                .andReturn()
+                .response
+
+        val refreshSetCookie = requireNotNull(refreshResponse.getHeader("Set-Cookie")) as String
+        val rotatedCookieValue = refreshSetCookie.substringAfter("$cookieName=").substringBefore(";")
+        assertNotEquals(loginCookieValue, rotatedCookieValue)
+
+        val logoutResponse =
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/logout")
+                        .header("X-QMarket-Web-Auth", "1")
+                        .header("Origin", "http://localhost:8080")
+                        .cookie(Cookie(cookieName, rotatedCookieValue)),
+                ).andExpect(status().isNoContent)
+                .andReturn()
+                .response
+
+        val clearCookie = requireNotNull(logoutResponse.getHeader("Set-Cookie")) as String
+        assertTrue(clearCookie.contains("Max-Age=0"))
+        assertTrue(clearCookie.contains("HttpOnly"))
     }
 }

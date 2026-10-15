@@ -4,16 +4,20 @@ import com.kenlikdev.qmarket.common.exception.ConflictException
 import com.kenlikdev.qmarket.common.exception.GlobalExceptionHandler
 import com.kenlikdev.qmarket.common.exception.UnauthorizedException
 import com.kenlikdev.qmarket.identity.dto.AuthResponse
+import com.kenlikdev.qmarket.identity.dto.RefreshTokenRequest
 import com.kenlikdev.qmarket.identity.dto.UserResponse
 import com.kenlikdev.qmarket.identity.service.AuthService
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import jakarta.servlet.http.Cookie
+import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -22,6 +26,7 @@ import java.util.UUID
 class AuthControllerTest {
     private lateinit var mockMvc: MockMvc
     private lateinit var authService: AuthService
+    private lateinit var browserRefreshCookies: BrowserRefreshCookieSupport
 
     private val sampleResponse =
         AuthResponse(
@@ -41,9 +46,17 @@ class AuthControllerTest {
     @BeforeEach
     fun setUp() {
         authService = mockk()
+        browserRefreshCookies =
+            BrowserRefreshCookieSupport(
+                allowedOriginsSetting = "https://app.test",
+                cookieName = "__Secure-qmarket_web_refresh",
+                secure = true,
+                sameSiteSetting = "Strict",
+                refreshTokenExpirationMs = 604_800_000,
+            )
         mockMvc =
             MockMvcBuilders
-                .standaloneSetup(AuthController(authService))
+                .standaloneSetup(AuthController(authService, browserRefreshCookies))
                 .setControllerAdvice(GlobalExceptionHandler())
                 .build()
     }
@@ -212,5 +225,90 @@ class AuthControllerTest {
                         """{"email":"$oversizedEmail","password":"password123","firstName":"$oversizedFirstName","lastName":"$oversizedLastName"}""",
                     ),
             ).andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `browser login stores refresh token only in a secure HttpOnly cookie`() {
+        every { authService.login(any(), any()) } returns sampleResponse
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .header("X-QMarket-Web-Auth", "1")
+                    .header("Origin", "https://app.test")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"email":"user@test.com","password":"password123"}"""),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.accessToken").value("access-token"))
+            .andExpect(jsonPath("$.refreshToken").value(""))
+            .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
+            .andExpect(header().string("Set-Cookie", containsString("Secure")))
+            .andExpect(header().string("Set-Cookie", containsString("SameSite=Strict")))
+            .andExpect(header().string("Set-Cookie", containsString("Path=/api/v1/auth")))
+    }
+
+    @Test
+    fun `browser auth rejects an untrusted Origin before issuing tokens`() {
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .header("X-QMarket-Web-Auth", "1")
+                    .header("Origin", "https://attacker.test")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"email":"user@test.com","password":"password123"}"""),
+            ).andExpect(status().isForbidden)
+
+        verify(exactly = 0) { authService.login(any(), any()) }
+    }
+
+    @Test
+    fun `browser refresh rotates the HttpOnly cookie without returning its token in JSON`() {
+        every { authService.refresh(RefreshTokenRequest("cookie-refresh")) } returns
+            sampleResponse.copy(refreshToken = "rotated-refresh")
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/refresh")
+                    .header("X-QMarket-Web-Auth", "1")
+                    .header("Origin", "https://app.test")
+                    .cookie(Cookie("__Secure-qmarket_web_refresh", "cookie-refresh")),
+            ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.refreshToken").value(""))
+            .andExpect(header().string("Set-Cookie", containsString("rotated-refresh")))
+            .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
+
+        verify(exactly = 1) { authService.refresh(RefreshTokenRequest("cookie-refresh")) }
+    }
+
+    @Test
+    fun `browser logout revokes cookie token and clears the cookie`() {
+        every { authService.logout(RefreshTokenRequest("cookie-refresh")) } returns Unit
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/logout")
+                    .header("X-QMarket-Web-Auth", "1")
+                    .header("Origin", "https://app.test")
+                    .cookie(Cookie("__Secure-qmarket_web_refresh", "cookie-refresh")),
+            ).andExpect(status().isNoContent)
+            .andExpect(header().string("Set-Cookie", containsString("Max-Age=0")))
+            .andExpect(header().string("Set-Cookie", containsString("HttpOnly")))
+
+        verify(exactly = 1) { authService.logout(RefreshTokenRequest("cookie-refresh")) }
+    }
+
+    @Test
+    fun `browser refresh failure does not clear a potentially rotated cookie`() {
+        every { authService.refresh(RefreshTokenRequest("stale-refresh")) } throws
+            UnauthorizedException("Refresh token already used")
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/refresh")
+                    .header("X-QMarket-Web-Auth", "1")
+                    .header("Origin", "https://app.test")
+                    .cookie(Cookie("__Secure-qmarket_web_refresh", "stale-refresh")),
+            ).andExpect(status().isUnauthorized)
+            .andExpect(header().doesNotExist("Set-Cookie"))
     }
 }

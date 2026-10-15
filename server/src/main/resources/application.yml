@@ -108,6 +108,13 @@ qmarket:
     cors:
       # Comma-separated origin patterns (not * in production)
       allowed-origin-patterns: ${CORS_ORIGINS:http://localhost:*,http://127.0.0.1:*,http://10.0.2.2:*}
+    web-auth:
+      # Configure exact production web origins separately from general CORS.
+      allowed-origins: ${QMARKET_WEB_AUTH_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}
+      refresh-cookie:
+        name: ${QMARKET_WEB_REFRESH_COOKIE_NAME:__Secure-qmarket_web_refresh}
+        secure: ${QMARKET_WEB_REFRESH_COOKIE_SECURE:true}
+        same-site: ${QMARKET_WEB_AUTH_COOKIE_SAME_SITE:Strict}
     # Fail closed by default; local development profile explicitly enables anonymous docs.
     api-docs-public: ${QMARKET_API_DOCS_PUBLIC:false}
     oauth:

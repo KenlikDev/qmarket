@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import com.kenlikdev.qmarket.api.PaymentSessionDto
+import com.kenlikdev.qmarket.network.BrowserCookieSessionStore
 import com.kenlikdev.qmarket.network.MutableTokenProvider
 import com.kenlikdev.qmarket.network.QMarketApiClient
 import com.kenlikdev.qmarket.network.StripePaymentResult
@@ -46,6 +47,7 @@ fun App(
 
     MaterialTheme {
         val sessionStore = remember { createPlatformSessionStore() }
+        val browserCookieAuth = remember(sessionStore) { sessionStore is BrowserCookieSessionStore }
         val tokens = remember { MutableTokenProvider(sessionStore) }
         val http =
             remember {
@@ -54,7 +56,7 @@ fun App(
                     tokenProvider = tokens,
                 )
             }
-        val api = remember(http) { QMarketApiClient(http) }
+        val api = remember(http, browserCookieAuth) { QMarketApiClient(http, browserCookieAuth) }
         val scope = rememberCoroutineScope()
         val initialSession = remember { tokens.hasSession() }
         val model =
@@ -74,7 +76,7 @@ fun App(
         val appReady = remember(model) { CompletableDeferred<Unit>() }
         LaunchedEffect(model) {
             try {
-                model.restoreSessionIfNeeded(initialSession)
+                model.restoreSessionIfNeeded(initialSession || browserCookieAuth)
             } finally {
                 // A restored payment result must not race session restoration and lose its
                 // navigation/state update to a late Catalog assignment.

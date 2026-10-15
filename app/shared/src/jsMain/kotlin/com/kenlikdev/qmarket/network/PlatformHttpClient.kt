@@ -8,5 +8,10 @@ actual fun createPlatformHttpClient(
     tokenProvider: TokenProvider?,
 ): HttpClient =
     HttpClient(Js) {
-        qMarketConfig(baseUrl, tokenProvider)
+        engine {
+            configureRequest {
+                credentials = "include"
+            }
+        }
+        qMarketConfig(baseUrl, tokenProvider, browserCookieAuth = true)
     }
