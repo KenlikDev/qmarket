@@ -264,7 +264,7 @@ actual fun launchBrowserStripeClientConfirmation(
  * those fields from browser history before normal application requests resume.
  */
 private fun buildStripeReturnUrl(orderId: String): String {
-    val url = js("new URL(window.location.href)") as dynamic
+    val url = js("new URL(window.location.href)")
     val params = url.searchParams
     params.set("qmarketOrderId", orderId)
     params.delete("payment_intent")
@@ -275,7 +275,7 @@ private fun buildStripeReturnUrl(orderId: String): String {
 
 actual fun consumeBrowserStripeClientReturn(): StripeConfirmationReturn? {
     val browserWindow = window.asDynamic()
-    val url = js("new URL(window.location.href)") as dynamic
+    val url = js("new URL(window.location.href)")
     val params = url.searchParams
     val hasStripeReturnFields =
         (params.has("payment_intent") as Boolean) ||
