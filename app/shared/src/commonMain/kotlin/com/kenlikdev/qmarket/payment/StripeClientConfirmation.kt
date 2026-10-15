@@ -43,13 +43,13 @@ fun StripeConfirmationOutcome.toStripePaymentResult(): StripePaymentResult =
     }
 
 /** Whether this runtime has a real Stripe confirmation adapter, not merely session creation. */
-expect val supportsStripeClientConfirmation: Boolean
+expect val supportsBrowserStripeClientConfirmation: Boolean
 
 /**
  * Starts the platform confirmation UI for an already-created PaymentIntent.
  * The callback must be invoked exactly once when the UI finishes or becomes unavailable.
  */
-expect fun launchStripeClientConfirmation(
+expect fun launchBrowserStripeClientConfirmation(
     session: PaymentSessionDto,
     onResult: (StripeConfirmationResult) -> Unit,
 )
@@ -58,4 +58,4 @@ expect fun launchStripeClientConfirmation(
  * Consume and clean Stripe's redirect result, if the browser returned from an external
  * authentication step. Implementations must not return or persist the PaymentIntent client secret.
  */
-expect fun consumeStripeClientReturn(): StripeConfirmationReturn?
+expect fun consumeBrowserStripeClientReturn(): StripeConfirmationReturn?
