@@ -88,12 +88,12 @@ class BrowserRefreshCookieSupport(
         response.addHeader(HttpHeaders.SET_COOKIE, buildCookie("", Duration.ZERO))
     }
 
-    private fun buildCookie(value: String, maxAge: Duration): String =
+    private fun buildCookie(
+        value: String,
+        maxAge: Duration,
+    ): String =
         ResponseCookie
-            .from(
-                cookieName,
-                value,
-            )
+            .from(cookieName, value)
             .httpOnly(true)
             .secure(secure)
             .path(COOKIE_PATH)
@@ -102,12 +102,14 @@ class BrowserRefreshCookieSupport(
             .build()
             .toString()
 
-    private fun matchesOrigin(configured: String, actual: String): Boolean =
-        configured == actual ||
-            (configured in LOCAL_DEVELOPMENT_ORIGIN_PATTERNS && PatternMatchUtils.simpleMatch(
-                configured,
-                actual,
-            ))
+    private fun matchesOrigin(
+        configured: String,
+        actual: String,
+    ): Boolean {
+        if (configured == actual) return true
+        return configured in LOCAL_DEVELOPMENT_ORIGIN_PATTERNS &&
+            PatternMatchUtils.simpleMatch(configured, actual)
+    }
 
     private companion object {
         const val WEB_AUTH_HEADER = "X-QMarket-Web-Auth"
