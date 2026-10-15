@@ -1,7 +1,7 @@
 import UIKit
 import SwiftUI
 import Shared
-import StripeCore
+import StripePayments
 import StripePaymentSheet
 
 /// Presents Stripe's native PaymentSheet while hosting the Compose application.

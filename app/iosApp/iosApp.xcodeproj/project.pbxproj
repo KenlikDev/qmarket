@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AB11CD22EF33AB44CD55EF66 /* StripeCore in Frameworks */ = {isa = PBXBuildFile; productRef = CD11EF22AB33CD44EF55AB66 /* StripeCore */; };
+		AB11CD22EF33AB44CD55EF66 /* StripePayments in Frameworks */ = {isa = PBXBuildFile; productRef = CD11EF22AB33CD44EF55AB66 /* StripePayments */; };
 		AB22CD33EF44AB55CD66EF77 /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = CD22EF33AB44CD55EF66AB77 /* StripePaymentSheet */; };
 /* End PBXBuildFile section */
 
@@ -46,7 +46,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AB11CD22EF33AB44CD55EF66 /* StripeCore in Frameworks */,
+				AB11CD22EF33AB44CD55EF66 /* StripePayments in Frameworks */,
 				AB22CD33EF44AB55CD66EF77 /* StripePaymentSheet in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -92,7 +92,7 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
-				CD11EF22AB33CD44EF55AB66 /* StripeCore */,
+				CD11EF22AB33CD44EF55AB66 /* StripePayments */,
 				CD22EF33AB44CD55EF66AB77 /* StripePaymentSheet */,
 			);
 			productName = iosApp;
@@ -392,10 +392,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		CD11EF22AB33CD44EF55AB66 /* StripeCore */ = {
+		CD11EF22AB33CD44EF55AB66 /* StripePayments */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = BC11DE22FA33BC44DE55FA66 /* XCRemoteSwiftPackageReference "stripe-ios-spm" */;
-			productName = StripeCore;
+			productName = StripePayments;
 		};
 		CD22EF33AB44CD55EF66AB77 /* StripePaymentSheet */ = {
 			isa = XCSwiftPackageProductDependency;
