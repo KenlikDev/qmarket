@@ -99,13 +99,13 @@ struct ComposeView: UIViewControllerRepresentable {
         let composeController = MainViewControllerKt.MainViewController(
             paymentHost: paymentHost,
             onConfirmStripePayment: { [weak hostController] orderId, providerId, clientSecret, publishableKey in
-                guard let hostController else { return false }
-                return hostController.presentStripePayment(
+                guard let hostController else { return KotlinBoolean(bool: false) }
+                return KotlinBoolean(bool: hostController.presentStripePayment(
                     orderId: orderId,
                     providerId: providerId,
                     clientSecret: clientSecret,
                     publishableKey: publishableKey
-                )
+                ))
             }
         )
         hostController.embed(composeController)
