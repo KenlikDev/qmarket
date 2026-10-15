@@ -24,7 +24,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart/orders; Bearer + refresh on 401 |
 | Clients UI | ✅ screens in `app/shared/.../ui/`; `App.kt` composition root |
-| Session persistence | ✅ platform SessionStore (Android EncryptedSharedPreferences / iOS Keychain / JVM file / JS localStorage; Wasm in-memory) |
+| Session persistence | ✅ platform SessionStore (Android Keystore-encrypted record / iOS Keychain / JVM file / JS memory-only access token + HttpOnly refresh cookie / Wasm in-memory) |
 | Compose UI tests (JVM) | ✅ shopper/admin screen coverage |
 | Stock concurrency | ✅ atomic UPDATE + IT |
 
