@@ -1,15 +1,15 @@
 package com.kenlikdev.qmarket
 
 import com.kenlikdev.qmarket.network.StripePaymentResult
-import platform.Foundation.NSUserDefaults
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import platform.Foundation.NSUserDefaults
 
 class IosStripePaymentHostTest {
     private val defaults = NSUserDefaults.standardUserDefaults
