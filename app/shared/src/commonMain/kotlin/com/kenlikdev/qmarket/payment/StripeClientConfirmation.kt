@@ -36,12 +36,10 @@ data class StripeConfirmationReturn(
 fun StripeConfirmationOutcome.toStripePaymentResult(): StripePaymentResult =
     when (this) {
         StripeConfirmationOutcome.SUCCEEDED,
-        StripeConfirmationOutcome.PROCESSING,
-        -> StripePaymentResult.COMPLETED
+        StripeConfirmationOutcome.PROCESSING -> StripePaymentResult.COMPLETED
         StripeConfirmationOutcome.CANCELLED -> StripePaymentResult.CANCELED
         StripeConfirmationOutcome.FAILED,
-        StripeConfirmationOutcome.UNAVAILABLE,
-        -> StripePaymentResult.FAILED
+        StripeConfirmationOutcome.UNAVAILABLE -> StripePaymentResult.FAILED
     }
 
 /** Whether this runtime has a real Stripe confirmation adapter, not merely session creation. */
