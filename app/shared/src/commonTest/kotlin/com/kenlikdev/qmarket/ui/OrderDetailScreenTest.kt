@@ -122,7 +122,7 @@ class OrderDetailScreenTest {
 
             onNodeWithTag("orderDetailPay").assertDoesNotExist()
             onNodeWithTag("orderPaymentUnavailable").assertExists()
-            onNodeWithText("Stripe payment is unavailable on this target. Use the Android app or a supported web browser.").assertExists()
+            onNodeWithText("Stripe payment is unavailable on this client. Use the Android app or the JS web app.").assertExists()
         }
 
     @Test
