@@ -174,7 +174,7 @@ fun OrderDetailScreen(
                                         }
                                     } else {
                                         Text(
-                                            "Stripe payment is only available in the Android app right now.",
+                                            "Stripe payment is unavailable on this target. Use the Android app or a supported web browser.",
                                             modifier = Modifier.testTag("orderPaymentUnavailable"),
                                         )
                                     }
