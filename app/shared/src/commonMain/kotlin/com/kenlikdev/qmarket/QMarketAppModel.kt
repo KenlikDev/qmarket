@@ -619,6 +619,10 @@ class QMarketAppModel(
     private suspend fun refreshOrderSnapshot(orderId: String) {
         val latest = api.getOrder(orderId)
         updateOrderSnapshot(latest)
+        // A browser payment-method redirect reloads the app from a clean in-memory session.
+        // Restore provider identity together with the order so an unpaid order can be retried
+        // without requiring the customer to press Refresh manually.
+        refreshPaymentProviderConfig()
     }
 
     private fun updateOrderSnapshot(order: OrderDto) {
