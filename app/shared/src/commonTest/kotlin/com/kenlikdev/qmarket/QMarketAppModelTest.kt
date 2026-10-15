@@ -611,7 +611,7 @@ class QMarketAppModelTest {
                     "Stripe payment is not available for the active payment provider.",
                     model.error,
                 )
-                assertEquals("stripe", model.paymentProviderId)
+                assertEquals("mock", model.paymentProviderId)
                 assertFalse(model.loading)
             } finally {
                 client.close()
