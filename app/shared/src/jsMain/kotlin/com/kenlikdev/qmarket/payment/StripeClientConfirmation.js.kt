@@ -11,9 +11,9 @@ import kotlin.js.asDynamic
  * result is only a UI hint. The order becomes PAID only after the server reconciles Stripe's
  * signed webhook and the client refreshes the order resource.
  */
-actual val supportsStripeClientConfirmation: Boolean = true
+actual val supportsBrowserStripeClientConfirmation: Boolean = true
 
-actual fun launchStripeClientConfirmation(
+actual fun launchBrowserStripeClientConfirmation(
     session: PaymentSessionDto,
     onResult: (StripeConfirmationResult) -> Unit,
 ) {
@@ -260,7 +260,7 @@ actual fun launchStripeClientConfirmation(
 
 /**
  * Build a return URL that carries only the order routing identifier. Stripe may append its own
- * redirect fields, including a PaymentIntent client secret; consumeStripeClientReturn removes
+ * redirect fields, including a PaymentIntent client secret; consumeBrowserStripeClientReturn removes
  * those fields from browser history before normal application requests resume.
  */
 private fun buildStripeReturnUrl(orderId: String): String {
@@ -273,7 +273,7 @@ private fun buildStripeReturnUrl(orderId: String): String {
     return url.href as String
 }
 
-actual fun consumeStripeClientReturn(): StripeConfirmationReturn? {
+actual fun consumeBrowserStripeClientReturn(): StripeConfirmationReturn? {
     val browserWindow = window.asDynamic()
     val url = js("new URL(window.location.href)") as dynamic
     val params = url.searchParams
