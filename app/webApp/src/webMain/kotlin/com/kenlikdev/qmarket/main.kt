@@ -18,18 +18,17 @@ fun main() {
     // Consume and scrub the URL before Compose/API requests run, then reload order state through QMarket.
     val returnedPayment = consumeStripeClientReturn()
     ComposeViewport {
-        var stripePaymentResult by
-            remember {
-                mutableStateOf(
-                    returnedPayment?.let {
-                        StripePaymentResultEvent(
-                            eventId = 1L,
-                            orderId = it.orderId,
-                            result = it.result.outcome.toStripePaymentResult(),
-                        )
-                    },
-                )
-            }
+        var stripePaymentResult by remember {
+            mutableStateOf(
+                returnedPayment?.let {
+                    StripePaymentResultEvent(
+                        eventId = 1L,
+                        orderId = it.orderId,
+                        result = it.result.outcome.toStripePaymentResult(),
+                    )
+                },
+            )
+        }
         var nextEventId by remember { mutableStateOf(2L) }
 
         App(
