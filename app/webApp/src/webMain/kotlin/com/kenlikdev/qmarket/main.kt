@@ -7,16 +7,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
 import com.kenlikdev.qmarket.network.StripePaymentResultEvent
-import com.kenlikdev.qmarket.payment.consumeStripeClientReturn
-import com.kenlikdev.qmarket.payment.launchStripeClientConfirmation
-import com.kenlikdev.qmarket.payment.supportsStripeClientConfirmation
+import com.kenlikdev.qmarket.payment.consumeBrowserStripeClientReturn
+import com.kenlikdev.qmarket.payment.launchBrowserStripeClientConfirmation
+import com.kenlikdev.qmarket.payment.supportsBrowserStripeClientConfirmation
 import com.kenlikdev.qmarket.payment.toStripePaymentResult
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     // Stripe may redirect the browser for 3DS or another payment-method authentication step.
     // Consume and scrub the URL before Compose/API requests run, then reload order state through QMarket.
-    val returnedPayment = consumeStripeClientReturn()
+    val returnedPayment = consumeBrowserStripeClientReturn()
     ComposeViewport {
         var stripePaymentResult by remember {
             mutableStateOf(
@@ -33,9 +33,9 @@ fun main() {
 
         App(
             onConfirmStripePayment =
-                if (supportsStripeClientConfirmation) {
+                if (supportsBrowserStripeClientConfirmation) {
                     { session ->
-                        launchStripeClientConfirmation(session) { result ->
+                        launchBrowserStripeClientConfirmation(session) { result ->
                             val eventId = nextEventId
                             nextEventId += 1L
                             stripePaymentResult =
