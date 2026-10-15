@@ -16,7 +16,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Unit / controller / integration tests | ✅ |
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
 | Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V18, app: `validate`, tests: Flyway |
-| Payments | ✅ mock flow in shared UI; Stripe server PaymentIntent/webhook infrastructure exists, but client confirmation is not implemented yet |
+| Payments | ✅ mock flow; Stripe PaymentIntent/webhook plus Android PaymentSheet and JS browser Payment Element; iOS, Desktop/JVM, and Wasm Stripe confirmation unavailable |
 | Profile (GET/PATCH /users/me) | ✅ |
 | Shipping addresses | ✅ |
 | catalog-api (ProductCatalog port) | ✅ |
@@ -24,7 +24,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Shared KMP DTOs (`core` api) | ✅ kotlinx.serialization |
 | Ktor ApiClient (shared) | ✅ auth/catalog/cart/orders; Bearer + refresh on 401 |
 | Clients UI | ✅ screens in `app/shared/.../ui/`; `App.kt` composition root |
-| Session persistence | ✅ platform SessionStore (Android EncryptedSharedPreferences / iOS Keychain / JVM file / JS localStorage; Wasm in-memory) |
+| Session persistence | ✅ platform SessionStore (Android Keystore-encrypted record / iOS Keychain / JVM file / JS memory-only access token + HttpOnly refresh cookie / Wasm in-memory) |
 | Compose UI tests (JVM) | ✅ shopper/admin screen coverage |
 | Stock concurrency | ✅ atomic UPDATE + IT |
 
@@ -77,7 +77,7 @@ POST   /api/v1/orders                 # { shippingAddress? | addressId?, custome
 GET    /api/v1/orders?page=0&size=20  # no sort param (Swagger sort=string broke JPA)
 GET    /api/v1/orders/{id}
 POST   /api/v1/orders/{id}/cancel
-POST   /api/v1/orders/{id}/pay     # local mock gateway; Stripe uses a separate client-confirmation flow (not implemented in shared UI yet)
+POST   /api/v1/orders/{id}/pay     # local mock gateway; Stripe uses Android PaymentSheet or JS browser Payment Element
 GET    /api/v1/orders/admin/all
 GET    /api/v1/orders/admin/{id}
 PUT    /api/v1/orders/admin/{id}/status  { "status": "CONFIRMED" }
@@ -104,7 +104,7 @@ Android emulator API host: `10.0.2.2:8080`
 1c. Addresses (list/add/delete; use on checkout)
 2. Add to cart (requires login)
 3. Cart → checkout with shipping address
-4. Pay is currently supported in the shared UI with the local mock provider. Stripe confirmation is not yet implemented in the shared UI; Stripe-configured orders remain pending.
+4. The shared UI supports mock payment. Stripe confirmation is available in the Android app (PaymentSheet) and JS browser (Stripe.js Payment Element); iOS, Desktop/JVM and Wasm remain unavailable. The server webhook—not the client callback—is authoritative for the PAID state. Test-mode browser/device smoke tests are still required before release.
 5. My orders — list/cancel pending orders; the generic Pay action appears only for the mock provider.
 
 ### Production notes

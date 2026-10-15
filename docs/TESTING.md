@@ -59,9 +59,11 @@ The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and 
 5. Android Stripe sandbox: create a session, complete a test payment requiring 3DS where available, and verify the UI does not show PAID until the server webhook has updated the order.
 6. Android Stripe sandbox: rotate/recreate the host Activity while PaymentSheet is open, then verify its result still refreshes the correct order without persisting/logging the client secret.
 7. Android Stripe sandbox: cancel the sheet and simulate a declined payment; verify the order remains PENDING, can be retried, and can still be cancelled.
-8. Android session-store migration: upgrade an install with existing EncryptedSharedPreferences, verify the session survives restart, and verify the old encrypted/plaintext preferences are cleared after migration.
-9. Android session-store migration: upgrade an install with only legacy plaintext keys; verify values are moved into the Keystore-backed canonical record and no plaintext keys remain.
-10. Android session-store logout: clear the session, force-stop/restart, and verify old split keys do not restore the session.
+8. JS browser Stripe sandbox: use a test PaymentIntent, exercise card success and a redirect/3DS payment method where available, return to QMarket, and verify the order is reloaded from the authenticated API rather than marked PAID from a browser callback. Verify the URL no longer contains `payment_intent_client_secret` after return.
+9. JS browser Stripe sandbox: simulate a decline/network failure, cancel the overlay, retry, and verify that unavailable Stripe.js or an unsupported Wasm target fails closed without marking the order paid.
+10. Android session-store migration: upgrade an install with existing EncryptedSharedPreferences, verify the session survives restart, and verify the old encrypted/plaintext preferences are cleared after migration.
+11. Android session-store migration: upgrade an install with only legacy plaintext keys; verify values are moved into the Keystore-backed canonical record and no plaintext keys remain.
+12. Android session-store logout: clear the session, force-stop/restart, and verify old split keys do not restore the session.
 
 
 ## Browser refresh-cookie smoke

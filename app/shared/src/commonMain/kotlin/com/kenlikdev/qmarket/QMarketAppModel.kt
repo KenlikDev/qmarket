@@ -540,8 +540,9 @@ class QMarketAppModel(
     }
 
     /**
-     * Creates a short-lived client session only on a platform that has an attached Stripe SDK.
-     * The caller must not invoke this action on unsupported targets.
+     * Creates a short-lived client session only when the current platform has an attached
+     * Stripe confirmation handler. The client secret remains in ephemeral model state and is
+     * passed only to that handler; unsupported targets must not request a PaymentIntent.
      */
     fun startPaymentSession(orderId: String) {
         if (paymentProviderId != "stripe") {
@@ -618,6 +619,10 @@ class QMarketAppModel(
     private suspend fun refreshOrderSnapshot(orderId: String) {
         val latest = api.getOrder(orderId)
         updateOrderSnapshot(latest)
+        // A browser payment-method redirect reloads the app from a clean in-memory session.
+        // Restore provider identity together with the order so an unpaid order can be retried
+        // without requiring the customer to press Refresh manually.
+        refreshPaymentProviderConfig()
     }
 
     private fun updateOrderSnapshot(order: OrderDto) {
