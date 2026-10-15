@@ -2,10 +2,10 @@ package com.kenlikdev.qmarket.payment
 
 import com.kenlikdev.qmarket.api.PaymentSessionDto
 
-actual val supportsStripeClientConfirmation: Boolean = false
+actual val supportsBrowserStripeClientConfirmation: Boolean = false
 
 /** Native/payment confirmation is wired by the corresponding platform host, not this adapter. */
-actual fun launchStripeClientConfirmation(
+actual fun launchBrowserStripeClientConfirmation(
     session: PaymentSessionDto,
     onResult: (StripeConfirmationResult) -> Unit,
 ) {
@@ -18,4 +18,4 @@ actual fun launchStripeClientConfirmation(
 }
 
 /** Non-browser targets have no Stripe redirect URL to consume. */
-actual fun consumeStripeClientReturn(): StripeConfirmationReturn? = null
+actual fun consumeBrowserStripeClientReturn(): StripeConfirmationReturn? = null
