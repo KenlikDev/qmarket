@@ -35,35 +35,40 @@ private final class StripePaymentHostViewController: UIViewController {
 
     /// Show PaymentSheet for an authenticated, server-created PaymentIntent.
     /// The client secret is passed directly to Stripe's SDK and is never persisted by QMarket.
-    func presentStripePayment(_ session: PaymentSessionDto) -> Bool {
+    func presentStripePayment(
+        orderId: String,
+        providerId: String,
+        clientSecret: String,
+        publishableKey: String
+    ) -> Bool {
         guard isViewLoaded, view.window != nil else { return false }
         guard activeOrderId == nil, paymentSheet == nil else { return false }
 
         let publishableKeyIsValid =
-            session.publishableKey.range(
+            publishableKey.range(
                 of: #"^pk_(test|live)_[A-Za-z0-9]+$"#,
                 options: .regularExpression
             ) != nil
-        guard session.providerId == "stripe",
-              !session.clientSecret.isEmpty,
+        guard providerId == "stripe",
+              !clientSecret.isEmpty,
               publishableKeyIsValid else {
-            paymentHost.publishPaymentResult(orderId: session.orderId, outcome: "failed")
+            paymentHost.publishPaymentResult(orderId: orderId, outcome: "failed")
             return true
         }
-        guard paymentHost.beginPayment(orderId: session.orderId) else { return false }
+        guard paymentHost.beginPayment(orderId: orderId) else { return false }
 
-        STPAPIClient.shared.publishableKey = session.publishableKey
+        STPAPIClient.shared.publishableKey = publishableKey
 
         var configuration = PaymentSheet.Configuration()
         configuration.merchantDisplayName = "QMarket"
         configuration.returnURL = "com.kenlikdev.qmarket.stripe://stripe-redirect"
 
         let sheet = PaymentSheet(
-            paymentIntentClientSecret: session.clientSecret,
+            paymentIntentClientSecret: clientSecret,
             configuration: configuration
         )
         paymentSheet = sheet
-        activeOrderId = session.orderId
+        activeOrderId = orderId
         sheet.present(from: self) { [weak self] result in
             guard let self else { return }
             let orderId = self.activeOrderId
@@ -93,9 +98,14 @@ struct ComposeView: UIViewControllerRepresentable {
         let hostController = StripePaymentHostViewController(paymentHost: paymentHost)
         let composeController = MainViewControllerKt.MainViewController(
             paymentHost: paymentHost,
-            onConfirmStripePayment: { [weak hostController] session in
+            onConfirmStripePayment: { [weak hostController] orderId, providerId, clientSecret, publishableKey in
                 guard let hostController else { return false }
-                return hostController.presentStripePayment(session)
+                return hostController.presentStripePayment(
+                    orderId: orderId,
+                    providerId: providerId,
+                    clientSecret: clientSecret,
+                    publishableKey: publishableKey
+                )
             }
         )
         hostController.embed(composeController)
