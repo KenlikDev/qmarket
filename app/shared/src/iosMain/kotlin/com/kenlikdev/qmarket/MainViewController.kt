@@ -6,15 +6,28 @@ import com.kenlikdev.qmarket.api.PaymentSessionDto
 /**
  * iOS Compose host.
  *
- * Swift owns the native Stripe PaymentSheet UI and calls it only after the shared model asks
- * for a server-created payment session. The result returns to Compose through [paymentHost].
+ * Swift owns the native Stripe PaymentSheet UI. Pass only primitive values across the Swift
+ * interop boundary because the DTO's declaring module is not exported by the Shared framework.
+ * The client secret stays in memory and is never stored by the host.
  */
 fun MainViewController(
     paymentHost: IosStripePaymentHost,
-    onConfirmStripePayment: (PaymentSessionDto) -> Boolean,
+    onConfirmStripePayment: (
+        orderId: String,
+        providerId: String,
+        clientSecret: String,
+        publishableKey: String,
+    ) -> Boolean,
 ) = ComposeUIViewController {
     App(
-        onConfirmStripePayment = onConfirmStripePayment,
+        onConfirmStripePayment = { session: PaymentSessionDto ->
+            onConfirmStripePayment(
+                session.orderId,
+                session.providerId,
+                session.clientSecret,
+                session.publishableKey,
+            )
+        },
         stripePaymentResult = paymentHost.stripePaymentResult,
         onStripePaymentResultConsumed = { eventId -> paymentHost.consumePaymentResult(eventId) },
     )
