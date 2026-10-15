@@ -549,12 +549,21 @@ class QMarketAppModelTest {
                 """{"id":"order-1","userId":"user-1","status":"PENDING","totalAmount":"10.00","items":[]}"""
             val engine =
                 MockEngine { request ->
-                    assertEquals("/api/v1/orders/order-1", request.url.fullPath)
-                    respond(
-                        content = ByteReadChannel(orderJson),
-                        status = HttpStatusCode.OK,
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                    )
+                    when (request.url.fullPath) {
+                        "/api/v1/orders/order-1" ->
+                            respond(
+                                content = ByteReadChannel(orderJson),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        "/api/v1/payments/config" ->
+                            respond(
+                                content = ByteReadChannel("""{"providerId":"stripe"}"""),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        else -> error("Unexpected path: ${request.url.fullPath}")
+                    }
                 }
             val client = httpClient(engine)
             try {
@@ -565,8 +574,7 @@ class QMarketAppModelTest {
                         modelScope(),
                         restoredSession = false,
                     )
-                model.paymentProviderId = "stripe"
-
+                // A full-page browser redirect recreates the app model with no cached provider identity.
                 model.handleStripePaymentResult("order-1", StripePaymentResult.COMPLETED)
                 while (model.loading) kotlinx.coroutines.yield()
 
@@ -575,6 +583,7 @@ class QMarketAppModelTest {
                 assertTrue(model.statusMessage.orEmpty().contains("Waiting for verified server confirmation"))
                 assertNull(model.paymentSession)
                 assertNull(model.error)
+                assertEquals("stripe", model.paymentProviderId)
             } finally {
                 client.close()
             }
@@ -602,6 +611,7 @@ class QMarketAppModelTest {
                     "Stripe payment is not available for the active payment provider.",
                     model.error,
                 )
+                assertEquals("stripe", model.paymentProviderId)
                 assertFalse(model.loading)
             } finally {
                 client.close()
@@ -662,12 +672,21 @@ class QMarketAppModelTest {
                 """{"id":"order-1","userId":"user-1","status":"PAID","totalAmount":"10.00","items":[]}"""
             val engine =
                 MockEngine { request ->
-                    assertEquals("/api/v1/orders/order-1", request.url.fullPath)
-                    respond(
-                        content = ByteReadChannel(paidOrderJson),
-                        status = HttpStatusCode.OK,
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                    )
+                    when (request.url.fullPath) {
+                        "/api/v1/orders/order-1" ->
+                            respond(
+                                content = ByteReadChannel(paidOrderJson),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        "/api/v1/payments/config" ->
+                            respond(
+                                content = ByteReadChannel("""{"providerId":"stripe"}"""),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        else -> error("Unexpected path: ${request.url.fullPath}")
+                    }
                 }
             val client = httpClient(engine)
             try {
@@ -686,6 +705,7 @@ class QMarketAppModelTest {
                 assertEquals("PAID", model.detailOrder?.status?.name)
                 assertEquals("Payment confirmed by the server.", model.statusMessage)
                 assertNull(model.error)
+                assertEquals("stripe", model.paymentProviderId)
             } finally {
                 client.close()
             }
@@ -698,12 +718,21 @@ class QMarketAppModelTest {
                 """{"id":"order-1","userId":"user-1","status":"PENDING","totalAmount":"10.00","items":[]}"""
             val engine =
                 MockEngine { request ->
-                    assertEquals("/api/v1/orders/order-1", request.url.fullPath)
-                    respond(
-                        content = ByteReadChannel(pendingOrderJson),
-                        status = HttpStatusCode.OK,
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                    )
+                    when (request.url.fullPath) {
+                        "/api/v1/orders/order-1" ->
+                            respond(
+                                content = ByteReadChannel(pendingOrderJson),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        "/api/v1/payments/config" ->
+                            respond(
+                                content = ByteReadChannel("""{"providerId":"stripe"}"""),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        else -> error("Unexpected path: ${request.url.fullPath}")
+                    }
                 }
             val client = httpClient(engine)
             try {
