@@ -17,7 +17,7 @@ CI additionally runs:
 ./gradlew :app:androidApp:assembleDebug :app:androidApp:testDebugUnitTest :app:desktopApp:compileKotlin :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs :app:webApp:compileKotlinJs :app:webApp:compileKotlinWasmJs --parallel --no-daemon
 ```
 
-The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. These are compile checks, not full device/browser runtime or end-to-end checks. Secret scanning is also required by the protected-branch ruleset.
+The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. The iOS jobs compile the Kotlin/Native framework and build the Xcode application, including the native Stripe PaymentSheet Swift Package. These are compile checks, not full device/browser runtime or end-to-end checks. Secret scanning is also required by the protected-branch ruleset.
 
 | Layer | Where | What it proves |
 |-------|--------|----------------|
@@ -46,7 +46,7 @@ The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and 
 ## UI / multi-device
 
 1. **Current**: JVM logic/API/Compose tests (`./gradlew :app:shared:jvmTest`).
-2. **Current CI platform verification**: Android Debug, Desktop/JVM, shared JS/Wasm, web-app JS/Wasm, and iOS simulator compilation.
+2. **Current CI platform verification**: Android Debug, Desktop/JVM, shared JS/Wasm, web-app JS/Wasm, iOS simulator Kotlin/Native compilation, and Xcode iOS app build with Stripe PaymentSheet via Swift Package Manager.
 3. **Next**: Android instrumented Compose tests and broader device/browser runtime coverage.
 4. **Later**: screenshot tests and full E2E on devices.
 
@@ -73,3 +73,12 @@ The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and 
 3. Confirm logout clears the cookie and a subsequent reload does not restore the previous session.
 4. Verify an untrusted Origin is rejected for cookie refresh/logout. Configure exact `QMARKET_WEB_AUTH_ALLOWED_ORIGINS` and matching `CORS_ORIGINS` before browser runtime testing.
 5. Upgrading from the older JS client removes the token-bearing legacy `localStorage` keys; the user must sign in again once.
+
+
+## iOS Stripe sandbox smoke
+
+1. Run the iOS app on a simulator/device with a test API environment and Stripe test keys.
+2. Open a pending order and tap **Pay securely with Stripe**; verify PaymentSheet opens once and refuses a second session while it is active.
+3. Complete a test payment including a 3DS/redirect flow where available; verify the registered return URL is handled and the shared model reloads the order from the API.
+4. Cancel and run a declined/test failure; verify the order remains PENDING and the UI offers retry/cancel without claiming PAID before server webhook reconciliation.
+5. Confirm the client secret is only passed in memory to PaymentSheet, never persisted/logged, and that the app's registered return URL has the scheme `com.kenlikdev.qmarket.stripe`.

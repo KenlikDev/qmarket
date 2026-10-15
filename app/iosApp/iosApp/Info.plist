@@ -8,5 +8,16 @@
 	<string>$(QMARKET_API_BASE_URL)</string>
 	<key>QMARKET_BUILD_CONFIGURATION</key>
 	<string>$(CONFIGURATION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.kenlikdev.qmarket.stripe</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.kenlikdev.qmarket.stripe</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -16,7 +16,7 @@ Plan and versions: [docs/ROADMAP.md](docs/ROADMAP.md)
 | Unit / controller / integration tests | ✅ |
 | ktlint, JaCoCo, Swagger Authorize | ✅ |
 | Flyway SoT (`spring-boot-starter-flyway`) | ✅ V1–V18, app: `validate`, tests: Flyway |
-| Payments | ✅ mock flow; Stripe PaymentIntent/webhook plus Android PaymentSheet and JS browser Payment Element; iOS, Desktop/JVM, and Wasm Stripe confirmation unavailable |
+| Payments | ✅ mock flow; Stripe PaymentIntent/webhook plus Android/iOS PaymentSheet and JS browser Payment Element; Desktop/JVM and Wasm Stripe confirmation unavailable |
 | Profile (GET/PATCH /users/me) | ✅ |
 | Shipping addresses | ✅ |
 | catalog-api (ProductCatalog port) | ✅ |
@@ -77,7 +77,7 @@ POST   /api/v1/orders                 # { shippingAddress? | addressId?, custome
 GET    /api/v1/orders?page=0&size=20  # no sort param (Swagger sort=string broke JPA)
 GET    /api/v1/orders/{id}
 POST   /api/v1/orders/{id}/cancel
-POST   /api/v1/orders/{id}/pay     # local mock gateway; Stripe uses Android PaymentSheet or JS browser Payment Element
+POST   /api/v1/orders/{id}/pay     # local mock gateway; Stripe uses Android/iOS PaymentSheet or JS browser Payment Element
 GET    /api/v1/orders/admin/all
 GET    /api/v1/orders/admin/{id}
 PUT    /api/v1/orders/admin/{id}/status  { "status": "CONFIRMED" }
@@ -104,7 +104,7 @@ Android emulator API host: `10.0.2.2:8080`
 1c. Addresses (list/add/delete; use on checkout)
 2. Add to cart (requires login)
 3. Cart → checkout with shipping address
-4. The shared UI supports mock payment. Stripe confirmation is available in the Android app (PaymentSheet) and JS browser (Stripe.js Payment Element); iOS, Desktop/JVM and Wasm remain unavailable. The server webhook—not the client callback—is authoritative for the PAID state. Test-mode browser/device smoke tests are still required before release.
+4. The shared UI supports mock payment. Stripe confirmation is available in Android and iOS (native PaymentSheet) and the JS browser (Stripe.js Payment Element); Desktop/JVM and Wasm remain unavailable. The server webhook—not the client callback—is authoritative for the PAID state. Test-mode browser/device smoke tests are still required before release.
 5. My orders — list/cancel pending orders; the generic Pay action appears only for the mock provider.
 
 ### Production notes

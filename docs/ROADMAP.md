@@ -104,7 +104,7 @@ Shopper: register, catalog, cart, order, payment (mock + 1 provider), confirmati
 Admin: products, orders, users.
 Platforms: Android + Web (+ Desktop); iOS in parallel.
 
-Still open for v1.0: distributed traces (optional); iOS and Desktop Stripe confirmation. Android PaymentSheet and JS browser Stripe.js Payment Element are implemented, but sandbox/device/browser smoke verification remains required before claiming production readiness.
+Still open for v1.0: distributed traces (optional) and Desktop/JVM Stripe confirmation. Android and iOS native PaymentSheet plus JS browser Stripe.js Payment Element are implemented; iOS/device/browser sandbox smoke verification remains required before claiming production readiness.
 Partially done: coverage gates (JaCoCo line ≥40% on `:server:order` + `:server:identity`; raise over time).
 Done: payment-session API (`POST /api/v1/orders/{id}/payment-session` → client_secret) for Payment Element.
 Done: correlation id (X-Correlation-Id / MDC), payment webhook Micrometer counters (`qmarket.payment.webhook.*`, `qmarket.payment.order.paid_from_provider`).
