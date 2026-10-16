@@ -1,9 +1,11 @@
 package com.kenlikdev.qmarket.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -377,7 +379,6 @@ class AdminScreenTest {
             var editClicked = false
             setContent {
                 AdminScreen(
-                    isFullAdmin = true,
                     categories = listOf(category),
                     categoryName = "Electronics",
                     categorySlug = "electronics",
@@ -689,12 +690,12 @@ class AdminScreenTest {
 
             onNodeWithText("Store management").assertExists()
             onNodeWithTag("adminEditCategory").performScrollTo().assertExists()
-            onNodeWithTag("adminDeleteCategory").assertDoesNotExist()
+            onAllNodesWithTag("adminDeleteCategory").assertCountEquals(0)
             onNodeWithTag("adminCreateProduct").performScrollTo().assertExists()
             onNodeWithTag("adminEditProduct").performScrollTo().assertExists()
-            onNodeWithTag("adminDeleteProduct").assertDoesNotExist()
-            onNodeWithText("Users (1)").assertDoesNotExist()
-            onNodeWithTag("adminUserQuery").assertDoesNotExist()
+            onAllNodesWithTag("adminDeleteProduct").assertCountEquals(0)
+            onAllNodesWithText("Users (1)").assertCountEquals(0)
+            onAllNodesWithTag("adminUserQuery").assertCountEquals(0)
             onNodeWithTag("adminOrderStatus_CONFIRMED").performScrollTo().assertExists()
         }
 
