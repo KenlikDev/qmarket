@@ -379,6 +379,7 @@ class AdminScreenTest {
             var editClicked = false
             setContent {
                 AdminScreen(
+                    isFullAdmin = true,
                     categories = listOf(category),
                     categoryName = "Electronics",
                     categorySlug = "electronics",
@@ -633,7 +634,6 @@ class AdminScreenTest {
 
             setContent {
                 AdminScreen(
-                    isFullAdmin = true,
                     categories = listOf(category),
                     categoryName = "",
                     categorySlug = "",
