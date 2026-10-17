@@ -37,7 +37,7 @@ The `client-platform-check` job compiles Android Debug, Desktop/JVM, shared JS/W
 | Admin UI | `AdminScreenTest` | create/update form; delete; slugify |
 | Admin API client | `createProductParsesResponse` | POST /products envelope |
 | Payment lifecycle | `OrderPaymentServiceTest`, `OrderStatusConcurrencyTest`, scheduler tests | expiry, cancellation recovery, webhook race, terminal operation-state invariants |
-| iOS Stripe payment host | `IosStripePaymentHostTest` (`iosSimulatorArm64Test`) | single active payment, stale callback rejection, one-shot result handling, pending-order recovery after process restart without persisting the client secret |
+| iOS Stripe payment host | `IosStripePaymentHostTest` (`iosSimulatorArm64Test`) | single active payment, stale callback rejection, one-shot result handling, pending-order recovery after process restart without persisting the client secret or pretending the SDK completed |
 | Durable data retention | `DataRetentionCleanupSchedulerTest`, `DataRetentionIntegrationTest` | configurable retention windows, bounded batch cleanup, and non-deletion of fresh rows |
 
 ## API correctness

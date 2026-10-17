@@ -81,7 +81,7 @@ class IosStripePaymentHostTest {
         val event = assertNotNull(restoredHost.stripePaymentResult)
 
         assertEquals("order-after-restart", event.orderId)
-        assertEquals(StripePaymentResult.COMPLETED, event.result)
+        assertEquals(StripePaymentResult.RECOVERY_REQUIRED, event.result)
         assertEquals("order-after-restart", defaults.stringForKey(PENDING_ORDER_ID_KEY))
 
         restoredHost.consumePaymentResult(event.eventId)

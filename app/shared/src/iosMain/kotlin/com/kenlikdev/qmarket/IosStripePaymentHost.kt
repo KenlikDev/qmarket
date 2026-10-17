@@ -76,7 +76,7 @@ class IosStripePaymentHost {
         return StripePaymentResultEvent(
             eventId = 1L,
             orderId = orderId,
-            result = StripePaymentResult.COMPLETED,
+            result = StripePaymentResult.RECOVERY_REQUIRED,
         )
     }
 
