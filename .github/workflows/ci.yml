@@ -94,6 +94,9 @@ jobs:
       - name: Grant gradlew
         run: chmod +x gradlew
 
+      - name: Verify Stripe return secret redaction before asset requests
+        run: bash scripts/check-web-stripe-return-security.sh
+
       - name: Compile Android, Desktop, JS and Wasm client targets
         run: >
           ./gradlew

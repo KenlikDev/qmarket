@@ -278,7 +278,8 @@ actual fun consumeBrowserStripeClientReturn(): StripeConfirmationReturn? {
     val url = js("new URL(window.location.href)")
     val params = url.searchParams
     val hasStripeReturnFields =
-        (params.has("payment_intent") as Boolean) ||
+        (params.has("qmarketStripeReturn") as Boolean) ||
+            (params.has("payment_intent") as Boolean) ||
             (params.has("payment_intent_client_secret") as Boolean) ||
             (params.has("redirect_status") as Boolean)
     if (!hasStripeReturnFields) return null
@@ -288,6 +289,7 @@ actual fun consumeBrowserStripeClientReturn(): StripeConfirmationReturn? {
 
     // Do not leave Stripe's redirect credentials in the address bar/history. The application
     // never needs payment_intent_client_secret to verify the order; the authenticated API does that.
+    params.delete("qmarketStripeReturn")
     params.delete("qmarketOrderId")
     params.delete("payment_intent")
     params.delete("payment_intent_client_secret")

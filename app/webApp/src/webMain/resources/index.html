@@ -3,7 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>QMarket</title>
+    <script>
+        // Stripe may return its PaymentIntent client secret in the navigation query.
+        // Remove it before stylesheets or the compiled app are requested. Keep only a
+        // non-secret marker so the Kotlin app can consume the remaining result and order id.
+        (() => {
+            const url = new URL(window.location.href);
+            const params = url.searchParams;
+            if (!params.has("payment_intent_client_secret")) return;
+            params.delete("payment_intent_client_secret");
+            params.set("qmarketStripeReturn", "1");
+            window.history.replaceState(null, document.title, `${url.pathname}${url.search}${url.hash}`);
+        })();
+    </script>
     <link type="text/css" rel="stylesheet" href="styles.css">
 </head>
 <body style="text-align: center; align-content: center">
