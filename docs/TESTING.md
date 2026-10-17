@@ -14,6 +14,7 @@ CI additionally runs:
 ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 ./gradlew :server:order:jacocoTestCoverageVerification :server:identity:jacocoTestCoverageVerification --parallel --no-daemon
 ./gradlew :app:shared:compileKotlinIosSimulatorArm64 --no-daemon
+bash scripts/check-web-stripe-return-security.sh
 ./gradlew :app:shared:iosSimulatorArm64Test --no-daemon
 ./gradlew :app:androidApp:assembleDebug :app:androidApp:testDebugUnitTest :app:desktopApp:compileKotlin :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs :app:webApp:compileKotlinJs :app:webApp:compileKotlinWasmJs --parallel --no-daemon
 ```
@@ -76,6 +77,12 @@ The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and 
 4. Verify an untrusted Origin is rejected for cookie refresh/logout. Configure exact `QMARKET_WEB_AUTH_ALLOWED_ORIGINS` and matching `CORS_ORIGINS` before browser runtime testing.
 5. Upgrading from the older JS client removes the token-bearing legacy `localStorage` keys; the user must sign in again once.
 
+
+## Browser Stripe return URL protection
+
+- CI runs `bash scripts/check-web-stripe-return-security.sh` to ensure the early referrer policy and inline client-secret redaction remain before stylesheet/app asset requests, and that the Kotlin adapter consumes the sanitized marker.
+- This guard only prevents the secret being retained in the page URL/history after the HTML is parsed and being forwarded as a Referer. It cannot prevent the first document request from being recorded with its query string; production CDN/static-host access logs must redact query strings or the deployment must use a host-specific safe return route.
+- Manually verify that after a Stripe redirect, `payment_intent_client_secret` is absent before the web app requests its JS/CSS assets and that the order is reloaded from the authenticated API.
 
 ## iOS Stripe sandbox smoke
 
