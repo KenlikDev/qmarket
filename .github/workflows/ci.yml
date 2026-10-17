@@ -109,7 +109,7 @@ jobs:
           :app:webApp:compileKotlinWasmJs
           --parallel --no-daemon
 
-  test:
+  server-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -148,3 +148,39 @@ jobs:
             server/build/reports/jacoco/
           if-no-files-found: ignore
           retention-days: 14
+
+  # The repository's branch rulesets require the "test" status context. Keep this job as the
+  # aggregate required gate so a green server test cannot mask a failed client or iOS build.
+  test:
+    if: ${{ always() }}
+    needs:
+      - server-tests
+      - client-platform-check
+      - ios-native-check
+      - ios-app-check
+      - secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every CI job to pass
+        env:
+          SERVER_TESTS_RESULT: ${{ needs.server-tests.result }}
+          CLIENT_PLATFORM_RESULT: ${{ needs.client-platform-check.result }}
+          IOS_NATIVE_RESULT: ${{ needs.ios-native-check.result }}
+          IOS_APP_RESULT: ${{ needs.ios-app-check.result }}
+          SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}
+        run: |
+          set -euo pipefail
+          failed=0
+          for result in \
+            "$SERVER_TESTS_RESULT" \
+            "$CLIENT_PLATFORM_RESULT" \
+            "$IOS_NATIVE_RESULT" \
+            "$IOS_APP_RESULT" \
+            "$SECRET_SCAN_RESULT"; do
+            if [[ "$result" != "success" ]]; then
+              echo "::error::A required CI job finished with result '$result' (expected 'success')."
+              failed=1
+            fi
+          done
+          exit "$failed"
