@@ -190,7 +190,7 @@ class OrdersScreenTest {
 
             onNodeWithTag("orderPay").assertDoesNotExist()
             onNodeWithTag("orderViewPaymentStatus").assertDoesNotExist()
-            onNodeWithTag("orderPaymentUnavailable").assertExists()
+            onNodeWithText("Payment unavailable").assertExists()
             onNodeWithTag("orderCancel").assertExists()
         }
 
