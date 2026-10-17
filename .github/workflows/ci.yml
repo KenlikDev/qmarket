@@ -97,9 +97,11 @@ jobs:
       - name: Verify Stripe return secret redaction before asset requests
         run: bash scripts/check-web-stripe-return-security.sh
 
-      - name: Compile Android, Desktop, JS and Wasm client targets
+      - name: Run shared JVM tests and compile client targets
+        # Compose UI tests run against a virtual display on the Linux runner.
         run: >
-          ./gradlew
+          xvfb-run -a ./gradlew
+          :app:shared:jvmTest
           :app:androidApp:assembleDebug
           :app:androidApp:testDebugUnitTest
           :app:desktopApp:compileKotlin
