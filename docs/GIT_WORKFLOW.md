@@ -159,7 +159,7 @@ After the GitHub UI changes:
 
 1. Open Settings → Rules → Rulesets or Settings → Branches and verify the three branch policies.
 2. Confirm main, develop, and ai/integration are covered by protection/rulesets.
-3. Confirm test + secret-scan are required on all three protected branches; confirm ios-native-check is either required or explicitly advisory.
+3. Confirm `test` and `secret-scan` are required on all three protected branches. The required `test` status must remain the aggregate gate for `server-tests`, `client-platform-check`, `ios-native-check`, `ios-app-check`, and `secret-scan`; verify that a simulated failure of each underlying job makes the aggregate `test` check fail.
 4. Verify direct pushes to main and develop are rejected.
 5. Verify a temporary PR can be merged into ai/integration after required checks pass.
 6. Verify merged temporary branches are automatically deleted.
