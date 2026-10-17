@@ -44,6 +44,10 @@ private final class StripePaymentHostViewController: UIViewController {
         guard isViewLoaded, view.window != nil else { return false }
         guard activeOrderId == nil, paymentSheet == nil else { return false }
 
+        // Reserve the order before validation so even a rejected server session can report
+        // a one-shot failure through the same guarded callback path.
+        guard paymentHost.beginPayment(orderId: orderId) else { return false }
+
         let publishableKeyIsValid =
             publishableKey.range(
                 of: #"^pk_(test|live)_[A-Za-z0-9]+$"#,
@@ -55,7 +59,6 @@ private final class StripePaymentHostViewController: UIViewController {
             paymentHost.publishPaymentResult(orderId: orderId, outcome: "failed")
             return true
         }
-        guard paymentHost.beginPayment(orderId: orderId) else { return false }
 
         STPAPIClient.shared.publishableKey = publishableKey
 

@@ -14,10 +14,11 @@ CI additionally runs:
 ./gradlew test ktlintCheck jacocoTestReport --parallel --no-daemon
 ./gradlew :server:order:jacocoTestCoverageVerification :server:identity:jacocoTestCoverageVerification --parallel --no-daemon
 ./gradlew :app:shared:compileKotlinIosSimulatorArm64 --no-daemon
+./gradlew :app:shared:iosSimulatorArm64Test --no-daemon
 ./gradlew :app:androidApp:assembleDebug :app:androidApp:testDebugUnitTest :app:desktopApp:compileKotlin :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs :app:webApp:compileKotlinJs :app:webApp:compileKotlinWasmJs --parallel --no-daemon
 ```
 
-The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. The iOS jobs compile the Kotlin/Native framework and build the Xcode application, including the native Stripe PaymentSheet Swift Package. These are compile checks, not full device/browser runtime or end-to-end checks. Secret scanning is also required by the protected-branch ruleset.
+The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. The iOS CI job compiles the Kotlin/Native framework and runs `iosSimulatorArm64Test`, including state/recovery tests for the native Stripe payment host; the Xcode job builds the full iOS app and Stripe PaymentSheet Swift Package. These are automated compile/unit checks, not a substitute for full device/browser payment sandbox tests. Secret scanning is also required by the protected-branch ruleset.
 
 | Layer | Where | What it proves |
 |-------|--------|----------------|
@@ -35,6 +36,7 @@ The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and 
 | Admin UI | `AdminScreenTest` | create/update form; delete; slugify |
 | Admin API client | `createProductParsesResponse` | POST /products envelope |
 | Payment lifecycle | `OrderPaymentServiceTest`, `OrderStatusConcurrencyTest`, scheduler tests | expiry, cancellation recovery, webhook race, terminal operation-state invariants |
+| iOS Stripe payment host | `IosStripePaymentHostTest` (`iosSimulatorArm64Test`) | single active payment, stale callback rejection, one-shot result handling, pending-order recovery after process restart without persisting the client secret |
 | Durable data retention | `DataRetentionCleanupSchedulerTest`, `DataRetentionIntegrationTest` | configurable retention windows, bounded batch cleanup, and non-deletion of fresh rows |
 
 ## API correctness
