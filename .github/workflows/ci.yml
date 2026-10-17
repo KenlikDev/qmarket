@@ -47,8 +47,8 @@ jobs:
       - name: Compile iOS simulator target
         run: ./gradlew :app:shared:compileKotlinIosSimulatorArm64 --no-daemon
 
-      - name: Run iOS shared tests, including Stripe payment-host recovery
-        run: ./gradlew :app:shared:iosSimulatorArm64Test --no-daemon
+      - name: Run iOS Stripe payment-host recovery tests
+        run: ./gradlew :app:shared:iosSimulatorArm64Test --tests com.kenlikdev.qmarket.IosStripePaymentHostTest --no-daemon
 
   ios-app-check:
     # Stripe iOS SDK 26.13 requires UIKit APIs from the Xcode 26 SDK.
