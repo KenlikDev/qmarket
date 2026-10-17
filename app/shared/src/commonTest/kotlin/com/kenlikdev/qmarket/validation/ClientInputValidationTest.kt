@@ -56,7 +56,7 @@ class ClientInputValidationTest {
             "+7 (999) 123-45.67",
             ClientInputValidation.filterPhoneInput("+7 (999) 123-45.67+abc/"),
         )
-        assertEquals("79991234567", ClientInputValidation.filterPhoneInput("7999abc12345"))
+        assertEquals("79991234567", ClientInputValidation.filterPhoneInput("7999abc1234567"))
     }
 
 }
