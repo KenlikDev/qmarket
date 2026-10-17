@@ -16,10 +16,11 @@ CI additionally runs:
 ./gradlew :app:shared:compileKotlinIosSimulatorArm64 --no-daemon
 bash scripts/check-web-stripe-return-security.sh
 ./gradlew :app:shared:iosSimulatorArm64Test --no-daemon
+xvfb-run -a ./gradlew :app:shared:jvmTest --no-daemon
 ./gradlew :app:androidApp:assembleDebug :app:androidApp:testDebugUnitTest :app:desktopApp:compileKotlin :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs :app:webApp:compileKotlinJs :app:webApp:compileKotlinWasmJs --parallel --no-daemon
 ```
 
-The `client-platform-check` job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. `ios-native-check` compiles the Kotlin/Native framework and runs `iosSimulatorArm64Test`, including state/recovery tests for the native Stripe payment host; `ios-app-check` builds the full iOS app and Stripe PaymentSheet Swift Package. The protected-branch-required `test` status is a final aggregate gate: it passes only when `server-tests`, `client-platform-check`, `ios-native-check`, `ios-app-check`, and `secret-scan` all succeed. These automated checks are not a substitute for full device/browser payment sandbox tests.
+The `client-platform-check` job runs `:app:shared:jvmTest` (the common KMP and JVM Compose/API/session-store tests) under Xvfb, then compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. `ios-native-check` compiles the Kotlin/Native framework and runs `iosSimulatorArm64Test`, including state/recovery tests for the native Stripe payment host; `ios-app-check` builds the full iOS app and Stripe PaymentSheet Swift Package. The protected-branch-required `test` status is a final aggregate gate: it passes only when `server-tests`, `client-platform-check`, `ios-native-check`, `ios-app-check`, and `secret-scan` all succeed. These automated checks are not a substitute for full device/browser payment sandbox tests.
 
 | Layer | Where | What it proves |
 |-------|--------|----------------|
