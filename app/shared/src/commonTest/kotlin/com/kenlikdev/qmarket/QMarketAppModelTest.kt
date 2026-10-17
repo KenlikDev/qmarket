@@ -590,6 +590,57 @@ class QMarketAppModelTest {
         }
 
     @Test
+    fun recoveryEventRefreshesOrderWithoutClaimingPaymentWasSubmitted() =
+        runBlocking {
+            val orderJson =
+                """{"id":"order-recovery","userId":"user-1","status":"PENDING","totalAmount":"10.00","items":[]}"""
+            val engine =
+                MockEngine { request ->
+                    when (request.url.fullPath) {
+                        "/api/v1/orders/order-recovery" ->
+                            respond(
+                                content = ByteReadChannel(orderJson),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        "/api/v1/payments/config" ->
+                            respond(
+                                content = ByteReadChannel("""{"providerId":"stripe"}"""),
+                                status = HttpStatusCode.OK,
+                                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                            )
+                        else -> error("Unexpected path: ${request.url.fullPath}")
+                    }
+                }
+            val client = httpClient(engine)
+            try {
+                val model =
+                    QMarketAppModel(
+                        QMarketApiClient(client),
+                        MutableTokenProvider(InMemorySessionStore()),
+                        modelScope(),
+                        restoredSession = false,
+                    )
+
+                model.handleStripePaymentResult("order-recovery", StripePaymentResult.RECOVERY_REQUIRED)
+                while (model.loading) kotlinx.coroutines.yield()
+
+                assertEquals(AppScreen.OrderDetail, model.screen)
+                assertEquals("PENDING", model.detailOrder?.status?.name)
+                assertEquals(
+                    "Payment status refreshed. The order is still pending; you can retry or cancel.",
+                    model.statusMessage,
+                )
+                assertFalse(model.statusMessage.orEmpty().contains("submitted"))
+                assertEquals("stripe", model.paymentProviderId)
+                assertNull(model.paymentSession)
+                assertNull(model.error)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
     fun stripeSessionIsNotRequestedWhenPaymentProviderIsNotStripe() =
         runBlocking {
             val engine = MockEngine { error("Payment API must not be called for the mock provider") }
