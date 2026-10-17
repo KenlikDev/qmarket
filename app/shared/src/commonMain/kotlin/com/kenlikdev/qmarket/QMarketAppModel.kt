@@ -619,7 +619,8 @@ class QMarketAppModel(
                     statusMessage =
                         when (detailOrder?.status?.name) {
                             "PAID" -> "Payment confirmed by the server."
-                            "PENDING" -> "Payment status refreshed. The order is still pending; you can retry or cancel."
+                            "PENDING" ->
+                                "Payment status refreshed. The order is still pending; you can retry or cancel."
                             else -> "Payment status refreshed from the server."
                         }
                 }
