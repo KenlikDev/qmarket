@@ -468,7 +468,7 @@ class QMarketAppModelTest {
             model.payOrder("order-1")
 
             assertEquals(
-                "Stripe payment confirmation is not implemented in this app yet.",
+                "Use the secure Stripe payment option for this order.",
                 model.error,
             )
             assertFalse(model.loading)
