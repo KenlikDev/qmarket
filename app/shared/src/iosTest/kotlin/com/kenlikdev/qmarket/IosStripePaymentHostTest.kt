@@ -61,6 +61,16 @@ class IosStripePaymentHostTest {
     }
 
     @Test
+    fun callbackWithoutAnActivePaymentIsIgnored() {
+        val host = IosStripePaymentHost()
+
+        host.publishPaymentResult(orderId = "stale-order", outcome = "completed")
+
+        assertNull(host.stripePaymentResult)
+        assertNull(defaults.stringForKey(PENDING_ORDER_ID_KEY))
+    }
+
+    @Test
     fun recreatedHostReconcilesThePendingOrderWithoutPersistingPaymentSecrets() {
         val originalHost = IosStripePaymentHost()
         assertTrue(originalHost.beginPayment("order-after-restart"))

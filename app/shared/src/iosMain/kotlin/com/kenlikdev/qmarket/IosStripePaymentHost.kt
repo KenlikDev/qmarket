@@ -36,7 +36,9 @@ class IosStripePaymentHost {
         outcome: String,
     ) {
         val pendingOrderId = defaults.stringForKey(KEY_PENDING_ORDER_ID)
-        if (pendingOrderId != null && pendingOrderId != orderId) return
+        // A callback is valid only while this order owns the active native sheet slot.
+        // Ignore late/duplicate callbacks after the pending order has already been consumed.
+        if (pendingOrderId != orderId) return
         if (stripePaymentResult != null) return
 
         val result =
