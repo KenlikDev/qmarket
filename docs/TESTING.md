@@ -19,7 +19,7 @@ bash scripts/check-web-stripe-return-security.sh
 ./gradlew :app:androidApp:assembleDebug :app:androidApp:testDebugUnitTest :app:desktopApp:compileKotlin :app:shared:compileKotlinJs :app:shared:compileKotlinWasmJs :app:webApp:compileKotlinJs :app:webApp:compileKotlinWasmJs --parallel --no-daemon
 ```
 
-The platform-build job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. The iOS CI job compiles the Kotlin/Native framework and runs `iosSimulatorArm64Test`, including state/recovery tests for the native Stripe payment host; the Xcode job builds the full iOS app and Stripe PaymentSheet Swift Package. These are automated compile/unit checks, not a substitute for full device/browser payment sandbox tests. Secret scanning is also required by the protected-branch ruleset.
+The `client-platform-check` job compiles Android Debug, Desktop/JVM, shared JS/Wasm, and web-app JS/Wasm targets. `ios-native-check` compiles the Kotlin/Native framework and runs `iosSimulatorArm64Test`, including state/recovery tests for the native Stripe payment host; `ios-app-check` builds the full iOS app and Stripe PaymentSheet Swift Package. The protected-branch-required `test` status is a final aggregate gate: it passes only when `server-tests`, `client-platform-check`, `ios-native-check`, `ios-app-check`, and `secret-scan` all succeed. These automated checks are not a substitute for full device/browser payment sandbox tests.
 
 | Layer | Where | What it proves |
 |-------|--------|----------------|
