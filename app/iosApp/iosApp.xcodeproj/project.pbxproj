@@ -386,7 +386,7 @@
 			repositoryURL = "https://github.com/stripe/stripe-ios-spm";
 			requirement = {
 				kind = exactVersion;
-				version = 26.13.0;
+				version = 26.14.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
