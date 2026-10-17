@@ -171,16 +171,40 @@ jobs:
           SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}
         run: |
           set -euo pipefail
-          failed=0
-          for result in \
-            "$SERVER_TESTS_RESULT" \
-            "$CLIENT_PLATFORM_RESULT" \
-            "$IOS_NATIVE_RESULT" \
-            "$IOS_APP_RESULT" \
-            "$SECRET_SCAN_RESULT"; do
-            if [[ "$result" != "success" ]]; then
-              echo "::error::A required CI job finished with result '$result' (expected 'success')."
-              failed=1
-            fi
+
+          require_all_success() {
+            local result
+            for result in "$@"; do
+              [[ "$result" == "success" ]] || return 1
+            done
+          }
+
+          # Self-test the gate's fail-closed behavior for every dependency.
+          require_all_success success success success success success
+          for bad_result in failure cancelled skipped; do
+            for index in 0 1 2 3 4; do
+              simulated=(success success success success success)
+              simulated[$index]="$bad_result"
+              if require_all_success "${simulated[@]}"; then
+                echo "::error::Aggregate gate accepted '$bad_result' for dependency index $index."
+                exit 1
+              fi
+            done
           done
-          exit "$failed"
+
+          labels=(server-tests client-platform-check ios-native-check ios-app-check secret-scan)
+          actual_results=(
+            "$SERVER_TESTS_RESULT"
+            "$CLIENT_PLATFORM_RESULT"
+            "$IOS_NATIVE_RESULT"
+            "$IOS_APP_RESULT"
+            "$SECRET_SCAN_RESULT"
+          )
+          if ! require_all_success "${actual_results[@]}"; then
+            for index in "${!labels[@]}"; do
+              if [[ "${actual_results[$index]}" != "success" ]]; then
+                echo "::error::Job '${labels[$index]}' finished with '${actual_results[$index]}' (expected 'success')."
+              fi
+            done
+            exit 1
+          fi
