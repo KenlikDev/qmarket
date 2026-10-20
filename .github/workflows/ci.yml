@@ -97,9 +97,11 @@ jobs:
       - name: Verify Stripe return secret redaction before asset requests
         run: bash scripts/check-web-stripe-return-security.sh
 
-      - name: Compile Android, Desktop, JS and Wasm client targets
+      - name: Run shared JVM tests and compile client targets
+        # Compose UI tests run against a virtual display on the Linux runner.
         run: >
-          ./gradlew
+          xvfb-run -a ./gradlew
+          :app:shared:jvmTest
           :app:androidApp:assembleDebug
           :app:androidApp:testDebugUnitTest
           :app:desktopApp:compileKotlin
@@ -108,6 +110,15 @@ jobs:
           :app:webApp:compileKotlinJs
           :app:webApp:compileKotlinWasmJs
           --parallel --no-daemon
+
+      - name: Upload shared JVM test report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: shared-jvm-test-report
+          path: app/shared/build/reports/tests/jvmTest/
+          if-no-files-found: ignore
+          retention-days: 7
 
   server-tests:
     runs-on: ubuntu-latest
